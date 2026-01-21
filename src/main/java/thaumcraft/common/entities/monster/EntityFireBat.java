@@ -1,261 +1,301 @@
 package thaumcraft.common.entities.monster;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.monster.EntityMob;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Items;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.Item;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import thaumcraft.init.ModEntities;
 
-public class EntityFireBat extends EntityMob
-{
+/**
+ * EntityFireBat - A flying fire mob that attacks players.
+ * Can hang from ceilings and has a chance to explode on attack.
+ * Immune to fire damage, takes damage from water.
+ */
+public class EntityFireBat extends Monster {
+    
+    private static final EntityDataAccessor<Boolean> DATA_HANGING = 
+            SynchedEntityData.defineId(EntityFireBat.class, EntityDataSerializers.BOOLEAN);
+    
     private BlockPos currentFlightTarget;
-    public EntityLivingBase owner;
-    private static DataParameter<Boolean> HANGING;
-    public int damBonus;
-    private int attackTime;
+    public LivingEntity owner;
+    public int damBonus = 0;
+    private int attackTime = 0;
     
-    public EntityFireBat(World par1World) {
-        super(par1World);
-        owner = null;
-        damBonus = 0;
-        setSize(0.5f, 0.9f);
-        setIsBatHanging(true);
-        isImmuneToFire = true;
+    public EntityFireBat(EntityType<? extends EntityFireBat> type, Level level) {
+        super(type, level);
+        this.setIsBatHanging(true);
     }
     
-    public void entityInit() {
-        super.entityInit();
-        getDataManager().register(EntityFireBat.HANGING, false);
+    public EntityFireBat(Level level) {
+        super(ModEntities.FIRE_BAT.get(), level);
+        this.setIsBatHanging(true);
     }
     
-    @SideOnly(Side.CLIENT)
-    public int getBrightnessForRender() {
-        return 15728880;
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 5.0)
+                .add(Attributes.ATTACK_DAMAGE, 1.0)
+                .add(Attributes.FLYING_SPEED, 0.5)
+                .add(Attributes.MOVEMENT_SPEED, 0.25);
     }
     
-    public float getBrightness() {
-        return 1.0f;
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_HANGING, false);
     }
     
+    @Override
+    public boolean fireImmune() {
+        return true;
+    }
+    
+    public boolean getIsBatHanging() {
+        return this.entityData.get(DATA_HANGING);
+    }
+    
+    public void setIsBatHanging(boolean hanging) {
+        this.entityData.set(DATA_HANGING, hanging);
+    }
+    
+    @Override
+    public float getLightLevelDependentMagicValue() {
+        return 1.0f; // Always fully bright
+    }
+    
+    @Override
     protected float getSoundVolume() {
         return 0.1f;
     }
     
-    protected float getSoundPitch() {
-        return super.getSoundPitch() * 0.95f;
+    @Override
+    public float getVoicePitch() {
+        return super.getVoicePitch() * 0.95f;
     }
     
+    @Override
     protected SoundEvent getAmbientSound() {
-        return (getIsBatHanging() && rand.nextInt(4) != 0) ? null : SoundEvents.ENTITY_BAT_AMBIENT;
+        return (getIsBatHanging() && random.nextInt(4) != 0) ? null : SoundEvents.BAT_AMBIENT;
     }
     
-    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-        return SoundEvents.ENTITY_BAT_HURT;
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return SoundEvents.BAT_HURT;
     }
     
+    @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.ENTITY_BAT_DEATH;
+        return SoundEvents.BAT_DEATH;
     }
     
-    public boolean canBePushed() {
+    @Override
+    public boolean isPushable() {
         return false;
     }
     
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(5.0);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(1.0);
-    }
-    
-    public boolean getIsBatHanging() {
-        return (boolean) getDataManager().get((DataParameter)EntityFireBat.HANGING);
-    }
-    
-    public void setIsBatHanging(boolean par1) {
-        getDataManager().set(EntityFireBat.HANGING, par1);
-    }
-    
-    public void onLivingUpdate() {
-        if (isWet()) {
-            attackEntityFrom(DamageSource.DROWN, 1.0f);
+    @Override
+    public void aiStep() {
+        // Take damage from water
+        if (isInWaterOrRain()) {
+            hurt(damageSources().drown(), 1.0f);
         }
-        super.onLivingUpdate();
+        super.aiStep();
     }
     
-    public void onUpdate() {
-        super.onUpdate();
+    @Override
+    public void tick() {
+        super.tick();
+        
         if (getIsBatHanging()) {
-            double motionX = 0.0;
-            motionZ = motionX;
-            motionY = motionX;
-            this.motionX = motionX;
-            posY = MathHelper.floor(posY) + 1.0 - height;
-        }
-        else {
-            motionY *= 0.6000000238418579;
+            // When hanging, don't move
+            setDeltaMovement(Vec3.ZERO);
+            setPos(getX(), Mth.floor(getY()) + 1.0 - getBbHeight(), getZ());
+        } else {
+            // When flying, reduce vertical momentum
+            Vec3 motion = getDeltaMovement();
+            setDeltaMovement(motion.x, motion.y * 0.6, motion.z);
         }
     }
     
-    protected void updateAITasks() {
-        super.updateAITasks();
+    @Override
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        
         if (attackTime > 0) {
-            --attackTime;
+            attackTime--;
         }
-        BlockPos blockpos = new BlockPos(this);
-        BlockPos blockpos2 = blockpos.up();
+        
+        BlockPos blockPos = blockPosition();
+        BlockPos abovePos = blockPos.above();
+        
         if (getIsBatHanging()) {
-            if (!world.getBlockState(blockpos2).isNormalCube()) {
+            // Check if we should stop hanging
+            if (!level().getBlockState(abovePos).isRedstoneConductor(level(), abovePos)) {
                 setIsBatHanging(false);
-                world.playEvent(null, 1025, blockpos, 0);
-            }
-            else {
-                if (rand.nextInt(200) == 0) {
-                    rotationYawHead = (float) rand.nextInt(360);
+                level().levelEvent(null, 1025, blockPos, 0);
+            } else {
+                // Randomly look around
+                if (random.nextInt(200) == 0) {
+                    setYHeadRot(random.nextInt(360));
                 }
-                if (world.getClosestPlayerToEntity(this, 4.0) != null) {
+                
+                // Wake up if player is nearby
+                Player nearbyPlayer = level().getNearestPlayer(this, 4.0);
+                if (nearbyPlayer != null) {
                     setIsBatHanging(false);
-                    world.playEvent(null, 1025, blockpos, 0);
+                    level().levelEvent(null, 1025, blockPos, 0);
                 }
             }
-        }
-        else if (getAttackTarget() == null) {
-            if (currentFlightTarget != null && (!world.isAirBlock(currentFlightTarget) || currentFlightTarget.getY() < 1)) {
+        } else if (getTarget() == null) {
+            // Wander around when no target
+            if (currentFlightTarget != null && 
+                    (!level().isEmptyBlock(currentFlightTarget) || currentFlightTarget.getY() < 1)) {
                 currentFlightTarget = null;
             }
-            if (currentFlightTarget == null || rand.nextInt(30) == 0 || getDistanceSqToCenter(currentFlightTarget) < 4.0) {
-                currentFlightTarget = new BlockPos((int) posX + rand.nextInt(7) - rand.nextInt(7), (int) posY + rand.nextInt(6) - 2, (int) posZ + rand.nextInt(7) - rand.nextInt(7));
+            
+            if (currentFlightTarget == null || random.nextInt(30) == 0 || 
+                    currentFlightTarget.distSqr(blockPos) < 4.0) {
+                currentFlightTarget = new BlockPos(
+                        (int)getX() + random.nextInt(7) - random.nextInt(7),
+                        (int)getY() + random.nextInt(6) - 2,
+                        (int)getZ() + random.nextInt(7) - random.nextInt(7));
             }
-            double var1 = currentFlightTarget.getX() + 0.5 - posX;
-            double var2 = currentFlightTarget.getY() + 0.1 - posY;
-            double var3 = currentFlightTarget.getZ() + 0.5 - posZ;
-            motionX += (Math.signum(var1) * 0.5 - motionX) * 0.10000000149011612;
-            motionY += (Math.signum(var2) * 0.699999988079071 - motionY) * 0.10000000149011612;
-            motionZ += (Math.signum(var3) * 0.5 - motionZ) * 0.10000000149011612;
-            float var4 = (float)(Math.atan2(motionZ, motionX) * 180.0 / 3.141592653589793) - 90.0f;
-            float var5 = MathHelper.wrapDegrees(var4 - rotationYaw);
-            moveForward = 0.5f;
-            rotationYaw += var5;
-            if (rand.nextInt(100) == 0 && world.getBlockState(blockpos2).isNormalCube()) {
+            
+            flyToward(currentFlightTarget.getX() + 0.5, currentFlightTarget.getY() + 0.1, currentFlightTarget.getZ() + 0.5);
+            
+            // Chance to hang again if there's a solid block above
+            if (random.nextInt(100) == 0 && level().getBlockState(abovePos).isRedstoneConductor(level(), abovePos)) {
                 setIsBatHanging(true);
             }
-        }
-        else {
-            double var1 = getAttackTarget().posX - posX;
-            double var2 = getAttackTarget().posY + getAttackTarget().getEyeHeight() * 0.66f - posY;
-            double var3 = getAttackTarget().posZ - posZ;
-            motionX += (Math.signum(var1) * 0.5 - motionX) * 0.10000000149011612;
-            motionY += (Math.signum(var2) * 0.699999988079071 - motionY) * 0.10000000149011612;
-            motionZ += (Math.signum(var3) * 0.5 - motionZ) * 0.10000000149011612;
-            float var4 = (float)(Math.atan2(motionZ, motionX) * 180.0 / 3.141592653589793) - 90.0f;
-            float var5 = MathHelper.wrapDegrees(var4 - rotationYaw);
-            moveForward = 0.5f;
-            rotationYaw += var5;
-        }
-        if (getAttackTarget() == null) {
-            setAttackTarget(findPlayerToAttack());
-        }
-        else if (getAttackTarget().isEntityAlive()) {
-            float f = getAttackTarget().getDistance(this);
-            if (isEntityAlive() && canEntityBeSeen(getAttackTarget())) {
-                attackEntity(getAttackTarget(), f);
+            
+            // Look for targets
+            setTarget(level().getNearestPlayer(this, 12.0));
+        } else {
+            // Chase target
+            LivingEntity target = getTarget();
+            flyToward(target.getX(), target.getEyeY() * 0.66 + target.getY() * 0.34, target.getZ());
+            
+            // Attack logic
+            if (target.isAlive() && hasLineOfSight(target)) {
+                float dist = distanceTo(target);
+                if (attackTime <= 0 && dist < Math.max(2.5f, target.getBbWidth() * 1.1f) && 
+                        target.getBoundingBox().maxY > getBoundingBox().minY && 
+                        target.getBoundingBox().minY < getBoundingBox().maxY) {
+                    
+                    attackTime = 20 + random.nextInt(20);
+                    
+                    // Small chance to explode on attack
+                    if (random.nextInt(10) == 0) {
+                        target.invulnerableTime = 0;
+                        level().explode(this, getX(), getY(), getZ(), 1.5f, Level.ExplosionInteraction.MOB);
+                        discard();
+                    } else {
+                        playSound(SoundEvents.BAT_HURT, 0.5f, 0.9f + random.nextFloat() * 0.2f);
+                        doHurtTarget(target);
+                    }
+                }
+            } else if (!target.isAlive()) {
+                setTarget(null);
+            }
+            
+            // Clear target if in creative mode
+            if (target instanceof Player player && player.getAbilities().invulnerable) {
+                setTarget(null);
             }
         }
-        else {
-            setAttackTarget(null);
-        }
-        if (getAttackTarget() instanceof EntityPlayer && ((EntityPlayer) getAttackTarget()).capabilities.disableDamage) {
-            setAttackTarget(null);
-        }
     }
     
-    protected boolean canTriggerWalking() {
-        return false;
+    private void flyToward(double x, double y, double z) {
+        double dx = x - getX();
+        double dy = y - getY();
+        double dz = z - getZ();
+        
+        Vec3 motion = getDeltaMovement();
+        setDeltaMovement(
+                motion.x + (Math.signum(dx) * 0.5 - motion.x) * 0.1,
+                motion.y + (Math.signum(dy) * 0.7 - motion.y) * 0.1,
+                motion.z + (Math.signum(dz) * 0.5 - motion.z) * 0.1);
+        
+        float yaw = (float)(Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0f;
+        float yawDiff = Mth.wrapDegrees(yaw - getYRot());
+        zza = 0.5f;
+        setYRot(getYRot() + yawDiff);
     }
     
-    public void fall(float par1, float damageMultiplier) {
-    }
-    
-    protected void updateFallState(double p_180433_1_, boolean p_180433_3_, IBlockState state, BlockPos pos) {
-    }
-    
-    public boolean doesEntityNotTriggerPressurePlate() {
+    @Override
+    protected boolean shouldDespawnInPeaceful() {
         return true;
     }
     
-    public boolean attackEntityFrom(DamageSource par1DamageSource, float par2) {
-        if (isEntityInvulnerable(par1DamageSource) || par1DamageSource.isFireDamage() || par1DamageSource.isExplosion()) {
+    @Override
+    public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
+        return false; // Flying mob doesn't take fall damage
+    }
+    
+    @Override
+    protected void checkFallDamage(double y, boolean onGround, BlockState state, BlockPos pos) {
+        // No fall damage
+    }
+    
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        if (isInvulnerableTo(source) || source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE) || 
+                source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION)) {
             return false;
         }
-        if (!world.isRemote && getIsBatHanging()) {
+        
+        if (!level().isClientSide && getIsBatHanging()) {
             setIsBatHanging(false);
         }
-        return super.attackEntityFrom(par1DamageSource, par2);
+        
+        return super.hurt(source, amount);
     }
     
-    protected void attackEntity(Entity entity, float par2) {
-        if (attackTime <= 0 && par2 < Math.max(2.5f, entity.width * 1.1f) && entity.getEntityBoundingBox().maxY > getEntityBoundingBox().minY && entity.getEntityBoundingBox().minY < getEntityBoundingBox().maxY) {
-            attackTime = 20 + world.rand.nextInt(20);
-            if (world.rand.nextInt(10) == 0 && !world.isRemote) {
-                entity.hurtResistantTime = 0;
-                world.newExplosion(this, posX, posY, posZ, 1.5f, false, false);
-                setDead();
-            }
-            playSound(SoundEvents.ENTITY_BAT_HURT, 0.5f, 0.9f + world.rand.nextFloat() * 0.2f);
-            attackEntityAsMob(entity);
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
+        super.dropCustomDeathLoot(source, lootingLevel, wasRecentlyHit);
+        // Drop gunpowder
+        if (random.nextInt(3) == 0) {
+            spawnAtLocation(new ItemStack(Items.GUNPOWDER));
         }
     }
     
-    protected EntityLivingBase findPlayerToAttack() {
-        double var1 = 12.0;
-        return world.getClosestPlayerToEntity(this, var1);
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("BatHanging", getIsBatHanging());
+        tag.putByte("DamBonus", (byte)damBonus);
     }
     
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        setIsBatHanging(nbt.getBoolean("hang"));
-        damBonus = nbt.getByte("damBonus");
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setIsBatHanging(tag.getBoolean("BatHanging"));
+        damBonus = tag.getByte("DamBonus");
     }
     
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        nbt.setBoolean("hang", getIsBatHanging());
-        nbt.setByte("damBonus", (byte) damBonus);
-    }
-    
-    public boolean getCanSpawnHere() {
-        int i = MathHelper.floor(posX);
-        int j = MathHelper.floor(getEntityBoundingBox().minY);
-        int k = MathHelper.floor(posZ);
-        BlockPos blockpos = new BlockPos(i, j, k);
-        int var4 = world.getLight(blockpos);
-        byte var5 = 7;
-        return var4 <= rand.nextInt(var5) && super.getCanSpawnHere();
-    }
-    
-    protected Item getDropItem() {
-        return Items.GUNPOWDER;
-    }
-    
-    protected boolean isValidLightLevel() {
-        return true;
-    }
-    
-    static {
-        HANGING = EntityDataManager.createKey(EntityFireBat.class, DataSerializers.BOOLEAN);
+    @Override
+    public boolean checkSpawnRules(net.minecraft.world.level.LevelAccessor level, net.minecraft.world.entity.MobSpawnType spawnType) {
+        BlockPos pos = blockPosition();
+        int light = level.getMaxLocalRawBrightness(pos);
+        return light <= random.nextInt(7) && super.checkSpawnRules(level, spawnType);
     }
 }

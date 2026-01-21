@@ -1,83 +1,106 @@
 package thaumcraft.common.blocks.crafting;
-import java.util.Random;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.client.particle.Particle;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.Thaumcraft;
-import thaumcraft.client.fx.ParticleEngine;
-import thaumcraft.client.fx.particles.FXGeneric;
-import thaumcraft.common.blocks.BlockTCDevice;
-import thaumcraft.common.blocks.IBlockFacingHorizontal;
-import thaumcraft.common.tiles.crafting.TileResearchTable;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class BlockResearchTable extends BlockTCDevice implements IBlockFacingHorizontal
-{
+import javax.annotation.Nullable;
+
+/**
+ * Research table for performing research and completing research notes.
+ * Placed on top of two tables to form a larger workstation.
+ */
+public class BlockResearchTable extends Block implements EntityBlock {
+
+    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+
+    // Table shape - flat surface
+    private static final VoxelShape SHAPE = Shapes.or(
+            Block.box(0.0, 12.0, 0.0, 16.0, 16.0, 16.0),  // Table top
+            Block.box(1.0, 0.0, 1.0, 4.0, 12.0, 4.0),     // Leg 1
+            Block.box(12.0, 0.0, 1.0, 15.0, 12.0, 4.0),   // Leg 2
+            Block.box(1.0, 0.0, 12.0, 4.0, 12.0, 15.0),   // Leg 3
+            Block.box(12.0, 0.0, 12.0, 15.0, 12.0, 15.0)  // Leg 4
+    );
+
     public BlockResearchTable() {
-        super(Material.WOOD, TileResearchTable.class, "research_table");
-        setSoundType(SoundType.WOOD);
+        super(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.WOOD)
+                .strength(2.0f)
+                .sound(SoundType.WOOD)
+                .noOcclusion());
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(FACING, Direction.NORTH));
     }
-    
+
     @Override
-    public int damageDropped(IBlockState state) {
-        return 0;
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING);
     }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean isSideSolid(IBlockState state, IBlockAccess world, BlockPos pos, EnumFacing side) {
-        return false;
-    }
-    
-    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ) {
-        if (world.isRemote) {
-            return true;
-        }
-        player.openGui(Thaumcraft.instance, 10, world, pos.getX(), pos.getY(), pos.getZ());
-        return true;
-    }
-    
+
     @Override
-    public IBlockState getStateForPlacement(World worldIn, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ, int meta, EntityLivingBase placer) {
-        IBlockState bs = getDefaultState();
-        bs = bs.withProperty((IProperty)IBlockFacingHorizontal.FACING, (Comparable)placer.getHorizontalFacing());
-        return bs;
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
-    
-    @SideOnly(Side.CLIENT)
-    public void randomDisplayTick(IBlockState state, World world, BlockPos pos, Random rand) {
-        TileEntity te = world.getTileEntity(pos);
-        if (rand.nextInt(5) == 0 && te != null && ((TileResearchTable)te).data != null) {
-            double xx = rand.nextGaussian() / 2.0;
-            double zz = rand.nextGaussian() / 2.0;
-            double yy = 1.5 + rand.nextFloat();
-            int a = 40 + rand.nextInt(20);
-            FXGeneric fb = new FXGeneric(world, pos.getX() + 0.5 + xx, pos.getY() + yy, pos.getZ() + 0.5 + zz, -xx / a, -(yy - 0.85) / a, -zz / a);
-            fb.setMaxAge(a);
-            fb.setRBGColorF(0.5f + rand.nextFloat() * 0.5f, 0.5f + rand.nextFloat() * 0.5f, 0.5f + rand.nextFloat() * 0.5f);
-            fb.setAlphaF(0.0f, 0.25f, 0.5f, 0.75f, 0.0f);
-            fb.setParticles(384 + rand.nextInt(16), 1, 1);
-            fb.setScale(0.8f + rand.nextFloat() * 0.3f, 0.3f);
-            fb.setLayer(0);
-            ParticleEngine.addEffect(world, fb);
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
+    }
+
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player,
+                                  InteractionHand hand, BlockHitResult hit) {
+        if (level.isClientSide) {
+            return InteractionResult.SUCCESS;
         }
+
+        // TODO: Open research table GUI when implemented
+        // player.openMenu(...)
+        
+        return InteractionResult.CONSUME;
+    }
+
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        // TODO: Initialize research table data
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            // TODO: Drop research table contents when TileResearchTable is implemented
+            super.onRemove(state, level, pos, newState, isMoving);
+        }
+    }
+
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        // TODO: Return TileResearchTable when implemented
+        return null;
     }
 }

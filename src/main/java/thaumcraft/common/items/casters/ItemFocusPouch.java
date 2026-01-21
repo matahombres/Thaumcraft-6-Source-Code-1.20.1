@@ -1,82 +1,98 @@
 package thaumcraft.common.items.casters;
-import baubles.api.BaubleType;
-import baubles.api.IBauble;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.ItemStackHelper;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
-import thaumcraft.Thaumcraft;
-import thaumcraft.common.items.ItemTCBase;
 
+import net.minecraft.core.NonNullList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
-public class ItemFocusPouch extends ItemTCBase implements IBauble
-{
+import javax.annotation.Nullable;
+import java.util.List;
+
+/**
+ * Focus Pouch - A portable container for storing foci.
+ * Can be worn as a curio (belt slot) for quick access.
+ * Holds up to 18 foci.
+ */
+public class ItemFocusPouch extends Item {
+
+    public static final int INVENTORY_SIZE = 18;
+
     public ItemFocusPouch() {
-        super("focus_pouch");
-        setMaxStackSize(1);
-        setHasSubtypes(false);
-        setMaxDamage(0);
+        super(new Item.Properties()
+                .stacksTo(1)
+                .rarity(Rarity.UNCOMMON));
     }
-    
-    public boolean getShareTag() {
-        return true;
-    }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.UNCOMMON;
-    }
-    
-    public boolean hasEffect(ItemStack stack1) {
-        return false;
-    }
-    
-    public ActionResult<ItemStack> onItemRightClick(World worldIn, EntityPlayer playerIn, EnumHand hand) {
-        if (!worldIn.isRemote) {
-            playerIn.openGui(Thaumcraft.instance, 5, worldIn, MathHelper.floor(playerIn.posX), MathHelper.floor(playerIn.posY), MathHelper.floor(playerIn.posZ));
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        
+        if (!level.isClientSide()) {
+            // TODO: Open focus pouch GUI
+            // player.openMenu(...)
+            player.sendSystemMessage(Component.translatable("item.thaumcraft.focus_pouch.notimplemented"));
         }
-        return super.onItemRightClick(worldIn, playerIn, hand);
+        
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
     }
-    
+
+    /**
+     * Get the inventory contents of this pouch.
+     */
     public NonNullList<ItemStack> getInventory(ItemStack item) {
-        NonNullList<ItemStack> stackList = NonNullList.withSize(18, ItemStack.EMPTY);
-        if (item.hasTagCompound()) {
-            ItemStackHelper.loadAllItems(item.getTagCompound(), stackList);
+        NonNullList<ItemStack> stackList = NonNullList.withSize(INVENTORY_SIZE, ItemStack.EMPTY);
+        if (item.hasTag()) {
+            ContainerHelper.loadAllItems(item.getTag(), stackList);
         }
         return stackList;
     }
-    
+
+    /**
+     * Set the inventory contents of this pouch.
+     */
     public void setInventory(ItemStack item, NonNullList<ItemStack> stackList) {
-        if (item.getTagCompound() == null) {
-            item.setTagCompound(new NBTTagCompound());
+        CompoundTag tag = item.getOrCreateTag();
+        ContainerHelper.saveAllItems(tag, stackList);
+    }
+
+    /**
+     * Count how many foci are stored in this pouch.
+     */
+    public int getFociCount(ItemStack item) {
+        NonNullList<ItemStack> inv = getInventory(item);
+        int count = 0;
+        for (ItemStack stack : inv) {
+            if (!stack.isEmpty() && stack.getItem() instanceof ItemFocus) {
+                count++;
+            }
         }
-        ItemStackHelper.saveAllItems(item.getTagCompound(), stackList);
+        return count;
     }
-    
-    public BaubleType getBaubleType(ItemStack itemstack) {
-        return BaubleType.BELT;
+
+    @Override
+    @OnlyIn(Dist.CLIENT)
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        int count = getFociCount(stack);
+        if (count > 0) {
+            tooltip.add(Component.translatable("item.thaumcraft.focus_pouch.contents", count, INVENTORY_SIZE)
+                    .withStyle(style -> style.withColor(0x808080)));
+        } else {
+            tooltip.add(Component.translatable("item.thaumcraft.focus_pouch.empty")
+                    .withStyle(style -> style.withColor(0x808080)));
+        }
+        super.appendHoverText(stack, level, tooltip, flag);
     }
-    
-    public void onWornTick(ItemStack itemstack, EntityLivingBase player) {
-    }
-    
-    public void onEquipped(ItemStack itemstack, EntityLivingBase player) {
-    }
-    
-    public void onUnequipped(ItemStack itemstack, EntityLivingBase player) {
-    }
-    
-    public boolean canEquip(ItemStack itemstack, EntityLivingBase player) {
-        return true;
-    }
-    
-    public boolean canUnequip(ItemStack itemstack, EntityLivingBase player) {
-        return true;
-    }
+
+    // TODO: Implement Curios integration for belt slot
+    // This would allow wearing the pouch and accessing foci quickly
 }

@@ -1,73 +1,99 @@
 package thaumcraft.api.capabilities;
+
 import javax.annotation.Nonnull;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.common.util.INBTSerializable;
 
-
-
 /**
+ * IPlayerWarp - Capability interface for tracking player warp (corruption) levels.
+ * 
+ * Warp is a negative effect that builds up from using certain dark magic,
+ * crafting forbidden items, or encountering eldritch horrors.
  * 
  * @author Azanor
- * 
- * Unless there are specific tasks you need to perform, you are better off using <b>addWarpToPlayer</b> 
- * from the <b>IInternalMethodHandler</b>. It does most of the heavy lifting for you. 
- *
+ * Ported to 1.20.1
  */
-public interface IPlayerWarp extends INBTSerializable<NBTTagCompound>
-{
+public interface IPlayerWarp extends INBTSerializable<CompoundTag> {
 
     /**
-     * Clears all warp. 
+     * Clears all warp.
      */
     void clear();
     
-
     /**
-     * @param type The warp type to query
-     * @return the amount of warp the player has
+     * Get the warp amount of a specific type
+     * @param type the warp type to query
+     * @return the amount of warp
      */
     int get(@Nonnull EnumWarpType type);
     
     /**
-     * @param type The type of warp to set
-     * @param amount how much to set it to
+     * Set the warp amount of a specific type
+     * @param type the warp type to set
+     * @param amount the amount to set
      */
     void set(@Nonnull EnumWarpType type, int amount);
-
+    
     /**
-     * @param type The type of warp to add
-     * @param amount how much to add
-     * @return the new total
+     * Add warp of a specific type
+     * @param type the warp type to add
+     * @param amount the amount to add (can be negative to remove)
+     * @return the new warp amount
      */
     int add(@Nonnull EnumWarpType type, int amount);
     
+    /**
+     * Get the total warp from all sources
+     * @return the combined warp amount
+     */
+    int getTotalWarp();
     
     /**
-     * @param type The type of warp to reduce
-     * @param amount how much to reduce
-     * @return the new total
+     * Get the total permanent warp (PERMANENT + NORMAL)
+     * @return the combined permanent warp
      */
-    int reduce(@Nonnull EnumWarpType type, int amount);
+    int getPermanentWarp();
     
-    public enum EnumWarpType {
-    	PERMANENT, NORMAL, TEMPORARY;
-    }
-    
-	
-	/**
-     * @param player the player to sync
+    /**
+     * Check if the counter should tick (for temporary warp decay)
+     * @return true if the counter should tick
      */
-	void sync(EntityPlayerMP player);
-	
-	/**
-     * @return the counter that is used to keep track of warp gains
+    boolean shouldTick();
+    
+    /**
+     * Get the counter value (used for temporary warp decay timing)
+     * @return the counter value
      */
     int getCounter();
     
     /**
-     * @param amount how much to set the counter it to
+     * Set the counter value
+     * @param count the new counter value
      */
-    void setCounter(int amount);
-	
+    void setCounter(int count);
+    
+    /**
+     * Sync the warp data to the client
+     * @param player the player to sync
+     */
+    void sync(ServerPlayer player);
+    
+    /**
+     * Types of warp
+     */
+    enum EnumWarpType {
+        /**
+         * Permanent warp - cannot be removed except by special means
+         */
+        PERMANENT,
+        /**
+         * Normal warp - can be reduced with sanity soap, bath salts, etc.
+         */
+        NORMAL,
+        /**
+         * Temporary warp - decays over time
+         */
+        TEMPORARY
+    }
 }

@@ -1,61 +1,45 @@
 package thaumcraft.common.lib.capabilities;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.MathHelper;
+import javax.annotation.Nullable;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+import net.minecraftforge.common.util.LazyOptional;
+import thaumcraft.Thaumcraft;
 import thaumcraft.api.capabilities.IPlayerKnowledge;
-import thaumcraft.api.capabilities.ThaumcraftCapabilities;
-import thaumcraft.api.research.ResearchCategories;
-import thaumcraft.api.research.ResearchCategory;
-import thaumcraft.api.research.ResearchEntry;
-import thaumcraft.common.lib.network.PacketHandler;
-import thaumcraft.common.lib.network.playerdata.PacketSyncKnowledge;
 
-
-public class PlayerKnowledge
-{
-    public static void preInit() {
-        CapabilityManager.INSTANCE.register(IPlayerKnowledge.class, new Capability.IStorage<IPlayerKnowledge>() {
-            public NBTTagCompound writeNBT(Capability<IPlayerKnowledge> capability, IPlayerKnowledge instance, EnumFacing side) {
-                return instance.serializeNBT();
-            }
-            
-            public void readNBT(Capability<IPlayerKnowledge> capability, IPlayerKnowledge instance, EnumFacing side, NBTBase nbt) {
-                if (nbt instanceof NBTTagCompound) {
-                    instance.deserializeNBT((NBTTagCompound) nbt);
-                }
-            }
-        }, DefaultImpl::new);
-    }
+/**
+ * PlayerKnowledge - Implementation of the IPlayerKnowledge capability.
+ * Tracks all research progress and knowledge points for a player.
+ * 
+ * @author Azanor
+ * Ported to 1.20.1
+ */
+public class PlayerKnowledge {
     
-    private static class DefaultImpl implements IPlayerKnowledge
-    {
-        private HashSet<String> research;
-        private Map<String, Integer> stages;
-        private Map<String, HashSet<EnumResearchFlag>> flags;
-        private Map<String, Integer> knowledge;
+    public static final ResourceLocation ID = new ResourceLocation(Thaumcraft.MODID, "knowledge");
+    
+    /**
+     * Default implementation of IPlayerKnowledge
+     */
+    public static class DefaultImpl implements IPlayerKnowledge {
         
-        private DefaultImpl() {
-            research = new HashSet<String>();
-            stages = new HashMap<String, Integer>();
-            flags = new HashMap<String, HashSet<EnumResearchFlag>>();
-            knowledge = new HashMap<String, Integer>();
-        }
+        private final HashSet<String> research = new HashSet<>();
+        private final Map<String, Integer> stages = new HashMap<>();
+        private final Map<String, HashSet<EnumResearchFlag>> flags = new HashMap<>();
+        private final Map<String, Integer> knowledge = new HashMap<>();
         
         @Override
         public void clear() {
@@ -70,11 +54,16 @@ public class PlayerKnowledge
             if (!isResearchKnown(res)) {
                 return EnumResearchStatus.UNKNOWN;
             }
-            ResearchEntry entry = ResearchCategories.getResearch(res);
-            if (entry == null || entry.getStages() == null || getResearchStage(res) > entry.getStages().length) {
-                return EnumResearchStatus.COMPLETE;
-            }
-            return EnumResearchStatus.IN_PROGRESS;
+            // TODO: Check against ResearchCategories when implemented
+            // ResearchEntry entry = ResearchCategories.getResearch(res);
+            // if (entry == null || entry.getStages() == null || getResearchStage(res) > entry.getStages().length) {
+            //     return EnumResearchStatus.COMPLETE;
+            // }
+            // return EnumResearchStatus.IN_PROGRESS;
+            
+            // For now, if research is known with a stage > 0, consider it complete
+            int stage = getResearchStage(res);
+            return stage > 0 ? EnumResearchStatus.COMPLETE : EnumResearchStatus.IN_PROGRESS;
         }
         
         @Override
@@ -82,11 +71,19 @@ public class PlayerKnowledge
             if (res == null) {
                 return false;
             }
-            if (res.equals("")) {
+            if (res.isEmpty()) {
                 return true;
             }
             String[] ss = res.split("@");
-            return (ss.length <= 1 || getResearchStage(ss[0]) >= MathHelper.getInt(ss[1], 0)) && research.contains(ss[0]);
+            return (ss.length <= 1 || getResearchStage(ss[0]) >= parseInt(ss[1], 0)) && research.contains(ss[0]);
+        }
+        
+        private int parseInt(String s, int defaultValue) {
+            try {
+                return Integer.parseInt(s);
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
         }
         
         @Override
@@ -125,6 +122,8 @@ public class PlayerKnowledge
         public boolean removeResearch(@Nonnull String res) {
             if (isResearchKnown(res)) {
                 research.remove(res);
+                stages.remove(res);
+                flags.remove(res);
                 return true;
             }
             return false;
@@ -138,11 +137,7 @@ public class PlayerKnowledge
         
         @Override
         public boolean setResearchFlag(@Nonnull String res, @Nonnull EnumResearchFlag flag) {
-            HashSet<EnumResearchFlag> list = flags.get(res);
-            if (list == null) {
-                list = new HashSet<EnumResearchFlag>();
-                flags.put(res, list);
-            }
+            HashSet<EnumResearchFlag> list = flags.computeIfAbsent(res, k -> new HashSet<>());
             if (list.contains(flag)) {
                 return false;
             }
@@ -156,7 +151,7 @@ public class PlayerKnowledge
             if (list != null) {
                 boolean b = list.remove(flag);
                 if (list.isEmpty()) {
-                    flags.remove(research);
+                    flags.remove(res);
                 }
                 return b;
             }
@@ -168,12 +163,12 @@ public class PlayerKnowledge
             return flags.get(res) != null && flags.get(res).contains(flag);
         }
         
-        private String getKey(EnumKnowledgeType type, ResearchCategory category) {
-            return type.getAbbreviation() + "_" + ((category == null) ? "" : category.key);
+        private String getKey(EnumKnowledgeType type, String category) {
+            return type.getAbbreviation() + "_" + (category == null ? "" : category);
         }
         
         @Override
-        public boolean addKnowledge(EnumKnowledgeType type, ResearchCategory category, int amount) {
+        public boolean addKnowledge(EnumKnowledgeType type, String category, int amount) {
             String key = getKey(type, category);
             int c = getKnowledgeRaw(type, category);
             if (c + amount < 0) {
@@ -185,145 +180,143 @@ public class PlayerKnowledge
         }
         
         @Override
-        public int getKnowledge(EnumKnowledgeType type, ResearchCategory category) {
+        public int getKnowledge(EnumKnowledgeType type, String category) {
             String key = getKey(type, category);
-            int c = knowledge.containsKey(key) ? knowledge.get(key) : 0;
-            return (int)Math.floor(c / (double)type.getProgression());
+            int c = knowledge.getOrDefault(key, 0);
+            return (int) Math.floor(c / (double) type.getProgression());
         }
         
         @Override
-        public int getKnowledgeRaw(EnumKnowledgeType type, ResearchCategory category) {
+        public int getKnowledgeRaw(EnumKnowledgeType type, String category) {
             String key = getKey(type, category);
-            return knowledge.containsKey(key) ? knowledge.get(key) : 0;
+            return knowledge.getOrDefault(key, 0);
         }
         
         @Override
-        public void sync(@Nonnull EntityPlayerMP player) {
-            PacketHandler.INSTANCE.sendTo(new PacketSyncKnowledge(player), player);
+        public void sync(@Nonnull ServerPlayer player) {
+            // TODO: Send sync packet when network system is implemented
+            // PacketHandler.sendTo(new PacketSyncKnowledge(player), player);
         }
         
-        public NBTTagCompound serializeNBT() {
-            NBTTagCompound rootTag = new NBTTagCompound();
-            NBTTagList researchList = new NBTTagList();
+        @Override
+        public CompoundTag serializeNBT() {
+            CompoundTag rootTag = new CompoundTag();
+            
+            ListTag researchList = new ListTag();
             for (String resKey : research) {
-                NBTTagCompound tag = new NBTTagCompound();
-                tag.setString("key", resKey);
+                CompoundTag tag = new CompoundTag();
+                tag.putString("key", resKey);
                 if (stages.containsKey(resKey)) {
-                    tag.setInteger("stage", stages.get(resKey));
+                    tag.putInt("stage", stages.get(resKey));
                 }
                 if (flags.containsKey(resKey)) {
                     HashSet<EnumResearchFlag> list = flags.get(resKey);
-                    if (list != null) {
-                        String fs = "";
+                    if (list != null && !list.isEmpty()) {
+                        StringBuilder fs = new StringBuilder();
                         for (EnumResearchFlag flag : list) {
                             if (fs.length() > 0) {
-                                fs += ",";
+                                fs.append(",");
                             }
-                            fs += flag.name();
+                            fs.append(flag.name());
                         }
-                        tag.setString("flags", fs);
+                        tag.putString("flags", fs.toString());
                     }
                 }
-                researchList.appendTag(tag);
+                researchList.add(tag);
             }
-            rootTag.setTag("research", researchList);
-            NBTTagList knowledgeList = new NBTTagList();
-            for (String key : knowledge.keySet()) {
-                Integer c = knowledge.get(key);
+            rootTag.put("research", researchList);
+            
+            ListTag knowledgeList = new ListTag();
+            for (Map.Entry<String, Integer> entry : knowledge.entrySet()) {
+                String key = entry.getKey();
+                Integer c = entry.getValue();
                 if (c != null && c > 0 && key != null && !key.isEmpty()) {
-                    NBTTagCompound tag2 = new NBTTagCompound();
-                    tag2.setString("key", key);
-                    tag2.setInteger("amount", c);
-                    knowledgeList.appendTag(tag2);
+                    CompoundTag tag = new CompoundTag();
+                    tag.putString("key", key);
+                    tag.putInt("amount", c);
+                    knowledgeList.add(tag);
                 }
             }
-            rootTag.setTag("knowledge", knowledgeList);
+            rootTag.put("knowledge", knowledgeList);
+            
             return rootTag;
         }
         
-        public void deserializeNBT(NBTTagCompound rootTag) {
+        @Override
+        public void deserializeNBT(CompoundTag rootTag) {
             if (rootTag == null) {
                 return;
             }
             clear();
-            NBTTagList researchList = rootTag.getTagList("research", 10);
-            for (int i = 0; i < researchList.tagCount(); ++i) {
-                NBTTagCompound tag = researchList.getCompoundTagAt(i);
+            
+            ListTag researchList = rootTag.getList("research", Tag.TAG_COMPOUND);
+            for (int i = 0; i < researchList.size(); i++) {
+                CompoundTag tag = researchList.getCompound(i);
                 String know = tag.getString("key");
-                if (know != null && !isResearchKnown(know)) {
+                if (know != null && !know.isEmpty() && !isResearchKnown(know)) {
                     research.add(know);
-                    int stage = tag.getInteger("stage");
+                    int stage = tag.getInt("stage");
                     if (stage > 0) {
                         stages.put(know, stage);
                     }
                     String fs = tag.getString("flags");
-                    if (fs.length() > 0) {
-                        String[] split;
-                        String[] ss = split = fs.split(",");
-                        for (String s : split) {
-                            EnumResearchFlag flag = null;
+                    if (!fs.isEmpty()) {
+                        String[] ss = fs.split(",");
+                        for (String s : ss) {
                             try {
-                                flag = EnumResearchFlag.valueOf(s);
-                            }
-                            catch (Exception ex) {}
-                            if (flag != null) {
+                                EnumResearchFlag flag = EnumResearchFlag.valueOf(s);
                                 setResearchFlag(know, flag);
+                            } catch (IllegalArgumentException ignored) {
                             }
                         }
                     }
                 }
             }
-            NBTTagList knowledgeList = rootTag.getTagList("knowledge", 10);
-            for (int j = 0; j < knowledgeList.tagCount(); ++j) {
-                NBTTagCompound tag2 = knowledgeList.getCompoundTagAt(j);
-                String key = tag2.getString("key");
-                int amount = tag2.getInteger("amount");
-                knowledge.put(key, amount);
-            }
-            addAutoUnlockResearch();
-        }
-        
-        private void addAutoUnlockResearch() {
-            for (ResearchCategory cat : ResearchCategories.researchCategories.values()) {
-                for (ResearchEntry ri : cat.research.values()) {
-                    if (ri.hasMeta(ResearchEntry.EnumResearchMeta.AUTOUNLOCK)) {
-                        addResearch(ri.getKey());
-                    }
+            
+            ListTag knowledgeList = rootTag.getList("knowledge", Tag.TAG_COMPOUND);
+            for (int j = 0; j < knowledgeList.size(); j++) {
+                CompoundTag tag = knowledgeList.getCompound(j);
+                String key = tag.getString("key");
+                int amount = tag.getInt("amount");
+                if (key != null && !key.isEmpty()) {
+                    knowledge.put(key, amount);
                 }
             }
+            
+            // TODO: Add auto-unlock research when ResearchCategories is implemented
+            // addAutoUnlockResearch();
         }
     }
     
-    public static class Provider implements ICapabilitySerializable<NBTTagCompound>
-    {
-        public static ResourceLocation NAME;
-        private DefaultImpl knowledge;
+    /**
+     * Capability provider for IPlayerKnowledge
+     */
+    public static class Provider implements ICapabilitySerializable<CompoundTag> {
         
-        public Provider() {
-            knowledge = new DefaultImpl();
-        }
+        private final DefaultImpl knowledge = new DefaultImpl();
+        private final LazyOptional<IPlayerKnowledge> optional = LazyOptional.of(() -> knowledge);
         
-        public boolean hasCapability(Capability<?> capability, EnumFacing facing) {
-            return capability == ThaumcraftCapabilities.KNOWLEDGE;
-        }
-        
-        public <T> T getCapability(Capability<T> capability, EnumFacing facing) {
-            if (capability == ThaumcraftCapabilities.KNOWLEDGE) {
-                return ThaumcraftCapabilities.KNOWLEDGE.cast(knowledge);
+        @Nonnull
+        @Override
+        public <T> LazyOptional<T> getCapability(@Nonnull Capability<T> cap, @Nullable Direction side) {
+            if (cap == ThaumcraftCapabilities.KNOWLEDGE) {
+                return optional.cast();
             }
-            return null;
+            return LazyOptional.empty();
         }
         
-        public NBTTagCompound serializeNBT() {
+        @Override
+        public CompoundTag serializeNBT() {
             return knowledge.serializeNBT();
         }
         
-        public void deserializeNBT(NBTTagCompound nbt) {
+        @Override
+        public void deserializeNBT(CompoundTag nbt) {
             knowledge.deserializeNBT(nbt);
         }
         
-        static {
-            NAME = new ResourceLocation("thaumcraft", "knowledge");
+        public void invalidate() {
+            optional.invalidate();
         }
     }
 }

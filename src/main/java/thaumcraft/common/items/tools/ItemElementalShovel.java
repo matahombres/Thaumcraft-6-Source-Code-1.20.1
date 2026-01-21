@@ -1,294 +1,235 @@
 package thaumcraft.common.items.tools;
-import com.google.common.collect.ImmutableSet;
-import java.util.ArrayList;
-import java.util.Set;
-import net.minecraft.block.Block;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.client.renderer.ItemMeshDefinition;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Blocks;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemSpade;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.world.World;
-import thaumcraft.api.items.IArchitect;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.IThaumcraftItems;
-import thaumcraft.common.lib.enchantment.EnumInfusionEnchantment;
-import thaumcraft.common.lib.utils.InventoryUtils;
-import thaumcraft.common.lib.utils.Utils;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.ShovelItem;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import thaumcraft.api.ThaumcraftMaterials;
+import thaumcraft.init.ModItems;
 
-public class ItemElementalShovel extends ItemSpade implements IArchitect, IThaumcraftItems
-{
-    private static Block[] isEffective;
-    EnumFacing side;
-    
-    public ItemElementalShovel(Item.ToolMaterial enumtoolmaterial) {
-        super(enumtoolmaterial);
-        side = EnumFacing.DOWN;
-        setCreativeTab(ConfigItems.TABTC);
-        setRegistryName("elemental_shovel");
-        setUnlocalizedName("elemental_shovel");
-        ConfigItems.ITEM_VARIANT_HOLDERS.add(this);
+import javax.annotation.Nullable;
+import java.util.List;
+
+/**
+ * Shovel of the Earthmover - Earth elemental shovel.
+ * Places blocks in a 3x3 pattern from player's inventory.
+ * Has built-in Destructive infusion enchantment.
+ */
+public class ItemElementalShovel extends ShovelItem {
+
+    public ItemElementalShovel() {
+        super(ThaumcraftMaterials.TOOLMAT_ELEMENTAL,
+                1.5f,  // attack damage bonus
+                -3.0f,  // attack speed
+                new Item.Properties()
+                        .rarity(Rarity.RARE));
     }
-    
-    public Item getItem() {
-        return this;
+
+    @Override
+    public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+        return repair.is(ModItems.THAUMIUM_INGOT.get()) || super.isValidRepairItem(toRepair, repair);
     }
-    
-    public String[] getVariantNames() {
-        return new String[] { "normal" };
-    }
-    
-    public int[] getVariantMeta() {
-        return new int[] { 0 };
-    }
-    
-    public ItemMeshDefinition getCustomMesh() {
-        return null;
-    }
-    
-    public ModelResourceLocation getCustomModelResourceLocation(String variant) {
-        return new ModelResourceLocation("thaumcraft:" + variant);
-    }
-    
-    public Set<String> getToolClasses(ItemStack stack) {
-        return ImmutableSet.of("shovel");
-    }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.RARE;
-    }
-    
-    public boolean getIsRepairable(ItemStack stack1, ItemStack stack2) {
-        return stack2.isItemEqual(new ItemStack(ItemsTC.ingots, 1, 0)) || super.getIsRepairable(stack1, stack2);
-    }
-    
-    public EnumActionResult onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand, EnumFacing side, float par8, float par9, float par10) {
-        IBlockState bs = world.getBlockState(pos);
-        TileEntity te = world.getTileEntity(pos);
-        if (te == null) {
-            for (int aa = -1; aa <= 1; ++aa) {
-                for (int bb = -1; bb <= 1; ++bb) {
-                    int xx = 0;
-                    int yy = 0;
-                    int zz = 0;
-                    byte o = getOrientation(player.getHeldItem(hand));
-                    if (o == 1) {
-                        yy = bb;
-                        if (side.ordinal() <= 1) {
-                            int l = MathHelper.floor(player.rotationYaw * 4.0f / 360.0f + 0.5) & 0x3;
-                            if (l == 0 || l == 2) {
-                                xx = aa;
-                            }
-                            else {
-                                zz = aa;
-                            }
-                        }
-                        else if (side.ordinal() <= 3) {
+
+    @Override
+    public InteractionResult useOn(UseOnContext context) {
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        Direction side = context.getClickedFace();
+        Player player = context.getPlayer();
+        ItemStack stack = context.getItemInHand();
+
+        if (player == null) {
+            return InteractionResult.FAIL;
+        }
+
+        // Only works when sneaking
+        if (!player.isShiftKeyDown()) {
+            return super.useOn(context);
+        }
+
+        BlockState clickedState = level.getBlockState(pos);
+        Block clickedBlock = clickedState.getBlock();
+        
+        // Don't work on tile entities
+        if (level.getBlockEntity(pos) != null) {
+            return InteractionResult.FAIL;
+        }
+
+        byte orientation = getOrientation(stack);
+        int placedCount = 0;
+
+        // Place blocks in a 3x3 grid
+        for (int aa = -1; aa <= 1; aa++) {
+            for (int bb = -1; bb <= 1; bb++) {
+                int xx = 0, yy = 0, zz = 0;
+
+                if (orientation == 1) {
+                    // Vertical orientation along Y
+                    yy = bb;
+                    if (side.ordinal() <= 1) {
+                        int facing = Mth.floor(player.getYRot() * 4.0f / 360.0f + 0.5f) & 3;
+                        if (facing == 0 || facing == 2) {
+                            xx = aa;
+                        } else {
                             zz = aa;
                         }
-                        else {
-                            xx = aa;
-                        }
+                    } else if (side.ordinal() <= 3) {
+                        zz = aa;
+                    } else {
+                        xx = aa;
                     }
-                    else if (o == 2) {
-                        if (side.ordinal() <= 1) {
-                            int l = MathHelper.floor(player.rotationYaw * 4.0f / 360.0f + 0.5) & 0x3;
-                            yy = bb;
-                            if (l == 0 || l == 2) {
-                                xx = aa;
-                            }
-                            else {
-                                zz = aa;
-                            }
-                        }
-                        else {
-                            zz = bb;
+                } else if (orientation == 2) {
+                    // Mixed orientation
+                    if (side.ordinal() <= 1) {
+                        int facing = Mth.floor(player.getYRot() * 4.0f / 360.0f + 0.5f) & 3;
+                        yy = bb;
+                        if (facing == 0 || facing == 2) {
                             xx = aa;
+                        } else {
+                            zz = aa;
                         }
+                    } else {
+                        zz = bb;
+                        xx = aa;
                     }
-                    else if (side.ordinal() <= 1) {
+                } else {
+                    // Default horizontal orientation
+                    if (side.ordinal() <= 1) {
                         xx = aa;
                         zz = bb;
-                    }
-                    else if (side.ordinal() <= 3) {
+                    } else if (side.ordinal() <= 3) {
                         xx = aa;
                         yy = bb;
-                    }
-                    else {
+                    } else {
                         zz = aa;
                         yy = bb;
                     }
-                    BlockPos p2 = pos.offset(side).add(xx, yy, zz);
-                    IBlockState b2 = world.getBlockState(p2);
-                    if (bs.getBlock().canPlaceBlockAt(world, p2)) {
-                        if (player.capabilities.isCreativeMode || InventoryUtils.consumePlayerItem(player, Item.getItemFromBlock(bs.getBlock()), bs.getBlock().getMetaFromState(bs))) {
-                            world.playSound(p2.getX(), p2.getY(), p2.getZ(), bs.getBlock().getSoundType().getBreakSound(), SoundCategory.BLOCKS, 0.6f, 0.9f + world.rand.nextFloat() * 0.2f, false);
-                            world.setBlockState(p2, bs);
-                            player.getHeldItem(hand).damageItem(1, player);
-                            if (world.isRemote) {
-                                FXDispatcher.INSTANCE.drawBamf(p2, 8401408, false, false, side);
-                            }
-                            player.swingArm(hand);
+                }
+
+                BlockPos targetPos = pos.relative(side).offset(xx, yy, zz);
+                
+                // Check if we can place here
+                if (level.getBlockState(targetPos).canBeReplaced()) {
+                    // Try to consume the block from player inventory
+                    if (player.isCreative() || consumeBlock(player, clickedBlock, clickedState)) {
+                        // Play sound
+                        SoundType soundType = clickedBlock.getSoundType(clickedState, level, targetPos, player);
+                        level.playSound(player, targetPos, soundType.getPlaceSound(), SoundSource.BLOCKS, 
+                                0.6f, 0.9f + level.random.nextFloat() * 0.2f);
+                        
+                        // Place the block
+                        level.setBlock(targetPos, clickedState, Block.UPDATE_ALL);
+                        
+                        // Damage the tool
+                        stack.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(context.getHand()));
+                        placedCount++;
+
+                        // TODO: Add visual effect (bamf)
+                        
+                        if (stack.isEmpty()) {
+                            return InteractionResult.SUCCESS;
                         }
-                        else if (bs.getBlock() == Blocks.GRASS && (player.capabilities.isCreativeMode || InventoryUtils.consumePlayerItem(player, Item.getItemFromBlock(Blocks.DIRT), 0))) {
-                            world.playSound(p2.getX(), p2.getY(), p2.getZ(), bs.getBlock().getSoundType().getBreakSound(), SoundCategory.BLOCKS, 0.6f, 0.9f + world.rand.nextFloat() * 0.2f, false);
-                            world.setBlockState(p2, Blocks.DIRT.getDefaultState());
-                            player.getHeldItem(hand).damageItem(1, player);
-                            if (world.isRemote) {
-                                FXDispatcher.INSTANCE.drawBamf(p2, 8401408, false, false, side);
-                            }
-                            player.swingArm(hand);
-                            if (player.getHeldItem(hand).isEmpty()) {
-                                break;
-                            }
-                            if (player.getHeldItem(hand).getCount() < 1) {
-                                break;
-                            }
+                    } else if (clickedBlock == Blocks.GRASS_BLOCK) {
+                        // Special case: grass can be placed as dirt
+                        if (player.isCreative() || consumeBlock(player, Blocks.DIRT, Blocks.DIRT.defaultBlockState())) {
+                            SoundType soundType = Blocks.DIRT.getSoundType(Blocks.DIRT.defaultBlockState(), level, targetPos, player);
+                            level.playSound(player, targetPos, soundType.getPlaceSound(), SoundSource.BLOCKS,
+                                    0.6f, 0.9f + level.random.nextFloat() * 0.2f);
+                            level.setBlock(targetPos, Blocks.DIRT.defaultBlockState(), Block.UPDATE_ALL);
+                            stack.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(context.getHand()));
+                            placedCount++;
                         }
                     }
                 }
             }
         }
-        return EnumActionResult.FAIL;
+
+        if (placedCount > 0) {
+            player.swing(context.getHand());
+            return InteractionResult.SUCCESS;
+        }
+
+        return InteractionResult.FAIL;
     }
-    
-    private boolean isEffectiveAgainst(Block block) {
-        for (int var3 = 0; var3 < ItemElementalShovel.isEffective.length; ++var3) {
-            if (ItemElementalShovel.isEffective[var3] == block) {
+
+    /**
+     * Tries to consume a block from the player's inventory.
+     */
+    private boolean consumeBlock(Player player, Block block, BlockState state) {
+        ItemStack blockStack = new ItemStack(block);
+        
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack invStack = player.getInventory().getItem(i);
+            if (ItemStack.isSameItem(invStack, blockStack)) {
+                invStack.shrink(1);
+                if (invStack.isEmpty()) {
+                    player.getInventory().setItem(i, ItemStack.EMPTY);
+                }
                 return true;
             }
         }
         return false;
     }
-    
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
-        if (tab == ConfigItems.TABTC || tab == CreativeTabs.SEARCH) {
-            ItemStack w1 = new ItemStack(this);
-            EnumInfusionEnchantment.addInfusionEnchantment(w1, EnumInfusionEnchantment.DESTRUCTIVE, 1);
-            items.add(w1);
-        }
-        else {
-            super.getSubItems(tab, items);
-        }
-    }
-    
-    public ArrayList<BlockPos> getArchitectBlocks(ItemStack focusstack, World world, BlockPos pos, EnumFacing side, EntityPlayer player) {
-        ArrayList<BlockPos> b = new ArrayList<BlockPos>();
-        if (!player.isSneaking()) {
-            return b;
-        }
-        IBlockState bs = world.getBlockState(pos);
-        for (int aa = -1; aa <= 1; ++aa) {
-            for (int bb = -1; bb <= 1; ++bb) {
-                int xx = 0;
-                int yy = 0;
-                int zz = 0;
-                byte o = getOrientation(focusstack);
-                if (o == 1) {
-                    yy = bb;
-                    if (side.ordinal() <= 1) {
-                        int l = MathHelper.floor(player.rotationYaw * 4.0f / 360.0f + 0.5) & 0x3;
-                        if (l == 0 || l == 2) {
-                            xx = aa;
-                        }
-                        else {
-                            zz = aa;
-                        }
-                    }
-                    else if (side.ordinal() <= 3) {
-                        zz = aa;
-                    }
-                    else {
-                        xx = aa;
-                    }
-                }
-                else if (o == 2) {
-                    if (side.ordinal() <= 1) {
-                        int l = MathHelper.floor(player.rotationYaw * 4.0f / 360.0f + 0.5) & 0x3;
-                        yy = bb;
-                        if (l == 0 || l == 2) {
-                            xx = aa;
-                        }
-                        else {
-                            zz = aa;
-                        }
-                    }
-                    else {
-                        zz = bb;
-                        xx = aa;
-                    }
-                }
-                else if (side.ordinal() <= 1) {
-                    xx = aa;
-                    zz = bb;
-                }
-                else if (side.ordinal() <= 3) {
-                    xx = aa;
-                    yy = bb;
-                }
-                else {
-                    zz = aa;
-                    yy = bb;
-                }
-                BlockPos p2 = pos.offset(side).add(xx, yy, zz);
-                IBlockState b2 = world.getBlockState(p2);
-                if (bs.getBlock().canPlaceBlockAt(world, p2)) {
-                    b.add(p2);
-                }
-            }
-        }
-        return b;
-    }
-    
-    public boolean showAxis(ItemStack stack, World world, EntityPlayer player, EnumFacing side, EnumAxis axis) {
-        return false;
-    }
-    
+
+    /**
+     * Gets the current placement orientation from the item's NBT.
+     */
     public static byte getOrientation(ItemStack stack) {
-        if (stack.hasTagCompound() && stack.getTagCompound().hasKey("or")) {
-            return stack.getTagCompound().getByte("or");
+        CompoundTag tag = stack.getTag();
+        if (tag != null && tag.contains("or")) {
+            return tag.getByte("or");
         }
         return 0;
     }
-    
-    public static void setOrientation(ItemStack stack, byte o) {
-        if (!stack.hasTagCompound()) {
-            stack.setTagCompound(new NBTTagCompound());
-        }
-        if (stack.hasTagCompound()) {
-            stack.getTagCompound().setByte("or", (byte)(o % 3));
-        }
+
+    /**
+     * Sets the placement orientation in the item's NBT.
+     * Called via keybind packet.
+     */
+    public static void setOrientation(ItemStack stack, byte orientation) {
+        CompoundTag tag = stack.getOrCreateTag();
+        tag.putByte("or", (byte) (orientation % 3));
     }
-    
-    public RayTraceResult getArchitectMOP(ItemStack stack, World world, EntityLivingBase player) {
-        return Utils.rayTrace(world, player, false);
+
+    /**
+     * Cycles to the next orientation.
+     */
+    public static void cycleOrientation(ItemStack stack) {
+        byte current = getOrientation(stack);
+        setOrientation(stack, (byte) ((current + 1) % 3));
     }
-    
-    public boolean useBlockHighlight(ItemStack stack) {
-        return true;
-    }
-    
-    static {
-        isEffective = new Block[] {Blocks.GRASS, Blocks.DIRT, Blocks.SAND, Blocks.GRAVEL, Blocks.SNOW_LAYER, Blocks.SNOW, Blocks.CLAY, Blocks.FARMLAND, Blocks.SOUL_SAND, Blocks.MYCELIUM};
+
+    @Override
+    @OnlyIn(Dist.CLIENT)
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("enchantment.thaumcraft.destructive").withStyle(style -> style.withColor(0x8B4513)));
+        tooltip.add(Component.translatable("item.thaumcraft.elemental_shovel.desc").withStyle(style -> style.withColor(0x808080)));
+        
+        byte orientation = getOrientation(stack);
+        String orientationKey = switch (orientation) {
+            case 1 -> "item.thaumcraft.elemental_shovel.orientation.vertical";
+            case 2 -> "item.thaumcraft.elemental_shovel.orientation.mixed";
+            default -> "item.thaumcraft.elemental_shovel.orientation.horizontal";
+        };
+        tooltip.add(Component.translatable(orientationKey).withStyle(style -> style.withColor(0x808080)));
+        
+        super.appendHoverText(stack, level, tooltip, flag);
     }
 }

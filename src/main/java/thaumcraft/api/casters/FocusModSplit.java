@@ -1,42 +1,32 @@
 package thaumcraft.api.casters;
-import java.util.ArrayList;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 
+import thaumcraft.api.aspects.Aspect;
 
-
+/**
+ * Base class for focus modifiers that split the spell into multiple targets.
+ * Examples: Fork (multiple projectiles), Scatter (cone of targets)
+ */
 public abstract class FocusModSplit extends FocusMod {
-	
-	private ArrayList<FocusPackage> packages = new ArrayList<>(); 
-
-	public ArrayList<FocusPackage> getSplitPackages() {
-		return packages;
-	}
-	
-	public void deserialize(NBTTagCompound nbt) {
-		NBTTagList nodelist = nbt.getTagList("packages", (byte)10);
-		packages.clear();
-		for (int x=0;x<nodelist.tagCount();x++) {
-			NBTTagCompound nodenbt = nodelist.getCompoundTagAt(x);
-			FocusPackage fp = new FocusPackage();
-			fp.deserialize(nodenbt);
-			packages.add(fp);
-		}
-	}
-	
-	public NBTTagCompound serialize() {
-		NBTTagCompound nbt = new NBTTagCompound();		
-		NBTTagList nodelist = new NBTTagList();
-		for (FocusPackage node:packages) {
-			nodelist.appendTag(node.serialize());
-		}
-		nbt.setTag("packages", nodelist);		
-		return nbt;
-	}
-	
-	@Override
-	public float getPowerMultiplier() {
-		return .75f;
-	}
-
+    
+    /**
+     * Get the number of splits this modifier creates.
+     */
+    public abstract int getSplitCount();
+    
+    /**
+     * Get the angle between split trajectories (in degrees).
+     */
+    public float getSplitAngle() {
+        return 15.0f;
+    }
+    
+    @Override
+    public EnumSupplyType[] willSupply() {
+        return new EnumSupplyType[] { EnumSupplyType.TRAJECTORY };
+    }
+    
+    @Override
+    public Aspect getAspect() {
+        return Aspect.ENTROPY; // Split modifiers typically use entropy
+    }
 }

@@ -1,57 +1,70 @@
 package thaumcraft.api.golems;
-import java.util.Set;
-import net.minecraft.item.ItemStack;
+
+import net.minecraft.world.item.ItemStack;
 import thaumcraft.api.golems.parts.GolemAddon;
 import thaumcraft.api.golems.parts.GolemArm;
 import thaumcraft.api.golems.parts.GolemHead;
 import thaumcraft.api.golems.parts.GolemLeg;
 import thaumcraft.api.golems.parts.GolemMaterial;
 
+import java.util.Set;
 
-
+/**
+ * Interface for golem property storage.
+ * Properties are packed into a long value for efficient storage and network sync.
+ * Contains material, head, arms, legs, addon, and rank.
+ */
 public interface IGolemProperties {
 
-	public abstract Set<EnumGolemTrait> getTraits();
+    /**
+     * @return Set of all traits this golem has from its parts
+     */
+    Set<EnumGolemTrait> getTraits();
 
-	public abstract boolean hasTrait(EnumGolemTrait tag);
-	
-	public abstract long toLong();
+    /**
+     * Check if this golem has a specific trait
+     * @param trait The trait to check for
+     * @return true if the golem has the trait
+     */
+    boolean hasTrait(EnumGolemTrait trait);
 
-	public abstract ItemStack[] generateComponents();
-	
-	
-	//material
-	public abstract void setMaterial(GolemMaterial mat);
+    /**
+     * @return All properties packed into a long value
+     */
+    long toLong();
 
-	public abstract GolemMaterial getMaterial();
+    /**
+     * @return Array of ItemStacks needed to craft this golem configuration
+     */
+    ItemStack[] generateComponents();
 
-	//head
-	public abstract void setHead(GolemHead mat);
+    // ==================== Material ====================
 
-	public abstract GolemHead getHead();
+    void setMaterial(GolemMaterial mat);
+    GolemMaterial getMaterial();
 
-	//arms
-	public abstract void setArms(GolemArm mat);
+    // ==================== Head ====================
 
-	public abstract GolemArm getArms();
+    void setHead(GolemHead head);
+    GolemHead getHead();
 
-	//legs
-	public abstract void setLegs(GolemLeg mat);
+    // ==================== Arms ====================
 
-	public abstract GolemLeg getLegs();
+    void setArms(GolemArm arms);
+    GolemArm getArms();
 
-	//addon
-	public abstract void setAddon(GolemAddon mat);
+    // ==================== Legs ====================
 
-	public abstract GolemAddon getAddon();
+    void setLegs(GolemLeg legs);
+    GolemLeg getLegs();
 
-	//rank
-	public abstract void setRank(int r);
+    // ==================== Addon ====================
 
-	public abstract int getRank();
+    void setAddon(GolemAddon addon);
+    GolemAddon getAddon();
 
-	
-	
-	
+    // ==================== Rank ====================
 
+    void setRank(int rank);
+    int getRank();
 }

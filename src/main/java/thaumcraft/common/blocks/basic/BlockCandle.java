@@ -1,101 +1,122 @@
 package thaumcraft.common.blocks.basic;
-import java.util.Random;
-import net.minecraft.block.Block;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.MapColor;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.item.EnumDyeColor;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumParticleTypes;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import thaumcraft.api.crafting.IInfusionStabiliserExt;
-import thaumcraft.common.blocks.BlockTC;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class BlockCandle extends BlockTC implements IInfusionStabiliserExt
-{
-    public EnumDyeColor dye;
+/**
+ * Candle blocks that provide light and infusion stabilization.
+ * 16 color variants available.
+ */
+public class BlockCandle extends Block {
+
+    private static final VoxelShape SHAPE = Block.box(6.0, 0.0, 6.0, 10.0, 8.0, 10.0);
     
-    public BlockCandle(String name, EnumDyeColor dye) {
-        super(Material.CIRCUITS, name);
-        setHardness(0.1f);
-        setSoundType(SoundType.CLOTH);
-        setLightLevel(0.9375f);
-        this.dye = dye;
+    private final DyeColor color;
+    private final float stabilizationBonus;
+
+    public BlockCandle(DyeColor color) {
+        super(BlockBehaviour.Properties.of()
+                .mapColor(getMapColorForDye(color))
+                .strength(0.1f)
+                .sound(SoundType.WOOL)
+                .lightLevel(state -> 14)
+                .noOcclusion()
+                .noCollission());
+        this.color = color;
+        this.stabilizationBonus = 0.1f;
     }
-    
-    public MapColor getMapColor(IBlockState state, IBlockAccess worldIn, BlockPos pos) {
-        return MapColor.getBlockColor(dye);
+
+    private static MapColor getMapColorForDye(DyeColor dye) {
+        return switch (dye) {
+            case WHITE -> MapColor.SNOW;
+            case ORANGE -> MapColor.COLOR_ORANGE;
+            case MAGENTA -> MapColor.COLOR_MAGENTA;
+            case LIGHT_BLUE -> MapColor.COLOR_LIGHT_BLUE;
+            case YELLOW -> MapColor.COLOR_YELLOW;
+            case LIME -> MapColor.COLOR_LIGHT_GREEN;
+            case PINK -> MapColor.COLOR_PINK;
+            case GRAY -> MapColor.COLOR_GRAY;
+            case LIGHT_GRAY -> MapColor.COLOR_LIGHT_GRAY;
+            case CYAN -> MapColor.COLOR_CYAN;
+            case PURPLE -> MapColor.COLOR_PURPLE;
+            case BLUE -> MapColor.COLOR_BLUE;
+            case BROWN -> MapColor.COLOR_BROWN;
+            case GREEN -> MapColor.COLOR_GREEN;
+            case RED -> MapColor.COLOR_RED;
+            case BLACK -> MapColor.COLOR_BLACK;
+        };
     }
-    
-    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face) {
-        return BlockFaceShape.UNDEFINED;
+
+    public DyeColor getColor() {
+        return color;
     }
-    
-    public boolean canPlaceBlockAt(World par1World, BlockPos pos) {
-        return par1World.isSideSolid(pos, EnumFacing.UP);
+
+    /**
+     * Returns the stabilization bonus for infusion crafting.
+     */
+    public float getStabilizationBonus() {
+        return stabilizationBonus;
     }
-    
-    public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos pos2) {
-        if (!canPlaceBlockAt(worldIn, pos.down())) {
-            dropBlockAsItem(worldIn, pos, state, 0);
-            worldIn.setBlockToAir(pos);
-        }
-    }
-    
-    public boolean canPlaceBlockOnSide(World par1World, BlockPos pos, EnumFacing par5) {
-        return canPlaceBlockAt(par1World, pos.down());
-    }
-    
-    public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos) {
-        return new AxisAlignedBB(0.375, 0.0, 0.375, 0.625, 0.5, 0.625);
-    }
-    
-    public boolean isSideSolid(IBlockState state, IBlockAccess world, BlockPos pos, EnumFacing side) {
-        return false;
-    }
-    
-    public AxisAlignedBB getCollisionBoundingBox(IBlockState state, IBlockAccess worldIn, BlockPos pos) {
-        return null;
-    }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
-    }
-    
-    public void randomDisplayTick(IBlockState state, World par1World, BlockPos pos, Random par5Random) {
-        double var7 = pos.getX() + 0.5f;
-        double var8 = pos.getY() + 0.7f;
-        double var9 = pos.getZ() + 0.5f;
-        par1World.spawnParticle(EnumParticleTypes.SMOKE_NORMAL, var7, var8, var9, 0.0, 0.0, 0.0);
-        par1World.spawnParticle(EnumParticleTypes.FLAME, var7, var8, var9, 0.0, 0.0, 0.0);
-    }
-    
-    public boolean canStabaliseInfusion(World world, BlockPos pos) {
+
+    /**
+     * Candles can stabilize infusion without symmetry penalty.
+     */
+    public boolean canStabilizeInfusion(Level level, BlockPos pos) {
         return true;
     }
-    
-    @Override
-    public float getStabilizationAmount(World world, BlockPos pos) {
-        return 0.1f;
-    }
-    
-    @Override
-    public boolean hasSymmetryPenalty(World world, BlockPos pos1, BlockPos pos2) {
+
+    public boolean hasSymmetryPenalty() {
         return false;
     }
-    
+
     @Override
-    public float getSymmetryPenalty(World world, BlockPos pos) {
-        return 0.0f;
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
+    }
+
+    @Override
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+        BlockPos below = pos.below();
+        return level.getBlockState(below).isFaceSturdy(level, below, Direction.UP);
+    }
+
+    @Override
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+                                   LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+        if (direction == Direction.DOWN && !canSurvive(state, level, pos)) {
+            return Blocks.AIR.defaultBlockState();
+        }
+        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+    }
+
+    @Override
+    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
+        double x = pos.getX() + 0.5;
+        double y = pos.getY() + 0.7;
+        double z = pos.getZ() + 0.5;
+        level.addParticle(ParticleTypes.SMOKE, x, y, z, 0.0, 0.0, 0.0);
+        level.addParticle(ParticleTypes.FLAME, x, y, z, 0.0, 0.0, 0.0);
+    }
+
+    /**
+     * Create a candle of a specific color.
+     */
+    public static BlockCandle create(DyeColor color) {
+        return new BlockCandle(color);
     }
 }

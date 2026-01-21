@@ -1,121 +1,140 @@
 package thaumcraft.common.items.baubles;
-import baubles.api.BaubleType;
-import baubles.api.IBauble;
-import java.util.List;
-import javax.annotation.Nullable;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.IItemPropertyGetter;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagByte;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
 import thaumcraft.api.items.IRechargable;
 import thaumcraft.api.items.RechargeHelper;
-import thaumcraft.api.potions.PotionFluxTaint;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.ItemTCBase;
 
+import javax.annotation.Nullable;
+import java.util.List;
 
-public class ItemVerdantCharm extends ItemTCBase implements IBauble, IRechargable
-{
-    public ItemVerdantCharm() {
-        super("verdant_charm");
-        maxStackSize = 1;
-        canRepair = false;
-        setMaxDamage(0);
-        addPropertyOverride(new ResourceLocation("type"), new IItemPropertyGetter() {
-            @SideOnly(Side.CLIENT)
-            public float apply(ItemStack stack, @Nullable World worldIn, @Nullable EntityLivingBase entityIn) {
-                if (stack.getItem() instanceof ItemVerdantCharm && stack.hasTagCompound()) {
-                    return stack.getTagCompound().getByte("type");
-                }
-                return 0.0f;
-            }
-        });
+/**
+ * Verdant Charm - A charm that provides various life-sustaining benefits.
+ * Comes in three variants:
+ * - Basic: Removes poison and wither effects
+ * - Life: Also slowly regenerates health
+ * - Sustain: Also provides air and food
+ * 
+ * Uses vis charge to power its effects.
+ * 
+ * TODO: Add Curios integration for charm slot support.
+ */
+public class ItemVerdantCharm extends Item implements IRechargable {
+    
+    public enum CharmType {
+        BASIC(0),
+        LIFE(1),
+        SUSTAIN(2);
+        
+        public final int id;
+        CharmType(int id) { this.id = id; }
+        
+        public static CharmType fromId(int id) {
+            return switch (id) {
+                case 1 -> LIFE;
+                case 2 -> SUSTAIN;
+                default -> BASIC;
+            };
+        }
     }
     
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.RARE;
+    private final CharmType type;
+    
+    public ItemVerdantCharm(CharmType type) {
+        super(new Item.Properties()
+                .stacksTo(1)
+                .rarity(Rarity.RARE));
+        this.type = type;
     }
     
-    public BaubleType getBaubleType(ItemStack itemstack) {
-        return BaubleType.CHARM;
+    public static ItemVerdantCharm createBasic() {
+        return new ItemVerdantCharm(CharmType.BASIC);
+    }
+    
+    public static ItemVerdantCharm createLife() {
+        return new ItemVerdantCharm(CharmType.LIFE);
+    }
+    
+    public static ItemVerdantCharm createSustain() {
+        return new ItemVerdantCharm(CharmType.SUSTAIN);
     }
     
     @Override
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
-        if (tab == ConfigItems.TABTC || tab == CreativeTabs.SEARCH) {
-            items.add(new ItemStack(this));
-            ItemStack vhbl = new ItemStack(this);
-            vhbl.setTagInfo("type", new NBTTagByte((byte)1));
-            items.add(vhbl);
-            ItemStack vhbl2 = new ItemStack(this);
-            vhbl2.setTagInfo("type", new NBTTagByte((byte)2));
-            items.add(vhbl2);
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
+        super.inventoryTick(stack, level, entity, slotId, isSelected);
+        
+        if (level.isClientSide() || !(entity instanceof Player player)) {
+            return;
         }
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        if (stack.hasTagCompound() && stack.getTagCompound().getByte("type") == 1) {
-            tooltip.add(TextFormatting.GOLD + I18n.translateToLocal("item.verdant_charm.life.text"));
+        
+        if (player.tickCount % 20 != 0) {
+            return;
         }
-        if (stack.hasTagCompound() && stack.getTagCompound().getByte("type") == 2) {
-            tooltip.add(TextFormatting.GOLD + I18n.translateToLocal("item.verdant_charm.sustain.text"));
+        
+        // Remove wither effect (costs 20 charge)
+        if (player.hasEffect(MobEffects.WITHER) && RechargeHelper.consumeCharge(stack, player, 20)) {
+            player.removeEffect(MobEffects.WITHER);
+            return;
         }
-    }
-    
-    public void onWornTick(ItemStack itemstack, EntityLivingBase player) {
-        if (!player.world.isRemote && player.ticksExisted % 20 == 0 && player instanceof EntityPlayer) {
-            if (player.getActivePotionEffect(MobEffects.WITHER) != null && RechargeHelper.consumeCharge(itemstack, player, 20)) {
-                player.removePotionEffect(MobEffects.WITHER);
-                return;
-            }
-            if (player.getActivePotionEffect(MobEffects.POISON) != null && RechargeHelper.consumeCharge(itemstack, player, 10)) {
-                player.removePotionEffect(MobEffects.POISON);
-                return;
-            }
-            if (player.getActivePotionEffect(PotionFluxTaint.instance) != null && RechargeHelper.consumeCharge(itemstack, player, 5)) {
-                player.removePotionEffect(PotionFluxTaint.instance);
-                return;
-            }
-            if (itemstack.hasTagCompound() && itemstack.getTagCompound().getByte("type") == 1 && player.getHealth() < player.getMaxHealth() && RechargeHelper.consumeCharge(itemstack, player, 5)) {
+        
+        // Remove poison effect (costs 10 charge)
+        if (player.hasEffect(MobEffects.POISON) && RechargeHelper.consumeCharge(stack, player, 10)) {
+            player.removeEffect(MobEffects.POISON);
+            return;
+        }
+        
+        // TODO: Remove flux taint effect when taint system is implemented
+        
+        // Life variant: regenerate health
+        if (type == CharmType.LIFE) {
+            if (player.getHealth() < player.getMaxHealth() && RechargeHelper.consumeCharge(stack, player, 5)) {
                 player.heal(1.0f);
                 return;
             }
-            if (itemstack.hasTagCompound() && itemstack.getTagCompound().getByte("type") == 2) {
-                if (player.getAir() < 100 && RechargeHelper.consumeCharge(itemstack, player, 1)) {
-                    player.setAir(300);
-                    return;
-                }
-                if (player instanceof EntityPlayer && ((EntityPlayer)player).canEat(false) && RechargeHelper.consumeCharge(itemstack, player, 1)) {
-                    ((EntityPlayer)player).getFoodStats().addStats(1, 0.3f);
-                }
+        }
+        
+        // Sustain variant: provide air and food
+        if (type == CharmType.SUSTAIN) {
+            // Restore air
+            if (player.getAirSupply() < 100 && RechargeHelper.consumeCharge(stack, player, 1)) {
+                player.setAirSupply(300);
+                return;
+            }
+            // Restore food
+            if (player.canEat(false) && RechargeHelper.consumeCharge(stack, player, 1)) {
+                player.getFoodData().eat(1, 0.3f);
             }
         }
     }
     
-    public int getMaxCharge(ItemStack stack, EntityLivingBase player) {
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        switch (type) {
+            case LIFE -> tooltip.add(Component.translatable("item.thaumcraft.verdant_charm.life.text")
+                    .withStyle(ChatFormatting.GOLD));
+            case SUSTAIN -> tooltip.add(Component.translatable("item.thaumcraft.verdant_charm.sustain.text")
+                    .withStyle(ChatFormatting.GOLD));
+            default -> tooltip.add(Component.translatable("item.thaumcraft.verdant_charm.text")
+                    .withStyle(ChatFormatting.GREEN));
+        }
+    }
+    
+    @Override
+    public int getMaxCharge(ItemStack stack, LivingEntity entity) {
         return 200;
     }
     
-    public EnumChargeDisplay showInHud(ItemStack stack, EntityLivingBase player) {
+    @Override
+    public EnumChargeDisplay showInHud(ItemStack stack, LivingEntity entity) {
         return EnumChargeDisplay.NORMAL;
-    }
-    
-    public boolean willAutoSync(ItemStack itemstack, EntityLivingBase player) {
-        return true;
     }
 }

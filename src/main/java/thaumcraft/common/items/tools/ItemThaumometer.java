@@ -1,137 +1,156 @@
 package thaumcraft.common.items.tools;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import thaumcraft.api.capabilities.ThaumcraftCapabilities;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.research.ScanningManager;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.client.lib.events.RenderEventHandler;
-import thaumcraft.common.items.ItemTCBase;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.network.PacketHandler;
-import thaumcraft.common.lib.network.misc.PacketAuraToClient;
-import thaumcraft.common.lib.research.ResearchManager;
-import thaumcraft.common.lib.utils.EntityUtils;
-import thaumcraft.common.world.aura.AuraChunk;
-import thaumcraft.common.world.aura.AuraHandler;
+import thaumcraft.common.items.ItemTC;
 
+/**
+ * Thaumometer - the basic scanning tool of Thaumcraft.
+ * Right-click to scan entities and blocks to discover their aspects
+ * and unlock research.
+ */
+public class ItemThaumometer extends ItemTC {
 
-public class ItemThaumometer extends ItemTCBase
-{
+    private static final double SCAN_RANGE = 9.0;
+
     public ItemThaumometer() {
-        super("thaumometer");
-        setMaxStackSize(1);
+        super(new Properties()
+                .stacksTo(1)
+                .rarity(Rarity.UNCOMMON));
     }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.UNCOMMON;
-    }
-    
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer p, EnumHand hand) {
-        if (world.isRemote) {
-            drawFX(world, p);
-            p.world.playSound(p.posX, p.posY, p.posZ, SoundsTC.scan, SoundCategory.PLAYERS, 0.5f, 1.0f, false);
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+
+        if (level.isClientSide()) {
+            // Client-side: play sound and spawn particles
+            // TODO: FXDispatcher effects
+            // level.playLocalSound(player.getX(), player.getY(), player.getZ(), 
+            //         SoundsTC.scan, SoundSource.PLAYERS, 0.5f, 1.0f, false);
+            return InteractionResultHolder.success(stack);
         }
-        else {
-            doScan(world, p);
-        }
-        return (ActionResult<ItemStack>)new ActionResult(EnumActionResult.SUCCESS, p.getHeldItem(hand));
+
+        // Server-side: perform the scan
+        doScan(level, player);
+        return InteractionResultHolder.consume(stack);
     }
-    
-    public void onUpdate(ItemStack stack, World world, Entity entity, int itemSlot, boolean isSelected) {
-        boolean held = isSelected || itemSlot == 0;
-        if (held && !world.isRemote && entity.ticksExisted % 20 == 0 && entity instanceof EntityPlayerMP) {
-            updateAura(stack, world, (EntityPlayerMP)entity);
+
+    @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
+        if (!(entity instanceof Player player)) return;
+        
+        boolean held = isSelected || slotId == 0; // Main hand or offhand slot
+        
+        if (!held) return;
+
+        // Server: periodically update aura info
+        if (!level.isClientSide() && entity.tickCount % 20 == 0) {
+            updateAuraInfo(level, player);
         }
-        if (held && world.isRemote && entity.ticksExisted % 5 == 0 && entity instanceof EntityPlayer) {
-            Entity target = EntityUtils.getPointedEntity(world, entity, 1.0, 16.0, 5.0f, true);
-            if (target != null && ScanningManager.isThingStillScannable((EntityPlayer)entity, target)) {
-                FXDispatcher.INSTANCE.scanHighlight(target);
-            }
-            RenderEventHandler.thaumTarget = target;
-            RayTraceResult mop = getRayTraceResultFromPlayerWild(world, (EntityPlayer)entity, true);
-            if (mop != null && mop.getBlockPos() != null && ScanningManager.isThingStillScannable((EntityPlayer)entity, mop.getBlockPos())) {
-                FXDispatcher.INSTANCE.scanHighlight(mop.getBlockPos());
-            }
-        }
-    }
-    
-    protected RayTraceResult getRayTraceResultFromPlayerWild(World worldIn, EntityPlayer playerIn, boolean useLiquids) {
-        float f = playerIn.prevRotationPitch + (playerIn.rotationPitch - playerIn.prevRotationPitch) + worldIn.rand.nextInt(25) - worldIn.rand.nextInt(25);
-        float f2 = playerIn.prevRotationYaw + (playerIn.rotationYaw - playerIn.prevRotationYaw) + worldIn.rand.nextInt(25) - worldIn.rand.nextInt(25);
-        double d0 = playerIn.prevPosX + (playerIn.posX - playerIn.prevPosX);
-        double d2 = playerIn.prevPosY + (playerIn.posY - playerIn.prevPosY) + playerIn.getEyeHeight();
-        double d3 = playerIn.prevPosZ + (playerIn.posZ - playerIn.prevPosZ);
-        Vec3d vec3 = new Vec3d(d0, d2, d3);
-        float f3 = MathHelper.cos(-f2 * 0.017453292f - 3.1415927f);
-        float f4 = MathHelper.sin(-f2 * 0.017453292f - 3.1415927f);
-        float f5 = -MathHelper.cos(-f * 0.017453292f);
-        float f6 = MathHelper.sin(-f * 0.017453292f);
-        float f7 = f4 * f5;
-        float f8 = f3 * f5;
-        double d4 = 16.0;
-        Vec3d vec4 = vec3.addVector(f7 * d4, f6 * d4, f8 * d4);
-        return worldIn.rayTraceBlocks(vec3, vec4, useLiquids, !useLiquids, false);
-    }
-    
-    private void updateAura(ItemStack stack, World world, EntityPlayerMP player) {
-        AuraChunk ac = AuraHandler.getAuraChunk(world.provider.getDimension(), player.getPosition().getX() >> 4, player.getPosition().getZ() >> 4);
-        if (ac != null) {
-            if ((ac.getFlux() > ac.getVis() || ac.getFlux() > ac.getBase() / 3) && !ThaumcraftCapabilities.knowsResearch(player, "FLUX")) {
-                ResearchManager.startResearchWithPopup(player, "FLUX");
-                player.sendStatusMessage(new TextComponentString(TextFormatting.DARK_PURPLE + I18n.translateToLocal("research.FLUX.warn")), true);
-            }
-            PacketHandler.INSTANCE.sendTo(new PacketAuraToClient(ac), player);
+
+        // Client: highlight scannable targets
+        if (level.isClientSide() && entity.tickCount % 5 == 0) {
+            highlightScannables(level, player);
         }
     }
-    
-    private void drawFX(World worldIn, EntityPlayer playerIn) {
-        Entity target = EntityUtils.getPointedEntity(worldIn, playerIn, 1.0, 9.0, 0.0f, true);
-        if (target != null) {
-            for (int a = 0; a < 10; ++a) {
-                FXDispatcher.INSTANCE.blockRunes(target.posX - 0.5, target.posY + target.getEyeHeight() / 2.0f, target.posZ - 0.5, 0.3f + worldIn.rand.nextFloat() * 0.7f, 0.0f, 0.3f + worldIn.rand.nextFloat() * 0.7f, (int)(target.height * 15.0f), 0.03f);
-            }
+
+    /**
+     * Perform a scan at the player's look target.
+     */
+    private void doScan(Level level, Player player) {
+        // First try to scan an entity
+        Entity targetEntity = getTargetEntity(level, player, SCAN_RANGE);
+        if (targetEntity != null) {
+            ScanningManager.scanTheThing(player, targetEntity);
+            return;
         }
-        else {
-            RayTraceResult mop = rayTrace(worldIn, playerIn, true);
-            if (mop != null && mop.getBlockPos() != null) {
-                for (int a2 = 0; a2 < 10; ++a2) {
-                    FXDispatcher.INSTANCE.blockRunes(mop.getBlockPos().getX(), mop.getBlockPos().getY() + 0.25, mop.getBlockPos().getZ(), 0.3f + worldIn.rand.nextFloat() * 0.7f, 0.0f, 0.3f + worldIn.rand.nextFloat() * 0.7f, 15, 0.03f);
+
+        // Then try to scan a block
+        BlockHitResult blockHit = getTargetBlock(level, player, SCAN_RANGE);
+        if (blockHit.getType() == HitResult.Type.BLOCK) {
+            ScanningManager.scanTheThing(player, blockHit.getBlockPos());
+            return;
+        }
+
+        // No target - scan the sky/void
+        ScanningManager.scanTheThing(player, (BlockPos) null);
+    }
+
+    /**
+     * Update aura information for the player.
+     */
+    private void updateAuraInfo(Level level, Player player) {
+        // TODO: Send aura chunk data to player
+        // AuraChunk ac = AuraHandler.getAuraChunk(level, player.blockPosition());
+        // if (ac != null) {
+        //     PacketHandler.sendTo(new PacketAuraToClient(ac), player);
+        // }
+    }
+
+    /**
+     * Highlight scannable things on the client.
+     */
+    private void highlightScannables(Level level, Player player) {
+        // TODO: Use FXDispatcher to highlight targets
+        // Entity target = getTargetEntity(level, player, 16.0);
+        // if (target != null && ScanningManager.isThingStillScannable(player, target)) {
+        //     FXDispatcher.INSTANCE.scanHighlight(target);
+        // }
+    }
+
+    /**
+     * Get the entity the player is looking at.
+     */
+    private Entity getTargetEntity(Level level, Player player, double range) {
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 lookVec = player.getLookAngle();
+        Vec3 targetPos = eyePos.add(lookVec.scale(range));
+
+        // Simple AABB check for entities
+        var aabb = player.getBoundingBox().expandTowards(lookVec.scale(range)).inflate(1.0);
+        var entities = level.getEntities(player, aabb, e -> e != player && e.isPickable());
+
+        Entity closest = null;
+        double closestDist = range;
+
+        for (Entity entity : entities) {
+            var entityAABB = entity.getBoundingBox().inflate(entity.getPickRadius());
+            var optional = entityAABB.clip(eyePos, targetPos);
+            if (optional.isPresent()) {
+                double dist = eyePos.distanceTo(optional.get());
+                if (dist < closestDist) {
+                    closest = entity;
+                    closestDist = dist;
                 }
             }
         }
+
+        return closest;
     }
-    
-    public void doScan(World worldIn, EntityPlayer playerIn) {
-        if (!worldIn.isRemote) {
-            Entity target = EntityUtils.getPointedEntity(worldIn, playerIn, 1.0, 9.0, 0.0f, true);
-            if (target != null) {
-                ScanningManager.scanTheThing(playerIn, target);
-            }
-            else {
-                RayTraceResult mop = rayTrace(worldIn, playerIn, true);
-                if (mop != null && mop.getBlockPos() != null) {
-                    ScanningManager.scanTheThing(playerIn, mop.getBlockPos());
-                }
-                else {
-                    ScanningManager.scanTheThing(playerIn, null);
-                }
-            }
-        }
+
+    /**
+     * Get the block the player is looking at.
+     */
+    private BlockHitResult getTargetBlock(Level level, Player player, double range) {
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 lookVec = player.getLookAngle();
+        Vec3 targetPos = eyePos.add(lookVec.scale(range));
+
+        return level.clip(new ClipContext(eyePos, targetPos,
+                ClipContext.Block.OUTLINE, ClipContext.Fluid.ANY, player));
     }
 }

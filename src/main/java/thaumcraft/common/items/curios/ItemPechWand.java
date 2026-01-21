@@ -1,70 +1,91 @@
 package thaumcraft.common.items.curios;
-import java.util.List;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.stats.StatList;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.ThaumcraftApi;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import thaumcraft.api.capabilities.IPlayerKnowledge;
 import thaumcraft.api.capabilities.ThaumcraftCapabilities;
-import thaumcraft.api.research.ResearchCategories;
-import thaumcraft.api.research.ResearchCategory;
-import thaumcraft.common.items.ItemTCBase;
-import thaumcraft.common.lib.SoundsTC;
 
+import javax.annotation.Nullable;
+import java.util.List;
 
-public class ItemPechWand extends ItemTCBase
-{
+/**
+ * Pech Wand - A rare curio that grants research knowledge when used.
+ * Can only be used if the player knows basic auromancy.
+ * Also unlocks the Pech Focus research if not already known.
+ */
+public class ItemPechWand extends Item {
+
     public ItemPechWand() {
-        super("pech_wand");
+        super(new Item.Properties()
+                .stacksTo(1)
+                .rarity(Rarity.RARE));
     }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.RARE;
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(I18n.translateToLocal("item.curio.text"));
-    }
-    
-    public ActionResult<ItemStack> onItemRightClick(World worldIn, EntityPlayer player, EnumHand hand) {
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
         IPlayerKnowledge knowledge = ThaumcraftCapabilities.getKnowledge(player);
+
+        if (knowledge == null) {
+            return InteractionResultHolder.pass(stack);
+        }
+
+        // Check if player knows basic auromancy
         if (!knowledge.isResearchKnown("BASEAUROMANCY")) {
-            if (!worldIn.isRemote) {
-                player.sendMessage(new TextComponentString(TextFormatting.RED + I18n.translateToLocal("not.pechwand")));
+            if (!level.isClientSide()) {
+                player.sendSystemMessage(Component.translatable("not.pechwand")
+                        .withStyle(ChatFormatting.RED));
             }
-            return super.onItemRightClick(worldIn, player, hand);
+            return InteractionResultHolder.fail(stack);
         }
-        if (!player.capabilities.isCreativeMode) {
-            player.getHeldItem(hand).shrink(1);
+
+        // Consume the item
+        if (!player.getAbilities().instabuild) {
+            stack.shrink(1);
         }
-        worldIn.playSound(null, player.posX, player.posY, player.posZ, SoundsTC.learn, SoundCategory.NEUTRAL, 0.5f, 0.4f / (ItemPechWand.itemRand.nextFloat() * 0.4f + 0.8f));
-        if (!worldIn.isRemote) {
+
+        // Play sound
+        level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.PLAYERS,
+                0.5f, 0.4f / (level.random.nextFloat() * 0.4f + 0.8f));
+
+        if (!level.isClientSide()) {
+            // Unlock Pech Focus research if not known
             if (!knowledge.isResearchKnown("FOCUSPECH")) {
-                ThaumcraftApi.internalMethods.progressResearch(player, "FOCUSPECH");
-                player.sendMessage(new TextComponentString(TextFormatting.DARK_PURPLE + I18n.translateToLocal("got.pechwand")));
+                // TODO: ThaumcraftApi.internalMethods.progressResearch(player, "FOCUSPECH");
+                player.sendSystemMessage(Component.translatable("got.pechwand")
+                        .withStyle(ChatFormatting.DARK_PURPLE));
             }
-            int oProg = IPlayerKnowledge.EnumKnowledgeType.OBSERVATION.getProgression();
-            ResearchCategory[] rc = ResearchCategories.researchCategories.values().toArray(new ResearchCategory[0]);
-            ThaumcraftApi.internalMethods.addKnowledge(player, IPlayerKnowledge.EnumKnowledgeType.OBSERVATION, rc[player.getRNG().nextInt(rc.length)], MathHelper.getInt(player.getRNG(), oProg / 3, oProg / 2));
-            int tProg = IPlayerKnowledge.EnumKnowledgeType.THEORY.getProgression();
-            ThaumcraftApi.internalMethods.addKnowledge(player, IPlayerKnowledge.EnumKnowledgeType.THEORY, rc[player.getRNG().nextInt(rc.length)], MathHelper.getInt(player.getRNG(), tProg / 5, tProg / 4));
+
+            // Grant random observation and theory knowledge
+            // TODO: Implement knowledge granting with ResearchCategories
+            // int oProg = IPlayerKnowledge.EnumKnowledgeType.OBSERVATION.getProgression();
+            // int tProg = IPlayerKnowledge.EnumKnowledgeType.THEORY.getProgression();
+            // Grant some research points
+            
+            player.sendSystemMessage(Component.translatable("item.thaumcraft.pech_wand.used")
+                    .withStyle(ChatFormatting.LIGHT_PURPLE));
         }
-        player.addStat(StatList.getObjectUseStats(this));
-        return super.onItemRightClick(worldIn, player, hand);
+
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+    }
+
+    @Override
+    @OnlyIn(Dist.CLIENT)
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("item.curio.text").withStyle(style -> style.withColor(0x808080)));
+        super.appendHoverText(stack, level, tooltip, flag);
     }
 }

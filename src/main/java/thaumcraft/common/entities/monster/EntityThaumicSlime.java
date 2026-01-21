@@ -1,205 +1,268 @@
 package thaumcraft.common.entities.monster;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.IEntityLivingData;
-import net.minecraft.entity.monster.EntitySlime;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.Item;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.math.MathHelper;
+
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
 import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.World;
-import thaumcraft.api.entities.ITaintedMob;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.lib.SoundsTC;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.phys.Vec3;
+import thaumcraft.init.ModEntities;
 
+import javax.annotation.Nullable;
 
-public class EntityThaumicSlime extends EntitySlime implements ITaintedMob
-{
-    int launched;
-    int spitCounter;
+/**
+ * EntityThaumicSlime - A tainted slime that can spit smaller copies at players.
+ * Implements ITaintedMob interface (when available).
+ * Larger slimes split into smaller ones on death.
+ */
+public class EntityThaumicSlime extends Slime {
     
-    public EntityThaumicSlime(World par1World) {
-        super(par1World);
-        launched = 10;
-        spitCounter = 100;
-        int i = 1 << 1 + rand.nextInt(3);
-        setSlimeSize(i, true);
+    private int launched = 10;
+    private int spitCounter = 100;
+    
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MOVEMENT_SPEED, 0.3);
     }
     
-    public EntityThaumicSlime(World par1World, EntityLivingBase par2EntityLiving, EntityLivingBase par3EntityLiving) {
-        super(par1World);
+    public EntityThaumicSlime(EntityType<? extends EntityThaumicSlime> type, Level level) {
+        super(type, level);
+        int size = 1 << (1 + random.nextInt(3)); // 2, 4, or 8
+        setSize(size, true);
+    }
+    
+    public EntityThaumicSlime(Level level) {
+        super(ModEntities.THAUMIC_SLIME.get(), level);
+        int size = 1 << (1 + random.nextInt(3));
+        setSize(size, true);
+    }
+    
+    /**
+     * Constructor for creating a launched slime projectile.
+     */
+    public EntityThaumicSlime(Level level, LivingEntity shooter, LivingEntity target) {
+        super(ModEntities.THAUMIC_SLIME.get(), level);
+        setSize(1, true);
         launched = 10;
-        spitCounter = 100;
-        setSlimeSize(1, true);
-        posY = (par2EntityLiving.getEntityBoundingBox().minY + par2EntityLiving.getEntityBoundingBox().maxY) / 2.0;
-        double var6 = par3EntityLiving.posX - par2EntityLiving.posX;
-        double var7 = par3EntityLiving.getEntityBoundingBox().minY + par3EntityLiving.height / 3.0f - posY;
-        double var8 = par3EntityLiving.posZ - par2EntityLiving.posZ;
-        double var9 = MathHelper.sqrt(var6 * var6 + var8 * var8);
-        if (var9 >= 1.0E-7) {
-            float var10 = (float)(Math.atan2(var8, var6) * 180.0 / 3.141592653589793) - 90.0f;
-            float var11 = (float)(-(Math.atan2(var7, var9) * 180.0 / 3.141592653589793));
-            double var12 = var6 / var9;
-            double var13 = var8 / var9;
-            setLocationAndAngles(par2EntityLiving.posX + var12, posY, par2EntityLiving.posZ + var13, var10, var11);
-            float var14 = (float)var9 * 0.2f;
-            shoot(var6, var7 + var14, var8, 1.5f, 1.0f);
+        
+        // Position at shooter's center
+        double startY = (shooter.getBoundingBox().minY + shooter.getBoundingBox().maxY) / 2.0;
+        
+        // Calculate trajectory
+        double dx = target.getX() - shooter.getX();
+        double dy = target.getBoundingBox().minY + target.getBbHeight() / 3.0f - startY;
+        double dz = target.getZ() - shooter.getZ();
+        double dist = Math.sqrt(dx * dx + dz * dz);
+        
+        if (dist >= 1.0E-7) {
+            float yaw = (float)(Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0f;
+            float pitch = (float)(-Mth.atan2(dy, dist) * Mth.RAD_TO_DEG);
+            
+            double normalizedX = dx / dist;
+            double normalizedZ = dz / dist;
+            
+            setPos(shooter.getX() + normalizedX, startY, shooter.getZ() + normalizedZ);
+            setYRot(yaw);
+            setXRot(pitch);
+            yRotO = yaw;
+            xRotO = pitch;
+            
+            // Launch with velocity
+            float arc = (float)dist * 0.2f;
+            shoot(dx, dy + arc, dz, 1.5f, 1.0f);
         }
     }
     
-    public void shoot(double par1, double par3, double par5, float par7, float par8) {
-        float var9 = MathHelper.sqrt(par1 * par1 + par3 * par3 + par5 * par5);
-        par1 /= var9;
-        par3 /= var9;
-        par5 /= var9;
-        par1 += rand.nextGaussian() * 0.007499999832361937 * par8;
-        par3 += rand.nextGaussian() * 0.007499999832361937 * par8;
-        par5 += rand.nextGaussian() * 0.007499999832361937 * par8;
-        par1 *= par7;
-        par3 *= par7;
-        par5 *= par7;
-        motionX = par1;
-        motionY = par3;
-        motionZ = par5;
-        float var10 = MathHelper.sqrt(par1 * par1 + par5 * par5);
-        float n = (float)(Math.atan2(par1, par5) * 180.0 / 3.141592653589793);
-        rotationYaw = n;
-        prevRotationYaw = n;
-        float n2 = (float)(Math.atan2(par3, var10) * 180.0 / 3.141592653589793);
-        rotationPitch = n2;
-        prevRotationPitch = n2;
+    /**
+     * Shoots this slime like a projectile.
+     */
+    public void shoot(double x, double y, double z, float velocity, float inaccuracy) {
+        double dist = Math.sqrt(x * x + y * y + z * z);
+        x /= dist;
+        y /= dist;
+        z /= dist;
+        
+        x += random.nextGaussian() * 0.0075 * inaccuracy;
+        y += random.nextGaussian() * 0.0075 * inaccuracy;
+        z += random.nextGaussian() * 0.0075 * inaccuracy;
+        
+        x *= velocity;
+        y *= velocity;
+        z *= velocity;
+        
+        setDeltaMovement(x, y, z);
+        
+        double horizDist = Math.sqrt(x * x + z * z);
+        setYRot((float)(Mth.atan2(x, z) * Mth.RAD_TO_DEG));
+        setXRot((float)(Mth.atan2(y, horizDist) * Mth.RAD_TO_DEG));
+        yRotO = getYRot();
+        xRotO = getXRot();
     }
     
-    public IEntityLivingData onInitialSpawn(DifficultyInstance p_180482_1_, IEntityLivingData p_180482_2_) {
-        int i = rand.nextInt(3);
-        if (i < 2 && rand.nextFloat() < 0.5f * p_180482_1_.getClampedAdditionalDifficulty()) {
-            ++i;
+    @Nullable
+    @Override
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, 
+            MobSpawnType spawnType, @Nullable SpawnGroupData spawnData, @Nullable net.minecraft.nbt.CompoundTag tag) {
+        // Random size based on difficulty
+        int sizeIndex = random.nextInt(3);
+        if (sizeIndex < 2 && random.nextFloat() < 0.5f * difficulty.getSpecialMultiplier()) {
+            sizeIndex++;
         }
-        int j = 1 << i;
-        setSlimeSize(j, true);
-        return super.onInitialSpawn(p_180482_1_, p_180482_2_);
+        int size = 1 << sizeIndex;
+        setSize(size, true);
+        
+        return super.finalizeSpawn(level, difficulty, spawnType, spawnData, tag);
     }
     
-    public void setSlimeSize(int par1, boolean t) {
-        super.setSlimeSize(par1, t);
-        experienceValue = par1 + 2;
+    @Override
+    public void setSize(int size, boolean resetHealth) {
+        super.setSize(size, resetHealth);
+        this.xpReward = size + 2;
     }
     
-    public void writeEntityToNBT(NBTTagCompound par1NBTTagCompound) {
-        super.writeEntityToNBT(par1NBTTagCompound);
-    }
+    private boolean wasOnGroundLastTick = false;
     
-    public void readEntityFromNBT(NBTTagCompound par1NBTTagCompound) {
-        super.readEntityFromNBT(par1NBTTagCompound);
-    }
-    
-    public void onUpdate() {
-        int i = getSlimeSize();
-        if (onGround && !wasOnGround) {
-            wasOnGround = true;
-            float sa = squishAmount;
-            super.onUpdate();
-            squishAmount = sa;
-            if (world.isRemote) {
-                for (int j = 0; j < i * 2; ++j) {
-                    FXDispatcher.INSTANCE.slimeJumpFX(this, i);
+    @Override
+    public void tick() {
+        int size = getSize();
+        
+        // Custom landing behavior with particles
+        if (onGround() && !wasOnGroundLastTick) {
+            wasOnGroundLastTick = true;
+            
+            if (level().isClientSide) {
+                for (int j = 0; j < size * 2; j++) {
+                    spawnSlimeParticles();
                 }
             }
-            if (makesSoundOnJump()) {
-                playSound(getJumpSound(), getSoundVolume(), ((getRNG().nextFloat() - getRNG().nextFloat()) * 0.2f + 1.0f) * 0.8f);
-            }
-            squishAmount = -0.5f;
-            wasOnGround = onGround;
-            alterSquishAmount();
+            
+            playSound(getJumpSound(), getSoundVolume(), 
+                    (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f * 0.8f);
+        } else if (!onGround()) {
+            wasOnGroundLastTick = false;
         }
-        else {
-            super.onUpdate();
-        }
-        if (world.isRemote) {
+        
+        super.tick();
+        
+        // Client-side particles for launched slimes
+        if (level().isClientSide) {
             if (launched > 0) {
-                --launched;
-                for (int k = 0; k < i * (launched + 1); ++k) {
-                    FXDispatcher.INSTANCE.slimeJumpFX(this, i);
+                launched--;
+                for (int k = 0; k < size * (launched + 1); k++) {
+                    spawnSlimeParticles();
                 }
             }
-            float ff = (float) getSlimeSize();
-            setSize(0.6f * ff, 0.6f * ff);
-            setSize(0.51000005f * ff, 0.51000005f * ff);
         }
-        else if (!isDead) {
-            EntityPlayer entityplayer = world.getClosestPlayerToEntity(this, 16.0);
-            if (entityplayer != null) {
+        
+        // Server-side spit attack logic
+        if (!level().isClientSide && isAlive()) {
+            Player target = level().getNearestPlayer(this, 16.0);
+            if (target != null) {
                 if (spitCounter > 0) {
-                    --spitCounter;
+                    spitCounter--;
                 }
-                faceEntity(entityplayer, 10.0f, 20.0f);
-                if (getDistance(entityplayer) > 4.0f && spitCounter <= 0 && getSlimeSize() > 2) {
+                
+                lookAt(target, 10.0f, 20.0f);
+                
+                // Spit attack if large enough and target is at range
+                if (distanceTo(target) > 4.0f && spitCounter <= 0 && getSize() > 2) {
                     spitCounter = 101;
-                    if (!world.isRemote) {
-                        EntityThaumicSlime flyslime = new EntityThaumicSlime(world, this, entityplayer);
-                        world.spawnEntity(flyslime);
-                    }
-                    playSound(SoundsTC.gore, 1.0f, ((rand.nextFloat() - rand.nextFloat()) * 0.2f + 1.0f) * 0.8f);
-                    setSlimeSize(getSlimeSize() - 1, true);
+                    
+                    EntityThaumicSlime spitSlime = new EntityThaumicSlime(level(), this, target);
+                    level().addFreshEntity(spitSlime);
+                    
+                    // TODO: Play SoundsTC.gore when implemented
+                    playSound(SoundEvents.SLIME_SQUISH, 1.0f, 
+                            (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f * 0.8f);
+                    
+                    // Shrink after spitting
+                    setSize(getSize() - 1, true);
                 }
             }
         }
     }
     
-    protected EntityThaumicSlime createInstance() {
-        return new EntityThaumicSlime(world);
+    private void spawnSlimeParticles() {
+        // Purple/taint colored particles
+        level().addParticle(ParticleTypes.ITEM_SLIME,
+                getX() + (random.nextDouble() - 0.5) * getBbWidth(),
+                getY() + random.nextDouble() * getBbHeight(),
+                getZ() + (random.nextDouble() - 0.5) * getBbWidth(),
+                0, 0, 0);
     }
     
-    public void setDead() {
-        int i = getSlimeSize();
-        if (!world.isRemote && i > 1 && getHealth() <= 0.0f) {
-            for (int k = 0; k < i; ++k) {
-                float f = (k % 2 - 0.5f) * i / 4.0f;
-                float f2 = (k / 2 - 0.5f) * i / 4.0f;
-                EntityThaumicSlime entityslime = createInstance();
-                entityslime.setSlimeSize(1, true);
-                entityslime.setLocationAndAngles(posX + f, posY + 0.5, posZ + f2, rand.nextFloat() * 360.0f, 0.0f);
-                world.spawnEntity(entityslime);
+    @Override
+    public void remove(RemovalReason reason) {
+        int size = getSize();
+        
+        // Split into smaller slimes on death
+        if (!level().isClientSide && size > 1 && isDeadOrDying()) {
+            for (int k = 0; k < size; k++) {
+                float offsetX = (k % 2 - 0.5f) * size / 4.0f;
+                float offsetZ = (k / 2 - 0.5f) * size / 4.0f;
+                
+                EntityThaumicSlime smallSlime = new EntityThaumicSlime(ModEntities.THAUMIC_SLIME.get(), level());
+                smallSlime.setSize(1, true);
+                smallSlime.moveTo(getX() + offsetX, getY() + 0.5, getZ() + offsetZ, 
+                        random.nextFloat() * 360.0f, 0.0f);
+                level().addFreshEntity(smallSlime);
             }
         }
-        isDead = true;
+        
+        super.remove(reason);
     }
     
-    public boolean getCanSpawnHere() {
-        return false;
+    @Override
+    protected float getAttackDamage() {
+        return getSize() + 1;
     }
     
-    protected int getAttackStrength() {
-        return getSlimeSize() + 1;
-    }
-    
-    protected boolean canDamagePlayer() {
+    @Override
+    protected boolean isDealsDamage() {
         return true;
     }
     
-    protected void dealDamage(EntityLivingBase p_175451_1_) {
-        int i = getSlimeSize();
-        if (launched > 0) {
-            i += 2;
-        }
-        if (isEntityAlive() && canEntityBeSeen(p_175451_1_) && getDistanceSq(p_175451_1_) < 0.6 * i * 0.6 * i && p_175451_1_.attackEntityFrom(DamageSource.causeMobDamage(this), (float) getAttackStrength())) {
-            playSound(SoundEvents.ENTITY_SLIME_ATTACK, 1.0f, (rand.nextFloat() - rand.nextFloat()) * 0.2f + 1.0f);
-            applyEnchantments(this, p_175451_1_);
+    @Override
+    protected void dealDamage(LivingEntity target) {
+        int size = getSize();
+        int effectiveSize = launched > 0 ? size + 2 : size;
+        
+        if (isAlive() && hasLineOfSight(target) && 
+                distanceToSqr(target) < 0.6 * effectiveSize * 0.6 * effectiveSize) {
+            
+            if (target.hurt(damageSources().mobAttack(this), getAttackDamage())) {
+                playSound(SoundEvents.SLIME_ATTACK, 1.0f, 
+                        (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+                doEnchantDamageEffects(this, target);
+            }
         }
     }
     
-    protected Item getDropItem() {
-        return (getSlimeSize() > 1) ? ItemsTC.crystalEssence : Item.getItemById(0);
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
+        super.dropCustomDeathLoot(source, lootingLevel, wasRecentlyHit);
+        
+        // Drop flux crystal if large enough
+        if (getSize() > 1) {
+            // TODO: Drop ConfigItems.FLUX_CRYSTAL when implemented
+            // this.spawnAtLocation(ConfigItems.FLUX_CRYSTAL.copy(), getBbHeight() / 2.0f);
+        }
     }
     
-    protected void dropFewItems(boolean flag, int i) {
-        if (getSlimeSize() > 1) {
-            entityDropItem(ConfigItems.FLUX_CRYSTAL.copy(), height / 2.0f);
-        }
+    @Override
+    public boolean checkSpawnRules(net.minecraft.world.level.LevelAccessor level, MobSpawnType spawnType) {
+        // Thaumic slimes don't spawn naturally - only from flux effects
+        return false;
     }
 }

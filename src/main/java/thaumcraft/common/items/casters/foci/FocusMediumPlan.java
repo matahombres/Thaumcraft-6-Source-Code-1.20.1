@@ -1,262 +1,268 @@
 package thaumcraft.common.items.casters.foci;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Vec3i;
-import net.minecraft.world.World;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.casters.FocusMedium;
-import thaumcraft.api.casters.ICaster;
 import thaumcraft.api.casters.NodeSetting;
 import thaumcraft.api.casters.Trajectory;
-import thaumcraft.api.items.IArchitect;
-import thaumcraft.common.items.casters.CasterManager;
-import thaumcraft.common.lib.utils.BlockUtils;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-public class FocusMediumPlan extends FocusMedium implements IArchitect
-{
-    ArrayList<BlockPos> checked;
+/**
+ * Plan Medium - Targets multiple blocks based on a selection pattern.
+ * Can operate in "full" mode (3D volume) or "surface" mode (connected surface blocks).
+ * Used with block-affecting effects like Break or Exchange.
+ */
+public class FocusMediumPlan extends FocusMedium {
+
+    /** Target all blocks in a 3D volume */
+    public static final int METHOD_FULL = 0;
+    /** Target only exposed surface blocks of the same type */
+    public static final int METHOD_SURFACE = 1;
     
-    public FocusMediumPlan() {
-        checked = new ArrayList<BlockPos>();
-    }
-    
+    // Checked positions for flood-fill algorithms
+    private final Set<BlockPos> checked = new HashSet<>();
+
     @Override
     public String getResearch() {
         return "FOCUSPLAN";
     }
-    
+
     @Override
     public String getKey() {
         return "thaumcraft.PLAN";
     }
-    
+
     @Override
     public int getComplexity() {
         return 4;
     }
-    
+
     @Override
     public Aspect getAspect() {
         return Aspect.CRAFT;
     }
-    
+
+    @Override
+    public EnumSupplyType[] mustBeSupplied() {
+        return new EnumSupplyType[] { EnumSupplyType.TRAJECTORY };
+    }
+
+    @Override
+    public EnumSupplyType[] willSupply() {
+        return new EnumSupplyType[] { EnumSupplyType.TARGET };
+    }
+
+    @Override
+    public HitResult[] supplyTargets() {
+        if (getParent() == null || getPackage() == null || getPackage().world == null) {
+            return new HitResult[0];
+        }
+        
+        Player player = getCasterPlayer();
+        if (player == null) {
+            return new HitResult[0];
+        }
+        
+        Level world = getPackage().world;
+        List<HitResult> targets = new ArrayList<>();
+        
+        Trajectory[] parentTrajectories = getParent().supplyTrajectories();
+        if (parentTrajectories == null) {
+            return new HitResult[0];
+        }
+        
+        for (Trajectory trajectory : parentTrajectories) {
+            Vec3 start = trajectory.source;
+            Vec3 direction = trajectory.direction.normalize();
+            Vec3 end = start.add(direction.scale(16.0));
+            
+            // Raycast to find the target block
+            BlockHitResult blockHit = world.clip(new ClipContext(
+                    start, end,
+                    ClipContext.Block.OUTLINE,
+                    ClipContext.Fluid.NONE,
+                    player));
+            
+            if (blockHit.getType() == HitResult.Type.BLOCK) {
+                // Get all affected blocks based on method
+                List<BlockPos> affectedBlocks = getAffectedBlocks(world, blockHit.getBlockPos(), 
+                        blockHit.getDirection(), player);
+                
+                // Sort by distance from hit point
+                BlockPos hitPos = blockHit.getBlockPos();
+                affectedBlocks.sort(Comparator.comparingDouble(pos -> pos.distSqr(hitPos)));
+                
+                // Convert to hit results
+                for (BlockPos pos : affectedBlocks) {
+                    targets.add(new BlockHitResult(
+                            Vec3.atCenterOf(pos),
+                            blockHit.getDirection(),
+                            pos,
+                            false));
+                }
+            }
+        }
+        
+        return targets.toArray(new HitResult[0]);
+    }
+
     @Override
     public NodeSetting[] createSettings() {
-        int[] method = { 0, 1 };
+        int[] method = { METHOD_FULL, METHOD_SURFACE };
         String[] methodDesc = { "focus.plan.full", "focus.plan.surface" };
-        return new NodeSetting[] { new NodeSetting("method", "focus.plan.method", new NodeSetting.NodeSettingIntList(method, methodDesc)) };
+        
+        return new NodeSetting[] {
+            new NodeSetting("method", "focus.plan.method", 
+                new NodeSetting.NodeSettingIntList(method, methodDesc))
+        };
     }
-    
-    @Override
-    public RayTraceResult[] supplyTargets() {
-        if (getParent() == null || !(getPackage().getCaster() instanceof EntityPlayer)) {
-            return new RayTraceResult[0];
-        }
-        ArrayList<RayTraceResult> targets = new ArrayList<RayTraceResult>();
-        ItemStack casterStack = ItemStack.EMPTY;
-        if (getPackage().getCaster().getHeldItemMainhand() != null && getPackage().getCaster().getHeldItemMainhand().getItem() instanceof ICaster) {
-            casterStack = getPackage().getCaster().getHeldItemMainhand();
-        }
-        else if (getPackage().getCaster().getHeldItemOffhand() != null && getPackage().getCaster().getHeldItemOffhand().getItem() instanceof ICaster) {
-            casterStack = getPackage().getCaster().getHeldItemOffhand();
-        }
-        for (Trajectory sT : getParent().supplyTrajectories()) {
-            Vec3d end = sT.direction.normalize();
-            end = end.scale(16.0);
-            end = end.add(sT.source);
-            RayTraceResult target = getPackage().world.rayTraceBlocks(sT.source, end);
-            if (target != null && target.typeOfHit == RayTraceResult.Type.BLOCK) {
-                ArrayList<BlockPos> usl = getArchitectBlocks(casterStack, getPackage().world, target.getBlockPos(), target.sideHit, (EntityPlayer) getPackage().getCaster());
-                ArrayList<BlockPos> sl = usl.stream().sorted(new BlockUtils.BlockPosComparator(target.getBlockPos())).collect(Collectors.toCollection(ArrayList::new));
-                for (BlockPos p : sl) {
-                    targets.add(new RayTraceResult(new Vec3d(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5), target.sideHit, p));
-                }
-            }
-        }
-        return targets.toArray(new RayTraceResult[0]);
-    }
-    
-    @Override
-    public RayTraceResult getArchitectMOP(ItemStack stack, World world, EntityLivingBase player) {
-        Vec3d start = player.getPositionVector();
-        start = start.addVector(0.0, player.getEyeHeight(), 0.0);
-        Vec3d end = player.getLookVec();
-        end = end.scale(16.0);
-        end = end.add(start);
-        return world.rayTraceBlocks(start, end);
-    }
-    
-    @Override
-    public boolean useBlockHighlight(ItemStack stack) {
-        return false;
-    }
-    
+
     @Override
     public boolean isExclusive() {
+        // Only one plan medium can be in a focus
         return true;
     }
-    
-    @Override
-    public boolean showAxis(ItemStack stack, World world, EntityPlayer player, EnumFacing side, EnumAxis axis) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
+
+    /**
+     * Get all blocks affected by this plan medium.
+     */
+    private List<BlockPos> getAffectedBlocks(Level world, BlockPos hitPos, Direction side, Player player) {
+        List<BlockPos> result = new ArrayList<>();
+        checked.clear();
+        
+        // TODO: Get area size from caster item (CasterManager.getAreaX/Y/Z)
+        // For now, use default 1x1x1 area
+        int sizeX = 1;
+        int sizeY = 1;
+        int sizeZ = 1;
+        
+        if (getSettingValue("method") == METHOD_FULL) {
+            checkNeighboursFull(world, hitPos, hitPos, side, sizeX, sizeY, sizeZ, result);
+        } else {
+            BlockState targetState = world.getBlockState(hitPos);
+            checkNeighboursSurface(world, hitPos, targetState, hitPos, side, sizeX, sizeY, sizeZ, result);
         }
-        int dim = CasterManager.getAreaDim(stack);
-        if (getSettingValue("method") == 0) {
-            switch (axis) {
-                case Y: {
-                    if (dim == 0 || dim == 3) {
-                        return true;
-                    }
-                    break;
-                }
-                case Z: {
-                    if (dim == 0 || dim == 2) {
-                        return true;
-                    }
-                    break;
-                }
-                case X: {
-                    if (dim == 0 || dim == 1) {
-                        return true;
-                    }
-                    break;
+        
+        return result;
+    }
+
+    /**
+     * Flood-fill to find all blocks in a 3D volume.
+     */
+    private void checkNeighboursFull(Level world, BlockPos origin, BlockPos current, Direction side,
+                                      int sizeX, int sizeY, int sizeZ, List<BlockPos> result) {
+        if (checked.contains(current)) {
+            return;
+        }
+        checked.add(current);
+        
+        if (!world.getBlockState(current).isAir()) {
+            result.add(current);
+        }
+        
+        // Calculate bounds offset by the hit side
+        int xs = origin.getX() - sizeX - sizeX * side.getStepX();
+        int xe = origin.getX() + sizeX - sizeX * side.getStepX();
+        int ys = origin.getY() - sizeY - sizeY * side.getStepY();
+        int ye = origin.getY() + sizeY - sizeY * side.getStepY();
+        int zs = origin.getZ() - sizeZ - sizeZ * side.getStepZ();
+        int ze = origin.getZ() + sizeZ - sizeZ * side.getStepZ();
+        
+        // Check all neighbors within bounds
+        for (Direction dir : Direction.values()) {
+            BlockPos neighbor = current.relative(dir);
+            if (neighbor.getX() >= xs && neighbor.getX() <= xe &&
+                neighbor.getY() >= ys && neighbor.getY() <= ye &&
+                neighbor.getZ() >= zs && neighbor.getZ() <= ze) {
+                checkNeighboursFull(world, origin, neighbor, side, sizeX, sizeY, sizeZ, result);
+            }
+        }
+    }
+
+    /**
+     * Flood-fill to find connected surface blocks of the same type.
+     */
+    private void checkNeighboursSurface(Level world, BlockPos origin, BlockState targetState, BlockPos current,
+                                         Direction side, int sizeX, int sizeY, int sizeZ, List<BlockPos> result) {
+        if (checked.contains(current)) {
+            return;
+        }
+        checked.add(current);
+        
+        // Check distance based on side axis
+        switch (side.getAxis()) {
+            case Y:
+                if (Math.abs(current.getX() - origin.getX()) > sizeX) return;
+                if (Math.abs(current.getZ() - origin.getZ()) > sizeZ) return;
+                break;
+            case Z:
+                if (Math.abs(current.getX() - origin.getX()) > sizeX) return;
+                if (Math.abs(current.getY() - origin.getY()) > sizeY) return;
+                break;
+            case X:
+                if (Math.abs(current.getY() - origin.getY()) > sizeY) return;
+                if (Math.abs(current.getZ() - origin.getZ()) > sizeZ) return;
+                break;
+        }
+        
+        BlockState currentState = world.getBlockState(current);
+        
+        // Must be same block type, not air, and exposed to air
+        if (currentState.is(targetState.getBlock()) && 
+            !currentState.isAir() && 
+            isBlockExposed(world, current)) {
+            
+            result.add(current);
+            
+            // Check neighbors on the surface plane (not through the surface)
+            for (Direction dir : Direction.values()) {
+                if (dir != side && dir != side.getOpposite()) {
+                    checkNeighboursSurface(world, origin, targetState, current.relative(dir), 
+                            side, sizeX, sizeY, sizeZ, result);
                 }
             }
         }
-        else {
-            switch (side.getAxis()) {
-                case Y: {
-                    if ((axis == EnumAxis.X && (dim == 0 || dim == 1)) || (axis == EnumAxis.Z && (dim == 0 || dim == 2))) {
-                        return true;
-                    }
-                    break;
-                }
-                case Z: {
-                    if ((axis == EnumAxis.Y && (dim == 0 || dim == 1)) || (axis == EnumAxis.X && (dim == 0 || dim == 2))) {
-                        return true;
-                    }
-                    break;
-                }
-                case X: {
-                    if ((axis == EnumAxis.Y && (dim == 0 || dim == 1)) || (axis == EnumAxis.Z && (dim == 0 || dim == 2))) {
-                        return true;
-                    }
-                    break;
-                }
+    }
+
+    /**
+     * Check if a block has at least one air neighbor (is exposed).
+     */
+    private boolean isBlockExposed(Level world, BlockPos pos) {
+        for (Direction dir : Direction.values()) {
+            if (world.getBlockState(pos.relative(dir)).isAir()) {
+                return true;
             }
         }
         return false;
     }
-    
-    @Override
-    public ArrayList<BlockPos> getArchitectBlocks(ItemStack stack, World world, BlockPos pos, EnumFacing side, EntityPlayer player) {
-        ArrayList<BlockPos> out = new ArrayList<BlockPos>();
-        if (stack == null || stack.isEmpty()) {
-            return out;
+
+    /**
+     * Gets the caster player from the focus package.
+     */
+    private Player getCasterPlayer() {
+        if (getPackage() == null || getPackage().getCasterUUID() == null) {
+            return null;
         }
-        if (getSettingValue("method") == 0) {
-            checked.clear();
-            checkNeighboursFull(world, pos, new BlockPos(pos), side, CasterManager.getAreaX(stack), CasterManager.getAreaY(stack), CasterManager.getAreaZ(stack), out, player);
-        }
-        else {
-            IBlockState bi = world.getBlockState(pos);
-            checked.clear();
-            if (side.getAxis() == EnumFacing.Axis.Z) {
-                checkNeighboursSurface(world, pos, bi, new BlockPos(pos), side, CasterManager.getAreaZ(stack), CasterManager.getAreaY(stack), CasterManager.getAreaX(stack), out, player);
-            }
-            else {
-                checkNeighboursSurface(world, pos, bi, new BlockPos(pos), side, CasterManager.getAreaX(stack), CasterManager.getAreaY(stack), CasterManager.getAreaZ(stack), out, player);
-            }
-        }
-        return out;
-    }
-    
-    public void checkNeighboursFull(World world, BlockPos pos1, BlockPos pos2, EnumFacing side, int sizeX, int sizeY, int sizeZ, ArrayList<BlockPos> list, EntityPlayer player) {
-        if (checked.contains(pos2)) {
-            return;
-        }
-        checked.add(pos2);
-        if (!world.isAirBlock(pos2)) {
-            list.add(pos2);
-        }
-        int xs = -sizeX + pos1.getX();
-        int xe = sizeX + pos1.getX();
-        int ys = -sizeY + pos1.getY();
-        int ye = sizeY + pos1.getY();
-        int zs = -sizeZ + pos1.getZ();
-        int ze = sizeZ + pos1.getZ();
-        xs -= sizeX * side.getFrontOffsetX();
-        xe -= sizeX * side.getFrontOffsetX();
-        ys -= sizeY * side.getFrontOffsetY();
-        ye -= sizeY * side.getFrontOffsetY();
-        zs -= sizeZ * side.getFrontOffsetZ();
-        ze -= sizeZ * side.getFrontOffsetZ();
-        for (EnumFacing dir : EnumFacing.values()) {
-            BlockPos q = pos2.offset(dir);
-            if (q.getX() >= xs && q.getX() <= xe && q.getY() >= ys && q.getY() <= ye && q.getZ() >= zs) {
-                if (q.getZ() <= ze) {
-                    checkNeighboursFull(world, pos1, q, side, sizeX, sizeY, sizeZ, list, player);
+        if (getPackage().world != null) {
+            for (Player player : getPackage().world.players()) {
+                if (player.getUUID().equals(getPackage().getCasterUUID())) {
+                    return player;
                 }
             }
         }
-    }
-    
-    public void checkNeighboursSurface(World world, BlockPos pos1, IBlockState bi, BlockPos pos2, EnumFacing side, int sizeX, int sizeY, int sizeZ, ArrayList<BlockPos> list, EntityPlayer player) {
-        if (checked.contains(pos2)) {
-            return;
-        }
-        checked.add(pos2);
-        switch (side.getAxis()) {
-            case Y: {
-                if (Math.abs(pos2.getX() - pos1.getX()) > sizeX) {
-                    return;
-                }
-                if (Math.abs(pos2.getZ() - pos1.getZ()) > sizeZ) {
-                    return;
-                }
-                break;
-            }
-            case Z: {
-                if (Math.abs(pos2.getX() - pos1.getX()) > sizeX) {
-                    return;
-                }
-                if (Math.abs(pos2.getY() - pos1.getY()) > sizeZ) {
-                    return;
-                }
-                break;
-            }
-            case X: {
-                if (Math.abs(pos2.getY() - pos1.getY()) > sizeX) {
-                    return;
-                }
-                if (Math.abs(pos2.getZ() - pos1.getZ()) > sizeZ) {
-                    return;
-                }
-                break;
-            }
-        }
-        if (world.getBlockState(pos2) == bi && BlockUtils.isBlockExposed(world, pos2) && !world.isAirBlock(pos2)) {
-            list.add(pos2);
-            for (EnumFacing dir : EnumFacing.values()) {
-                if (dir != side) {
-                    if (dir.getOpposite() != side) {
-                        checkNeighboursSurface(world, pos1, bi, pos2.offset(dir), side, sizeX, sizeY, sizeZ, list, player);
-                    }
-                }
-            }
-        }
+        return null;
     }
 }

@@ -1,369 +1,398 @@
 package thaumcraft.common.tiles.essentia;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Items;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.NetworkManager;
-import net.minecraft.network.play.server.SPacketUpdateTileEntity;
-import net.minecraft.tileentity.TileEntityFurnace;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.world.EnumSkyBlock;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.Container;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraftforge.common.ForgeHooks;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
 import thaumcraft.api.aura.AuraHelper;
-import thaumcraft.api.blocks.BlocksTC;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.blocks.essentia.BlockSmelter;
-import thaumcraft.common.lib.crafting.ThaumcraftCraftingManager;
-import thaumcraft.common.lib.utils.BlockStateUtils;
 import thaumcraft.common.tiles.TileThaumcraftInventory;
 import thaumcraft.common.tiles.devices.TileBellows;
+import thaumcraft.init.ModBlockEntities;
 
+/**
+ * Alchemical smelter tile entity - breaks down items into their component aspects.
+ * Burns fuel to smelt items, then pushes aspects up to alembics.
+ * 
+ * Has 3 tiers: Basic (80% efficiency), Thaumium (90%), Void (95%)
+ */
+public class TileSmelter extends TileThaumcraftInventory implements Container {
 
-public class TileSmelter extends TileThaumcraftInventory
-{
-    private static int[] slots_bottom;
-    private static int[] slots_top;
-    private static int[] slots_sides;
-    public AspectList aspects;
-    public int vis;
-    private int maxVis;
-    public int smeltTime;
-    boolean speedBoost;
-    public int furnaceBurnTime;
-    public int currentItemBurnTime;
-    public int furnaceCookTime;
-    int count;
-    int bellows;
+    // Slot indices
+    public static final int SLOT_INPUT = 0;
+    public static final int SLOT_FUEL = 1;
     
-    public TileSmelter() {
-        super(2);
-        aspects = new AspectList();
-        maxVis = 256;
-        smeltTime = 100;
-        speedBoost = false;
-        count = 0;
-        bellows = -1;
+    // Slots for hopper access
+    private static final int[] SLOTS_BOTTOM = { SLOT_FUEL };
+    private static final int[] SLOTS_TOP = {};
+    private static final int[] SLOTS_SIDES = { SLOT_INPUT };
+
+    // Aspect storage
+    public AspectList aspects = new AspectList();
+    public int vis = 0;
+    private int maxVis = 256;
+    
+    // Smelting state
+    public int smeltTime = 100;
+    public int furnaceBurnTime = 0;
+    public int currentItemBurnTime = 0;
+    public int furnaceCookTime = 0;
+    private boolean speedBoost = false;
+    
+    // Neighbor cache
+    private int bellows = -1;
+    private int count = 0;
+    
+    // Smelter type: 0 = basic, 1 = thaumium, 2 = void
+    private int smelterType = 0;
+
+    public TileSmelter(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state, 2);
     }
-    
-    @Override
-    public void readSyncNBT(NBTTagCompound nbttagcompound) {
-        furnaceBurnTime = nbttagcompound.getShort("BurnTime");
+
+    public TileSmelter(BlockPos pos, BlockState state) {
+        this(ModBlockEntities.SMELTER.get(), pos, state);
     }
-    
+
+    // ==================== NBT ====================
+
     @Override
-    public NBTTagCompound writeSyncNBT(NBTTagCompound nbttagcompound) {
-        nbttagcompound.setShort("BurnTime", (short) furnaceBurnTime);
-        return nbttagcompound;
+    protected void writeSyncNBT(CompoundTag tag) {
+        super.writeSyncNBT(tag);
+        tag.putShort("BurnTime", (short) furnaceBurnTime);
     }
-    
+
     @Override
-    public void readFromNBT(NBTTagCompound nbtCompound) {
-        super.readFromNBT(nbtCompound);
-        speedBoost = nbtCompound.getBoolean("speedBoost");
-        furnaceCookTime = nbtCompound.getShort("CookTime");
-        currentItemBurnTime = TileEntityFurnace.getItemBurnTime(getStackInSlot(1));
-        aspects.readFromNBT(nbtCompound);
+    protected void readSyncNBT(CompoundTag tag) {
+        super.readSyncNBT(tag);
+        furnaceBurnTime = tag.getShort("BurnTime");
+    }
+
+    @Override
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
+        tag.putBoolean("SpeedBoost", speedBoost);
+        tag.putShort("CookTime", (short) furnaceCookTime);
+        aspects.writeToNBT(tag);
+    }
+
+    @Override
+    public void load(CompoundTag tag) {
+        super.load(tag);
+        speedBoost = tag.getBoolean("SpeedBoost");
+        furnaceCookTime = tag.getShort("CookTime");
+        aspects.readFromNBT(tag);
         vis = aspects.visSize();
-    }
-    
-    @Override
-    public NBTTagCompound writeToNBT(NBTTagCompound nbtCompound) {
-        nbtCompound = super.writeToNBT(nbtCompound);
-        nbtCompound.setBoolean("speedBoost", speedBoost);
-        nbtCompound.setShort("CookTime", (short) furnaceCookTime);
-        aspects.writeToNBT(nbtCompound);
-        return nbtCompound;
-    }
-    
-    @Override
-    public void update() {
-        super.update();
-        boolean flag = furnaceBurnTime > 0;
-        boolean flag2 = false;
-        ++count;
-        if (furnaceBurnTime > 0) {
-            --furnaceBurnTime;
+        
+        // Recalculate current burn time
+        ItemStack fuel = getItem(SLOT_FUEL);
+        if (!fuel.isEmpty()) {
+            currentItemBurnTime = ForgeHooks.getBurnTime(fuel, null);
         }
-        if (world != null && !world.isRemote) {
-            if (bellows < 0) {
-                checkNeighbours();
-            }
-            int speed = getSpeed();
-            if (speedBoost) {
-                speed *= (int)0.8;
-            }
-            if (count % speed == 0 && aspects.size() > 0) {
-                for (Aspect aspect : aspects.getAspects()) {
-                    if (aspects.getAmount(aspect) > 0 && TileAlembic.processAlembics(getWorld(), getPos(), aspect)) {
-                        takeFromContainer(aspect, 1);
+    }
+
+    // ==================== Tick ====================
+
+    public static void serverTick(Level level, BlockPos pos, BlockState state, TileSmelter tile) {
+        boolean wasBurning = tile.furnaceBurnTime > 0;
+        boolean changed = false;
+        
+        tile.count++;
+        
+        // Decrease burn time
+        if (tile.furnaceBurnTime > 0) {
+            tile.furnaceBurnTime--;
+        }
+
+        // Check bellows on first tick
+        if (tile.bellows < 0) {
+            tile.checkNeighbours();
+        }
+
+        int speed = tile.getSpeed();
+        if (tile.speedBoost) {
+            speed = (int) (speed * 0.8);
+        }
+
+        // Push aspects to alembics
+        if (tile.count % speed == 0 && tile.aspects.size() > 0) {
+            for (Aspect aspect : tile.aspects.getAspects()) {
+                if (tile.aspects.getAmount(aspect) > 0) {
+                    if (TileAlembic.processAlembics(level, pos, aspect)) {
+                        tile.takeFromContainer(aspect, 1);
                         break;
                     }
                 }
-                for (EnumFacing face : EnumFacing.HORIZONTALS) {
-                    if (BlockStateUtils.getFacing(getBlockMetadata()) != face) {
-                        IBlockState aux = world.getBlockState(getPos().offset(face));
-                        if (aux.getBlock() == BlocksTC.smelterAux && BlockStateUtils.getFacing(aux) == face.getOpposite()) {
-                            for (Aspect aspect2 : aspects.getAspects()) {
-                                if (aspects.getAmount(aspect2) > 0 && TileAlembic.processAlembics(getWorld(), getPos().offset(face), aspect2)) {
-                                    takeFromContainer(aspect2, 1);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
             }
-            if (furnaceBurnTime == 0) {
-                if (canSmelt()) {
-                    int itemBurnTime = TileEntityFurnace.getItemBurnTime(getStackInSlot(1));
-                    furnaceBurnTime = itemBurnTime;
-                    currentItemBurnTime = itemBurnTime;
-                    if (furnaceBurnTime > 0) {
-                        BlockSmelter.setFurnaceState(world, getPos(), true);
-                        flag2 = true;
-                        speedBoost = false;
-                        ItemStack itemstack = getStackInSlot(1);
-                        if (!itemstack.isEmpty()) {
-                            if (itemstack.isItemEqual(new ItemStack(ItemsTC.alumentum))) {
-                                speedBoost = true;
-                            }
-                            Item item = itemstack.getItem();
-                            itemstack.shrink(1);
-                            if (itemstack.isEmpty()) {
-                                ItemStack item2 = item.getContainerItem(itemstack);
-                                setInventorySlotContents(1, item2);
-                            }
-                        }
-                    }
-                    else {
-                        BlockSmelter.setFurnaceState(world, getPos(), false);
-                    }
-                }
-                else {
-                    BlockSmelter.setFurnaceState(world, getPos(), false);
-                }
-            }
-            if (BlockStateUtils.isEnabled(getBlockMetadata()) && canSmelt()) {
-                ++furnaceCookTime;
-                if (furnaceCookTime >= smeltTime) {
-                    furnaceCookTime = 0;
-                    smeltItem();
-                    flag2 = true;
-                }
-            }
-            else {
-                furnaceCookTime = 0;
-            }
-            if (flag != furnaceBurnTime > 0) {
-                flag2 = true;
-            }
+            // TODO: Check for auxiliary vents and process through them too
         }
-        if (flag2) {
-            markDirty();
+
+        // Try to start burning if we have fuel and can smelt
+        if (tile.furnaceBurnTime == 0 && tile.canSmelt()) {
+            ItemStack fuel = tile.getItem(SLOT_FUEL);
+            int burnTime = ForgeHooks.getBurnTime(fuel, null);
+            
+            if (burnTime > 0) {
+                tile.furnaceBurnTime = burnTime;
+                tile.currentItemBurnTime = burnTime;
+                changed = true;
+                tile.speedBoost = false;
+                
+                // Check for alumentum (speed boost fuel)
+                // TODO: Check against ItemsTC.alumentum when items are implemented
+                
+                // Consume fuel
+                if (!fuel.isEmpty()) {
+                    ItemStack containerItem = fuel.getCraftingRemainingItem();
+                    fuel.shrink(1);
+                    if (fuel.isEmpty()) {
+                        tile.setItem(SLOT_FUEL, containerItem);
+                    }
+                }
+                
+                setFurnaceState(level, pos, state, true);
+            } else {
+                setFurnaceState(level, pos, state, false);
+            }
+        } else if (tile.furnaceBurnTime == 0) {
+            setFurnaceState(level, pos, state, false);
+        }
+
+        // Process smelting
+        if (isEnabled(state) && tile.furnaceBurnTime > 0 && tile.canSmelt()) {
+            tile.furnaceCookTime++;
+            if (tile.furnaceCookTime >= tile.smeltTime) {
+                tile.furnaceCookTime = 0;
+                tile.smeltItem();
+                changed = true;
+            }
+        } else {
+            tile.furnaceCookTime = 0;
+        }
+
+        // Sync if burn state changed
+        if (wasBurning != (tile.furnaceBurnTime > 0)) {
+            changed = true;
+        }
+
+        if (changed) {
+            tile.setChanged();
         }
     }
-    
+
     private boolean canSmelt() {
-        if (getStackInSlot(0).isEmpty()) {
+        ItemStack input = getItem(SLOT_INPUT);
+        if (input.isEmpty()) {
             return false;
         }
-        AspectList al = ThaumcraftCraftingManager.getObjectTags(getStackInSlot(0));
-        if (al == null || al.size() == 0) {
+
+        // TODO: Get aspects from item using ThaumcraftCraftingManager
+        AspectList itemAspects = getItemAspects(input);
+        if (itemAspects == null || itemAspects.size() == 0) {
             return false;
         }
-        int vs = al.visSize();
-        if (vs > maxVis - vis) {
+
+        int itemVis = itemAspects.visSize();
+        if (itemVis > maxVis - vis) {
             return false;
         }
-        smeltTime = (int)(vs * 2 * (1.0f - 0.125f * bellows));
+
+        // Calculate smelt time based on item complexity and bellows
+        smeltTime = (int) (itemVis * 2 * (1.0f - 0.125f * bellows));
         return true;
     }
-    
-    public void checkNeighbours() {
-        EnumFacing[] faces = EnumFacing.HORIZONTALS;
-        try {
-            if (BlockStateUtils.getFacing(getBlockMetadata()) == EnumFacing.NORTH) {
-                faces = new EnumFacing[] { EnumFacing.SOUTH, EnumFacing.EAST, EnumFacing.WEST };
-            }
-            if (BlockStateUtils.getFacing(getBlockMetadata()) == EnumFacing.SOUTH) {
-                faces = new EnumFacing[] { EnumFacing.NORTH, EnumFacing.EAST, EnumFacing.WEST };
-            }
-            if (BlockStateUtils.getFacing(getBlockMetadata()) == EnumFacing.EAST) {
-                faces = new EnumFacing[] { EnumFacing.SOUTH, EnumFacing.NORTH, EnumFacing.WEST };
-            }
-            if (BlockStateUtils.getFacing(getBlockMetadata()) == EnumFacing.WEST) {
-                faces = new EnumFacing[] { EnumFacing.SOUTH, EnumFacing.EAST, EnumFacing.NORTH };
-            }
-        }
-        catch (Exception ex) {}
-        bellows = TileBellows.getBellows(world, pos, faces);
-    }
-    
-    private int getType() {
-        return (getBlockType() == BlocksTC.smelterBasic) ? 0 : ((getBlockType() == BlocksTC.smelterThaumium) ? 1 : 2);
-    }
-    
-    private float getEfficiency() {
-        float efficiency = 0.8f;
-        if (getType() == 1) {
-            efficiency = 0.9f;
-        }
-        if (getType() == 2) {
-            efficiency = 0.95f;
-        }
-        return efficiency;
-    }
-    
-    private int getSpeed() {
-        int speed = 20 - ((getType() == 1) ? 10 : 5);
-        return speed;
-    }
-    
-    public void smeltItem() {
-        if (canSmelt()) {
-            int flux = 0;
-            AspectList al = ThaumcraftCraftingManager.getObjectTags(getStackInSlot(0));
-            for (Aspect a : al.getAspects()) {
-                if (getEfficiency() < 1.0f) {
-                    for (int qq = al.getAmount(a), q = 0; q < qq; ++q) {
-                        if (world.rand.nextFloat() > ((a == Aspect.FLUX) ? (getEfficiency() * 0.66f) : getEfficiency())) {
-                            al.reduce(a, 1);
-                            ++flux;
-                        }
-                    }
+
+    private void smeltItem() {
+        if (!canSmelt()) return;
+
+        ItemStack input = getItem(SLOT_INPUT);
+        AspectList itemAspects = getItemAspects(input);
+        
+        int flux = 0;
+        float efficiency = getEfficiency();
+        
+        // Add aspects to internal storage, with efficiency loss
+        for (Aspect aspect : itemAspects.getAspects()) {
+            int amount = itemAspects.getAmount(aspect);
+            for (int i = 0; i < amount; i++) {
+                // Flux has worse efficiency
+                float effectiveEfficiency = (aspect == Aspect.FLUX) ? efficiency * 0.66f : efficiency;
+                if (level.random.nextFloat() > effectiveEfficiency) {
+                    flux++;
+                } else {
+                    aspects.add(aspect, 1);
                 }
-                aspects.add(a, al.getAmount(a));
-            }
-            if (flux > 0) {
-                int pp = 0;
-                int c = 0;
-            Label_0155:
-                while (c < flux) {
-                    while (true) {
-                        for (EnumFacing face : EnumFacing.HORIZONTALS) {
-                            if (BlockStateUtils.getFacing(getBlockMetadata()) != face) {
-                                IBlockState vent = world.getBlockState(getPos().offset(face));
-                                if (vent.getBlock() == BlocksTC.smelterVent && BlockStateUtils.getFacing(vent) == face.getOpposite() && world.rand.nextFloat() < 0.333) {
-                                    world.addBlockEvent(getPos(), getBlockType(), 1, face.getOpposite().ordinal());
-                                    ++c;
-                                    continue Label_0155;
-                                }
-                            }
-                        }
-                        ++pp;
-                        continue;
-                    }
-                }
-                AuraHelper.polluteAura(getWorld(), getPos(), (float)pp, true);
-            }
-            vis = aspects.visSize();
-            getStackInSlot(0).shrink(1);
-            if (getStackInSlot(0).getCount() <= 0) {
-                setInventorySlotContents(0, ItemStack.EMPTY);
             }
         }
-    }
-    
-    public static boolean isItemFuel(ItemStack par0ItemStack) {
-        return TileEntityFurnace.getItemBurnTime(par0ItemStack) > 0;
-    }
-    
-    @Override
-    public boolean isItemValidForSlot(int par1, ItemStack stack2) {
-        if (par1 == 0) {
-            AspectList al = ThaumcraftCraftingManager.getObjectTags(stack2);
-            if (al != null && al.size() > 0) {
-                return true;
-            }
+
+        // Generate flux pollution
+        if (flux > 0) {
+            // TODO: Check for vents and reduce pollution if present
+            AuraHelper.polluteAura(level, worldPosition, flux, true);
         }
-        return par1 == 1 && isItemFuel(stack2);
+
+        vis = aspects.visSize();
+        
+        // Consume input
+        input.shrink(1);
+        if (input.isEmpty()) {
+            setItem(SLOT_INPUT, ItemStack.EMPTY);
+        }
     }
-    
-    @Override
-    public int[] getSlotsForFace(EnumFacing par1) {
-        return (par1 == EnumFacing.DOWN) ? TileSmelter.slots_bottom : ((par1 == EnumFacing.UP) ? TileSmelter.slots_top : TileSmelter.slots_sides);
+
+    /**
+     * Get aspects from an item.
+     * TODO: Replace with actual ThaumcraftCraftingManager lookup.
+     */
+    private AspectList getItemAspects(ItemStack stack) {
+        // Placeholder - in full implementation, query aspect registry
+        return new AspectList();
     }
-    
-    @Override
-    public boolean canInsertItem(int par1, ItemStack stack2, EnumFacing par3) {
-        return par3 != EnumFacing.UP && isItemValidForSlot(par1, stack2);
-    }
-    
-    @Override
-    public boolean canExtractItem(int par1, ItemStack stack2, EnumFacing par3) {
-        return par3 != EnumFacing.UP || par1 != 1 || stack2.getItem() == Items.BUCKET;
-    }
-    
+
     public boolean takeFromContainer(Aspect tag, int amount) {
         if (aspects != null && aspects.getAmount(tag) >= amount) {
             aspects.remove(tag, amount);
             vis = aspects.visSize();
-            markDirty();
+            setChanged();
             return true;
         }
         return false;
     }
-    
-    @SideOnly(Side.CLIENT)
-    public int getCookProgressScaled(int par1) {
-        if (smeltTime <= 0) {
-            smeltTime = 1;
-        }
-        return furnaceCookTime * par1 / smeltTime;
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public int getVisScaled(int par1) {
-        return vis * par1 / maxVis;
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public int getBurnTimeRemainingScaled(int par1) {
-        if (currentItemBurnTime == 0) {
-            currentItemBurnTime = 200;
-        }
-        return furnaceBurnTime * par1 / currentItemBurnTime;
-    }
-    
-    @Override
-    public void onDataPacket(NetworkManager net, SPacketUpdateTileEntity pkt) {
-        super.onDataPacket(net, pkt);
-        if (world != null) {
-            world.checkLightFor(EnumSkyBlock.BLOCK, pos);
-        }
-    }
-    
-    public boolean receiveClientEvent(int i, int j) {
-        if (i == 1) {
-            if (world.isRemote) {
-                EnumFacing d = EnumFacing.VALUES[j];
-                world.playSound(getPos().getX() + 0.5 + d.getOpposite().getFrontOffsetX(), getPos().getY() + 0.5, getPos().getZ() + 0.5 + d.getOpposite().getFrontOffsetZ(), SoundEvents.BLOCK_LAVA_EXTINGUISH, SoundCategory.BLOCKS, 0.25f, 2.6f + (world.rand.nextFloat() - world.rand.nextFloat()) * 0.8f, true);
-                for (int a = 0; a < 4; ++a) {
-                    float fx = 0.1f - world.rand.nextFloat() * 0.2f;
-                    float fz = 0.1f - world.rand.nextFloat() * 0.2f;
-                    float fy = 0.1f - world.rand.nextFloat() * 0.2f;
-                    float fx2 = 0.1f - world.rand.nextFloat() * 0.2f;
-                    float fz2 = 0.1f - world.rand.nextFloat() * 0.2f;
-                    float fy2 = 0.1f - world.rand.nextFloat() * 0.2f;
-                    int color = 11184810;
-                    FXDispatcher.INSTANCE.drawVentParticles(getPos().getX() + 0.5f + fx + d.getOpposite().getFrontOffsetX(), getPos().getY() + 0.5f + fy, getPos().getZ() + 0.5f + fz + d.getOpposite().getFrontOffsetZ(), d.getOpposite().getFrontOffsetX() / 4.0f + fx2, d.getOpposite().getFrontOffsetY() / 4.0f + fy2, d.getOpposite().getFrontOffsetZ() / 4.0f + fz2, color);
-                }
+
+    // ==================== State Helpers ====================
+
+    private static void setFurnaceState(Level level, BlockPos pos, BlockState state, boolean lit) {
+        if (state.hasProperty(BlockStateProperties.LIT)) {
+            boolean currentlyLit = state.getValue(BlockStateProperties.LIT);
+            if (currentlyLit != lit) {
+                level.setBlock(pos, state.setValue(BlockStateProperties.LIT, lit), 3);
             }
-            return true;
         }
-        return super.receiveClientEvent(i, j);
     }
-    
-    static {
-        slots_bottom = new int[] { 1 };
-        slots_top = new int[0];
-        slots_sides = new int[] { 0 };
+
+    private static boolean isEnabled(BlockState state) {
+        if (state.hasProperty(BlockStateProperties.ENABLED)) {
+            return state.getValue(BlockStateProperties.ENABLED);
+        }
+        // If it's lit, it's enabled
+        if (state.hasProperty(BlockStateProperties.LIT)) {
+            return state.getValue(BlockStateProperties.LIT);
+        }
+        return true;
+    }
+
+    private Direction getFacing() {
+        BlockState state = getBlockState();
+        if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+            return state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+        }
+        return Direction.NORTH;
+    }
+
+    public void checkNeighbours() {
+        Direction facing = getFacing();
+        Direction[] checkDirs;
+        
+        switch (facing) {
+            case NORTH -> checkDirs = new Direction[]{ Direction.SOUTH, Direction.EAST, Direction.WEST };
+            case SOUTH -> checkDirs = new Direction[]{ Direction.NORTH, Direction.EAST, Direction.WEST };
+            case EAST -> checkDirs = new Direction[]{ Direction.SOUTH, Direction.NORTH, Direction.WEST };
+            case WEST -> checkDirs = new Direction[]{ Direction.SOUTH, Direction.EAST, Direction.NORTH };
+            default -> checkDirs = Direction.Plane.HORIZONTAL.stream().toArray(Direction[]::new);
+        }
+        
+        bellows = TileBellows.getBellows(level, worldPosition, checkDirs);
+    }
+
+    private float getEfficiency() {
+        return switch (smelterType) {
+            case 1 -> 0.9f;  // Thaumium
+            case 2 -> 0.95f; // Void
+            default -> 0.8f; // Basic
+        };
+    }
+
+    private int getSpeed() {
+        return switch (smelterType) {
+            case 1 -> 10;  // Thaumium (faster)
+            case 2 -> 15;  // Void (medium)
+            default -> 20; // Basic (slowest)
+        };
+    }
+
+    public void setSmelterType(int type) {
+        this.smelterType = Math.max(0, Math.min(2, type));
+    }
+
+    // ==================== Container ====================
+
+    @Override
+    public int getContainerSize() {
+        return 2;
+    }
+
+    @Override
+    public boolean stillValid(Player player) {
+        return Container.stillValidBlockEntity(this, player);
+    }
+
+    public static boolean isItemFuel(ItemStack stack) {
+        return ForgeHooks.getBurnTime(stack, null) > 0;
+    }
+
+    @Override
+    public boolean canPlaceItem(int slot, ItemStack stack) {
+        if (slot == SLOT_INPUT) {
+            // Only accept items that have aspects
+            AspectList aspects = getItemAspects(stack);
+            return aspects != null && aspects.size() > 0;
+        }
+        return slot == SLOT_FUEL && isItemFuel(stack);
+    }
+
+    public int[] getSlotsForFace(Direction face) {
+        return switch (face) {
+            case DOWN -> SLOTS_BOTTOM;
+            case UP -> SLOTS_TOP;
+            default -> SLOTS_SIDES;
+        };
+    }
+
+    public boolean canPlaceItemThroughFace(int slot, ItemStack stack, Direction face) {
+        return face != Direction.UP && canPlaceItem(slot, stack);
+    }
+
+    public boolean canTakeItemThroughFace(int slot, ItemStack stack, Direction face) {
+        // Only allow extracting buckets from fuel slot
+        return face != Direction.UP || slot != SLOT_FUEL || stack.getItem() == Items.BUCKET;
+    }
+
+    // ==================== GUI Helpers ====================
+
+    public int getCookProgressScaled(int scale) {
+        if (smeltTime <= 0) smeltTime = 1;
+        return furnaceCookTime * scale / smeltTime;
+    }
+
+    public int getVisScaled(int scale) {
+        return vis * scale / maxVis;
+    }
+
+    public int getBurnTimeRemainingScaled(int scale) {
+        if (currentItemBurnTime == 0) currentItemBurnTime = 200;
+        return furnaceBurnTime * scale / currentItemBurnTime;
+    }
+
+    public boolean isBurning() {
+        return furnaceBurnTime > 0;
     }
 }

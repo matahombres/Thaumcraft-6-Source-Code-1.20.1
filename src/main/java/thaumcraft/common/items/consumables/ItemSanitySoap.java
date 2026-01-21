@@ -1,90 +1,112 @@
 package thaumcraft.common.items.consumables;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.EnumAction;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
-import thaumcraft.api.ThaumcraftApi;
-import thaumcraft.api.blocks.BlocksTC;
+
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.level.Level;
 import thaumcraft.api.capabilities.IPlayerWarp;
 import thaumcraft.api.capabilities.ThaumcraftCapabilities;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.items.ItemTCBase;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.potions.PotionWarpWard;
 
+/**
+ * Sanity Soap - Use to scrub away your warp.
+ * Removes temporary warp completely and reduces normal warp.
+ * More effective when used in purifying fluid.
+ */
+public class ItemSanitySoap extends Item {
 
-public class ItemSanitySoap extends ItemTCBase
-{
     public ItemSanitySoap() {
-        super("sanity_soap");
-        setHasSubtypes(false);
+        super(new Item.Properties());
     }
-    
-    public int getMaxItemUseDuration(ItemStack p_77626_1_) {
-        return 100;
+
+    @Override
+    public int getUseDuration(ItemStack stack) {
+        return 100; // 5 seconds of scrubbing
     }
-    
-    public EnumAction getItemUseAction(ItemStack p_77661_1_) {
-        return EnumAction.BLOCK;
+
+    @Override
+    public UseAnim getUseAnimation(ItemStack stack) {
+        return UseAnim.BLOCK;
     }
-    
-    public ActionResult<ItemStack> onItemRightClick(World p_77659_2_, EntityPlayer player, EnumHand hand) {
-        player.setActiveHand(hand);
-        return (ActionResult<ItemStack>)new ActionResult(EnumActionResult.SUCCESS, player.getHeldItem(hand));
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        player.startUsingItem(hand);
+        return InteractionResultHolder.consume(player.getItemInHand(hand));
     }
-    
-    public void onUsingTick(ItemStack stack, EntityLivingBase player, int count) {
-        int ticks = getMaxItemUseDuration(stack) - count;
-        if (ticks > 95) {
-            player.stopActiveHand();
+
+    @Override
+    public void onUseTick(Level level, LivingEntity entity, ItemStack stack, int remainingUseDuration) {
+        int ticksUsed = getUseDuration(stack) - remainingUseDuration;
+
+        // Stop after 95 ticks
+        if (ticksUsed > 95) {
+            entity.stopUsingItem();
         }
-        if (player.world.isRemote) {
-            if (player.world.rand.nextFloat() < 0.2f) {
-                player.world.playSound(player.posX, player.posY, player.posZ, SoundEvents.BLOCK_CHORUS_FLOWER_DEATH, SoundCategory.PLAYERS, 0.1f, 1.5f + player.world.rand.nextFloat() * 0.2f, false);
+
+        // Play scrubbing sounds and particles on client
+        if (level.isClientSide()) {
+            if (level.random.nextFloat() < 0.2f) {
+                level.playLocalSound(entity.getX(), entity.getY(), entity.getZ(),
+                        SoundEvents.CHORUS_FLOWER_DEATH, SoundSource.PLAYERS,
+                        0.1f, 1.5f + level.random.nextFloat() * 0.2f, false);
             }
-            for (int a = 0; a < 10; ++a) {
-                FXDispatcher.INSTANCE.crucibleBubble((float)player.posX - 0.5f + player.world.rand.nextFloat(), (float)player.getEntityBoundingBox().minY + player.world.rand.nextFloat() * player.height, (float)player.posZ - 0.5f + player.world.rand.nextFloat(), 1.0f, 0.8f, 0.9f);
-            }
+            // TODO: Add bubble particles (FXDispatcher.crucibleBubble)
         }
     }
-    
-    public void onPlayerStoppedUsing(ItemStack stack, World world, EntityLivingBase player, int timeLeft) {
-        int qq = getMaxItemUseDuration(stack) - timeLeft;
-        if (qq > 95 && player instanceof EntityPlayer) {
+
+    @Override
+    public void releaseUsing(ItemStack stack, Level level, LivingEntity entity, int timeLeft) {
+        int ticksUsed = getUseDuration(stack) - timeLeft;
+
+        // Only apply effect if used long enough
+        if (ticksUsed > 95 && entity instanceof Player player) {
             stack.shrink(1);
-            if (!world.isRemote) {
-                IPlayerWarp warp = ThaumcraftCapabilities.getWarp((EntityPlayer)player);
-                int amt = 1;
-                if (player.isPotionActive(PotionWarpWard.instance)) {
-                    ++amt;
+
+            if (!level.isClientSide()) {
+                IPlayerWarp warp = ThaumcraftCapabilities.getWarp(player);
+                if (warp != null) {
+                    int amountToRemove = 1;
+
+                    // TODO: Check for Warp Ward potion effect - adds +1
+                    // TODO: Check if standing in purifying fluid - adds +1
+
+                    // Remove normal warp
+                    if (warp.get(IPlayerWarp.EnumWarpType.NORMAL) > 0) {
+                        warp.add(IPlayerWarp.EnumWarpType.NORMAL, -amountToRemove);
+                    }
+
+                    // Remove all temporary warp
+                    int tempWarp = warp.get(IPlayerWarp.EnumWarpType.TEMPORARY);
+                    if (tempWarp > 0) {
+                        warp.add(IPlayerWarp.EnumWarpType.TEMPORARY, -tempWarp);
+                    }
+
+                    if (player instanceof ServerPlayer serverPlayer) {
+                        warp.sync(serverPlayer);
+                    }
                 }
-                int i = MathHelper.floor(player.posX);
-                int j = MathHelper.floor(player.posY);
-                int k = MathHelper.floor(player.posZ);
-                if (world.getBlockState(new BlockPos(i, j, k)).getBlock() == BlocksTC.purifyingFluid) {
-                    ++amt;
-                }
-                if (warp.get(IPlayerWarp.EnumWarpType.NORMAL) > 0) {
-                    ThaumcraftApi.internalMethods.addWarpToPlayer((EntityPlayer)player, -amt, IPlayerWarp.EnumWarpType.NORMAL);
-                }
-                if (warp.get(IPlayerWarp.EnumWarpType.TEMPORARY) > 0) {
-                    ThaumcraftApi.internalMethods.addWarpToPlayer((EntityPlayer)player, -warp.get(IPlayerWarp.EnumWarpType.TEMPORARY), IPlayerWarp.EnumWarpType.TEMPORARY);
-                }
-            }
-            else {
-                player.world.playSound(player.posX, player.posY, player.posZ, SoundsTC.craftstart, SoundCategory.PLAYERS, 0.25f, 1.0f, false);
-                for (int a = 0; a < 40; ++a) {
-                    FXDispatcher.INSTANCE.crucibleBubble((float)player.posX - 0.5f + player.world.rand.nextFloat() * 1.5f, (float)player.getEntityBoundingBox().minY + player.world.rand.nextFloat() * player.height, (float)player.posZ - 0.5f + player.world.rand.nextFloat() * 1.5f, 1.0f, 0.7f, 0.9f);
-                }
+            } else {
+                // Play success sound and particles on client
+                // TODO: Play SoundsTC.craftstart
+                level.playLocalSound(entity.getX(), entity.getY(), entity.getZ(),
+                        SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS,
+                        0.25f, 1.0f, false);
+                // TODO: Add more bubble particles
             }
         }
+    }
+
+    @Override
+    public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
+        // This gets called if use duration completes - redirect to releaseUsing
+        releaseUsing(stack, level, entity, 0);
+        return stack;
     }
 }

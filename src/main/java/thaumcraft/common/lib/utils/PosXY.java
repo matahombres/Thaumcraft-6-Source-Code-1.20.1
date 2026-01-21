@@ -1,64 +1,66 @@
 package thaumcraft.common.lib.utils;
 
+import java.util.Objects;
 
-public class PosXY implements Comparable
-{
+/**
+ * Simple 2D integer position class used primarily for chunk coordinate lookups.
+ * This is more efficient than using ChunkPos for map keys.
+ */
+public class PosXY implements Comparable<PosXY> {
+
     public int x;
     public int y;
-    
+
     public PosXY() {
     }
-    
-    public PosXY(int x, int z) {
+
+    public PosXY(int x, int y) {
         this.x = x;
-        y = z;
+        this.y = y;
     }
-    
-    public PosXY(PosXY c) {
-        x = c.x;
-        y = c.y;
+
+    public PosXY(PosXY other) {
+        this.x = other.x;
+        this.y = other.y;
     }
-    
+
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof PosXY)) {
-            return false;
-        }
-        PosXY chunkcoordinates = (PosXY)o;
-        return x == chunkcoordinates.x && y == chunkcoordinates.y;
+        if (this == o) return true;
+        if (!(o instanceof PosXY other)) return false;
+        return x == other.x && y == other.y;
     }
-    
+
     @Override
     public int hashCode() {
-        return x + y << 8;
+        return Objects.hash(x, y);
     }
-    
-    public int compareTo(PosXY c) {
-        return (y == c.y) ? (x - c.x) : (y - c.y);
+
+    @Override
+    public int compareTo(PosXY other) {
+        if (y != other.y) {
+            return y - other.y;
+        }
+        return x - other.x;
     }
-    
-    public void set(int x, int z) {
+
+    public void set(int x, int y) {
         this.x = x;
-        y = z;
+        this.y = y;
     }
-    
-    public float getDistanceSquared(int x, int z) {
-        float f = (float)(this.x - x);
-        float f2 = (float)(y - z);
-        return f * f + f2 * f2;
+
+    public float getDistanceSquared(int x, int y) {
+        float dx = this.x - x;
+        float dy = this.y - y;
+        return dx * dx + dy * dy;
     }
-    
-    public float getDistanceSquaredToChunkCoordinates(PosXY c) {
-        return getDistanceSquared(c.x, c.y);
+
+    public float getDistanceSquaredTo(PosXY other) {
+        return getDistanceSquared(other.x, other.y);
     }
-    
+
     @Override
     public String toString() {
-        return "Pos{x=" + x + ", y=" + y + '}';
-    }
-    
-    @Override
-    public int compareTo(Object o) {
-        return compareTo((PosXY)o);
+        return "PosXY{x=" + x + ", y=" + y + '}';
     }
 }

@@ -1,39 +1,58 @@
 package thaumcraft.common.entities;
-import net.minecraft.entity.item.EntityItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.DamageSource;
-import net.minecraft.world.World;
 
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import thaumcraft.init.ModEntities;
 
-public class EntitySpecialItem extends EntityItem
-{
-    public EntitySpecialItem(World par1World, double par2, double par4, double par6, ItemStack par8ItemStack) {
-        super(par1World);
-        setSize(0.25f, 0.25f);
-        setPosition(par2, par4, par6);
-        setItem(par8ItemStack);
-        rotationYaw = (float)(Math.random() * 360.0);
-        motionX = (float)(Math.random() * 0.20000000298023224 - 0.10000000149011612);
-        motionY = 0.20000000298023224;
-        motionZ = (float)(Math.random() * 0.20000000298023224 - 0.10000000149011612);
+/**
+ * EntitySpecialItem - A floating item entity that resists gravity.
+ * Used for special item drops that should hover instead of fall.
+ */
+public class EntitySpecialItem extends ItemEntity {
+    
+    public EntitySpecialItem(EntityType<? extends EntitySpecialItem> type, Level level) {
+        super(type, level);
     }
     
-    public EntitySpecialItem(World par1World) {
-        super(par1World);
-        setSize(0.25f, 0.25f);
+    public EntitySpecialItem(Level level) {
+        super(ModEntities.SPECIAL_ITEM.get(), level);
     }
     
-    public void onUpdate() {
-        if (ticksExisted > 1) {
-            if (motionY > 0.0) {
-                motionY *= 0.8999999761581421;
+    public EntitySpecialItem(Level level, double x, double y, double z, ItemStack stack) {
+        super(ModEntities.SPECIAL_ITEM.get(), level);
+        this.setPos(x, y, z);
+        this.setItem(stack);
+        this.setYRot((float)(Math.random() * 360.0));
+        this.setDeltaMovement(
+                (Math.random() * 0.2 - 0.1),
+                0.2,
+                (Math.random() * 0.2 - 0.1)
+        );
+    }
+    
+    @Override
+    public void tick() {
+        // Skip first tick, then apply anti-gravity
+        if (tickCount > 1) {
+            // Dampen upward motion
+            if (getDeltaMovement().y > 0) {
+                setDeltaMovement(getDeltaMovement().multiply(1.0, 0.9, 1.0));
             }
-            motionY += 0.03999999910593033;
-            super.onUpdate();
+            // Apply upward anti-gravity force
+            setDeltaMovement(getDeltaMovement().add(0, 0.04, 0));
+            super.tick();
         }
     }
     
-    public boolean attackEntityFrom(DamageSource source, float damage) {
-        return !source.isExplosion() && super.attackEntityFrom(source, damage);
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        // Immune to explosion damage
+        if (source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION)) {
+            return false;
+        }
+        return super.hurt(source, amount);
     }
 }

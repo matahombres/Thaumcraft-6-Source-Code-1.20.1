@@ -1,163 +1,208 @@
 package thaumcraft.common.entities.projectile;
-import io.netty.buffer.ByteBuf;
-import java.util.ArrayList;
-import java.util.Iterator;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.projectile.EntityThrowable;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.registry.IEntityAdditionalSpawnData;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.codechicken.lib.vec.Quat;
-import thaumcraft.common.lib.SoundsTC;
 
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import thaumcraft.init.ModEntities;
 
-public class EntityRiftBlast extends EntityThrowable implements IEntityAdditionalSpawnData
-{
-    int targetID;
-    EntityLivingBase target;
-    public boolean red;
-    public double[][] points;
-    public float[][] colours;
-    public double[] radii;
-    int growing;
-    ArrayList<Quat> vecs;
+/**
+ * EntityRiftBlast - Homing blast projectile fired by flux rifts.
+ * 
+ * Features:
+ * - Homes toward target with visual trail
+ * - Can be deflected by attacking it
+ * - Red variant is stronger and lasts longer
+ * - Visual wispy trail effect
+ */
+public class EntityRiftBlast extends ThrowableProjectile {
     
-    public EntityRiftBlast(World par1World) {
-        super(par1World);
-        targetID = 0;
-        red = false;
-        growing = -1;
-        vecs = new ArrayList<Quat>();
+    private static final EntityDataAccessor<Boolean> DATA_RED = 
+            SynchedEntityData.defineId(EntityRiftBlast.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_TARGET_ID = 
+            SynchedEntityData.defineId(EntityRiftBlast.class, EntityDataSerializers.INT);
+    
+    private LivingEntity target = null;
+    
+    public EntityRiftBlast(EntityType<? extends EntityRiftBlast> type, Level level) {
+        super(type, level);
     }
     
-    public EntityRiftBlast(World par1World, EntityLivingBase par2EntityLiving, EntityLivingBase t, boolean r) {
-        super(par1World, par2EntityLiving);
-        targetID = 0;
-        red = false;
-        growing = -1;
-        vecs = new ArrayList<Quat>();
-        target = t;
-        red = r;
+    public EntityRiftBlast(Level level, LivingEntity owner, LivingEntity target, boolean red) {
+        super(ModEntities.RIFT_BLAST.get(), owner, level);
+        this.target = target;
+        entityData.set(DATA_RED, red);
+        entityData.set(DATA_TARGET_ID, target.getId());
     }
     
-    protected float getGravityVelocity() {
-        return 0.0f;
+    @Override
+    protected void defineSynchedData() {
+        entityData.define(DATA_RED, false);
+        entityData.define(DATA_TARGET_ID, -1);
     }
     
-    public void writeSpawnData(ByteBuf data) {
-        int id = -1;
-        if (target != null) {
-            id = target.getEntityId();
-        }
-        data.writeInt(id);
-        data.writeBoolean(red);
+    public boolean isRed() {
+        return entityData.get(DATA_RED);
     }
     
-    public void readSpawnData(ByteBuf data) {
-        int id = data.readInt();
-        try {
-            if (id >= 0) {
-                target = (EntityLivingBase) world.getEntityByID(id);
-            }
-        }
-        catch (Exception ex) {}
-        red = data.readBoolean();
+    @Override
+    protected float getGravity() {
+        return 0.0f; // No gravity
     }
     
-    protected void onImpact(RayTraceResult mop) {
-        if (!world.isRemote && getThrower() != null && mop.typeOfHit == RayTraceResult.Type.ENTITY) {
-            mop.entityHit.attackEntityFrom(DamageSource.causeIndirectMagicDamage(this, getThrower()), (float) getThrower().getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue() * (red ? 1.0f : 0.6f));
-        }
-        playSound(SoundsTC.shock, 1.0f, 1.0f + (rand.nextFloat() - rand.nextFloat()) * 0.2f);
-        if (world.isRemote) {
-            FXDispatcher.INSTANCE.burst(posX, posY, posZ, 6.0f);
-        }
-        setDead();
-    }
-    
-    public void onUpdate() {
-        super.onUpdate();
-        if (ticksExisted > (red ? 240 : 160)) {
-            setDead();
-        }
-        if (target != null) {
-            if (target == null || target.isDead) {
-                setDead();
-            }
-            double d = getDistanceSq(target);
-            double dx = target.posX - posX;
-            double dy = target.getEntityBoundingBox().minY + target.height * 0.6 - posY;
-            double dz = target.posZ - posZ;
-            double d2 = 1.0;
-            dx /= d;
-            dy /= d;
-            dz /= d;
-            motionX += dx * d2;
-            motionY += dy * d2;
-            motionZ += dz * d2;
-            motionX = MathHelper.clamp((float) motionX, -0.33f, 0.33f);
-            motionY = MathHelper.clamp((float) motionY, -0.33f, 0.33f);
-            motionZ = MathHelper.clamp((float) motionZ, -0.33f, 0.33f);
-            if (world.isRemote) {
-                Quat q = new Quat(0.1, posX + rand.nextGaussian() * 0.05, posY + rand.nextGaussian() * 0.05, posZ + rand.nextGaussian() * 0.05);
-                vecs.add(q);
-                FXDispatcher.INSTANCE.drawCurlyWisp(q.x, q.y, q.z, 0.0, 0.0, 0.0, 0.3f + rand.nextFloat() * 0.2f, rand.nextFloat(), rand.nextFloat() * 0.2f, rand.nextFloat() * 0.2f, 0.5f, null, 1, rand.nextInt(2), 0);
-                if (vecs.size() > 9) {
-                    vecs.remove(0);
-                }
-                points = new double[vecs.size()][3];
-                colours = new float[vecs.size()][4];
-                radii = new double[vecs.size()];
-                int c = 0;
-                if (vecs.size() > 1) {
-                    float vv = (float)(3.141592653589793 / (float)(vecs.size() - 1));
-                    for (Quat v : vecs) {
-                        float variance = 1.0f + MathHelper.sin((c + ticksExisted) / 3.0f) * 0.2f;
-                        float xx = MathHelper.sin((c + ticksExisted) / 6.0f) * 0.01f;
-                        float yy = MathHelper.sin((c + ticksExisted) / 7.0f) * 0.01f;
-                        float zz = MathHelper.sin((c + ticksExisted) / 8.0f) * 0.01f;
-                        points[c][0] = v.x + xx;
-                        points[c][1] = v.y + yy;
-                        points[c][2] = v.z + zz;
-                        radii[c] = v.s * variance;
-                        double[] radii = this.radii;
-                        int n = c;
-                        radii[n] *= MathHelper.sin(c * vv);
-                        colours[c][0] = 1.0f;
-                        colours[c][1] = 0.0f;
-                        colours[c][2] = 0.0f;
-                        colours[c][3] = 1.0f;
-                        ++c;
-                    }
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Resolve target from synced ID if needed
+        if (target == null) {
+            int targetId = entityData.get(DATA_TARGET_ID);
+            if (targetId >= 0) {
+                Entity e = level().getEntity(targetId);
+                if (e instanceof LivingEntity le) {
+                    target = le;
                 }
             }
         }
+        
+        // Die after timeout (red lasts longer)
+        int maxLife = isRed() ? 240 : 160;
+        if (tickCount > maxLife) {
+            discard();
+            return;
+        }
+        
+        // Die if target is dead
+        if (target != null && !target.isAlive()) {
+            discard();
+            return;
+        }
+        
+        // Home toward target with stronger acceleration than GolemOrb
+        if (target != null && target.isAlive()) {
+            double distSq = distanceToSqr(target);
+            if (distSq > 0) {
+                double dx = target.getX() - getX();
+                double dy = target.getY() + target.getBbHeight() * 0.6 - getY();
+                double dz = target.getZ() - getZ();
+                
+                double accel = 1.0; // Stronger homing
+                dx = dx / distSq * accel;
+                dy = dy / distSq * accel;
+                dz = dz / distSq * accel;
+                
+                Vec3 motion = getDeltaMovement();
+                setDeltaMovement(
+                    Mth.clamp(motion.x + dx, -0.33, 0.33),
+                    Mth.clamp(motion.y + dy, -0.33, 0.33),
+                    Mth.clamp(motion.z + dz, -0.33, 0.33)
+                );
+            }
+        }
+        
+        // Client particles - wispy purple/red trail
+        if (level().isClientSide) {
+            // Curly wisp particles
+            level().addParticle(ParticleTypes.WITCH,
+                getX() + random.nextGaussian() * 0.05,
+                getY() + random.nextGaussian() * 0.05,
+                getZ() + random.nextGaussian() * 0.05,
+                0, 0, 0);
+            
+            // Portal-like particles
+            level().addParticle(ParticleTypes.PORTAL,
+                getX() + random.nextGaussian() * 0.1,
+                getY() + random.nextGaussian() * 0.1,
+                getZ() + random.nextGaussian() * 0.1,
+                (random.nextDouble() - 0.5) * 0.1,
+                (random.nextDouble() - 0.5) * 0.1,
+                (random.nextDouble() - 0.5) * 0.1);
+        }
     }
     
-    public boolean attackEntityFrom(DamageSource source, float damage) {
-        if (isEntityInvulnerable(source)) {
+    @Override
+    protected void onHit(HitResult result) {
+        if (result.getType() == HitResult.Type.ENTITY) {
+            onHitEntity((EntityHitResult) result);
+        }
+        
+        // Sound and visual burst
+        playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f + (random.nextFloat() - random.nextFloat()) * 0.2f);
+        
+        if (level().isClientSide) {
+            // Large burst of particles
+            for (int i = 0; i < 30; i++) {
+                level().addParticle(ParticleTypes.WITCH,
+                    getX(), getY(), getZ(),
+                    (random.nextFloat() - 0.5) * 0.8,
+                    (random.nextFloat() - 0.5) * 0.8,
+                    (random.nextFloat() - 0.5) * 0.8);
+            }
+        }
+        
+        discard();
+    }
+    
+    @Override
+    protected void onHitEntity(EntityHitResult result) {
+        if (!level().isClientSide) {
+            Entity owner = getOwner();
+            if (owner instanceof LivingEntity livingOwner) {
+                // Damage based on owner's attack damage
+                double attackDamage = livingOwner.getAttributeValue(Attributes.ATTACK_DAMAGE);
+                float damage = (float)(attackDamage * (isRed() ? 1.0 : 0.6));
+                
+                DamageSource source = level().damageSources().indirectMagic(this, owner);
+                result.getEntity().hurt(source, damage);
+            }
+        }
+    }
+    
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        if (isInvulnerableTo(source)) {
             return false;
         }
-        if (source.getTrueSource() != null) {
-            Vec3d vec3 = source.getTrueSource().getLookVec();
-            if (vec3 != null) {
-                motionX = vec3.x;
-                motionY = vec3.y;
-                motionZ = vec3.z;
-                motionX *= 0.9;
-                motionY *= 0.9;
-                motionZ *= 0.9;
-                playSound(SoundsTC.zap, 1.0f, 1.0f + (rand.nextFloat() - rand.nextFloat()) * 0.2f);
-            }
+        
+        // Can be deflected by hitting it
+        Entity attacker = source.getEntity();
+        if (attacker != null) {
+            Vec3 look = attacker.getLookAngle();
+            setDeltaMovement(look.scale(0.9));
+            playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f + (random.nextFloat() - random.nextFloat()) * 0.2f);
             return true;
         }
         return false;
+    }
+    
+    @Override
+    protected void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("Red", isRed());
+        if (target != null) {
+            tag.putInt("TargetId", target.getId());
+        }
+    }
+    
+    @Override
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        entityData.set(DATA_RED, tag.getBoolean("Red"));
+        if (tag.contains("TargetId")) {
+            entityData.set(DATA_TARGET_ID, tag.getInt("TargetId"));
+        }
     }
 }

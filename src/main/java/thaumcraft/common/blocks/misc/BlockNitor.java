@@ -1,67 +1,98 @@
 package thaumcraft.common.blocks.misc;
-import net.minecraft.block.ITileEntityProvider;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.MapColor;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.item.EnumDyeColor;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumBlockRenderType;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import thaumcraft.common.blocks.BlockTC;
-import thaumcraft.common.tiles.misc.TileNitor;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class BlockNitor extends BlockTC implements ITileEntityProvider
-{
-    public EnumDyeColor dye;
+/**
+ * Nitor blocks - floating magical light sources.
+ * 16 color variants available.
+ * Renders invisibly - actual visuals come from particle effects.
+ */
+public class BlockNitor extends Block {
+
+    private static final VoxelShape SHAPE = Block.box(5.0, 5.0, 5.0, 11.0, 11.0, 11.0);
     
-    public BlockNitor(String name, EnumDyeColor dye) {
-        super(Material.CIRCUITS, name);
-        setHardness(0.1f);
-        setSoundType(SoundType.CLOTH);
-        setLightLevel(1.0f);
-        this.dye = dye;
+    private final DyeColor color;
+
+    public BlockNitor(DyeColor color) {
+        super(BlockBehaviour.Properties.of()
+                .mapColor(getMapColorForDye(color))
+                .strength(0.1f)
+                .sound(SoundType.WOOL)
+                .lightLevel(state -> 15)
+                .noOcclusion()
+                .noCollission()
+                .replaceable());
+        this.color = color;
     }
-    
-    public TileEntity createNewTileEntity(World worldIn, int meta) {
-        return new TileNitor();
+
+    private static MapColor getMapColorForDye(DyeColor dye) {
+        return switch (dye) {
+            case WHITE -> MapColor.SNOW;
+            case ORANGE -> MapColor.COLOR_ORANGE;
+            case MAGENTA -> MapColor.COLOR_MAGENTA;
+            case LIGHT_BLUE -> MapColor.COLOR_LIGHT_BLUE;
+            case YELLOW -> MapColor.COLOR_YELLOW;
+            case LIME -> MapColor.COLOR_LIGHT_GREEN;
+            case PINK -> MapColor.COLOR_PINK;
+            case GRAY -> MapColor.COLOR_GRAY;
+            case LIGHT_GRAY -> MapColor.COLOR_LIGHT_GRAY;
+            case CYAN -> MapColor.COLOR_CYAN;
+            case PURPLE -> MapColor.COLOR_PURPLE;
+            case BLUE -> MapColor.COLOR_BLUE;
+            case BROWN -> MapColor.COLOR_BROWN;
+            case GREEN -> MapColor.COLOR_GREEN;
+            case RED -> MapColor.COLOR_RED;
+            case BLACK -> MapColor.COLOR_BLACK;
+        };
     }
-    
-    public boolean hasTileEntity(IBlockState state) {
-        return true;
+
+    public DyeColor getColor() {
+        return color;
     }
-    
-    public MapColor getMapColor(IBlockState state, IBlockAccess worldIn, BlockPos pos) {
-        return MapColor.getBlockColor(dye);
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
     }
-    
-    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face) {
-        return BlockFaceShape.UNDEFINED;
+
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        // Nitor is invisible - it's rendered via particles
+        return RenderShape.INVISIBLE;
     }
-    
-    public EnumBlockRenderType getRenderType(IBlockState state) {
-        return EnumBlockRenderType.INVISIBLE;
+
+    @Override
+    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
+        // Spawn flame particles to show the nitor
+        double x = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 0.3;
+        double y = pos.getY() + 0.5 + (random.nextDouble() - 0.5) * 0.3;
+        double z = pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 0.3;
+        
+        // TODO: Use custom colored flame particles based on dye color
+        level.addParticle(ParticleTypes.FLAME, x, y, z, 0.0, 0.0, 0.0);
+        
+        if (random.nextInt(3) == 0) {
+            level.addParticle(ParticleTypes.SMOKE, x, y, z, 0.0, 0.02, 0.0);
+        }
     }
-    
-    public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos) {
-        return new AxisAlignedBB(0.33000001311302185, 0.33000001311302185, 0.33000001311302185, 0.6600000262260437, 0.6600000262260437, 0.6600000262260437);
-    }
-    
-    public AxisAlignedBB getCollisionBoundingBox(IBlockState state, IBlockAccess worldIn, BlockPos pos) {
-        return null;
-    }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
+
+    /**
+     * Create a nitor of a specific color.
+     */
+    public static BlockNitor create(DyeColor color) {
+        return new BlockNitor(color);
     }
 }

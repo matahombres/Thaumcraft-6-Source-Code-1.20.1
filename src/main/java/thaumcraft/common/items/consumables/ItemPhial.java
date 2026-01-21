@@ -1,152 +1,182 @@
 package thaumcraft.common.items.consumables;
-import java.util.Iterator;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.item.EntityItem;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
-import thaumcraft.api.aspects.IEssentiaContainerItem;
-import thaumcraft.api.blocks.BlocksTC;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.ItemTCEssentiaContainer;
-import thaumcraft.common.tiles.essentia.TileAlembic;
-import thaumcraft.common.tiles.essentia.TileJarFillable;
+import thaumcraft.api.aspects.IAspectSource;
+import thaumcraft.common.items.ItemEssentiaContainer;
+import thaumcraft.init.ModBlocks;
+import thaumcraft.init.ModItems;
 
+import javax.annotation.Nullable;
+import java.util.List;
 
-public class ItemPhial extends ItemTCEssentiaContainer
-{
-    public ItemPhial() {
-        super("phial", 10, "empty", "filled");
+/**
+ * Phial item - holds 10 essentia of a single aspect.
+ * Can be filled from and emptied into jars and alembics.
+ */
+public class ItemPhial extends ItemEssentiaContainer {
+
+    public static final int PHIAL_CAPACITY = 10;
+
+    private final boolean filled;
+
+    public ItemPhial(boolean filled) {
+        super(new Properties().stacksTo(64), PHIAL_CAPACITY);
+        this.filled = filled;
     }
-    
-    public static ItemStack makePhial(Aspect aspect, int amt) {
-        ItemStack i = new ItemStack(ItemsTC.phial, 1, 1);
-        ((IEssentiaContainerItem)i.getItem()).setAspects(i, new AspectList().add(aspect, amt));
-        return i;
+
+    /**
+     * Create an empty phial.
+     */
+    public static ItemPhial createEmpty() {
+        return new ItemPhial(false);
     }
-    
+
+    /**
+     * Create a filled phial template (actual aspect is stored in NBT).
+     */
+    public static ItemPhial createFilled() {
+        return new ItemPhial(true);
+    }
+
+    /**
+     * Create a filled phial stack with the specified aspect.
+     */
     public static ItemStack makeFilledPhial(Aspect aspect) {
-        return makePhial(aspect, 10);
+        return makePhial(aspect, PHIAL_CAPACITY);
     }
-    
+
+    /**
+     * Create a phial stack with specified aspect and amount.
+     */
+    public static ItemStack makePhial(Aspect aspect, int amount) {
+        ItemStack stack = new ItemStack(ModItems.PHIAL_FILLED.get());
+        ItemPhial phial = (ItemPhial) stack.getItem();
+        phial.setAspects(stack, new AspectList().add(aspect, amount));
+        return stack;
+    }
+
     @Override
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
-        if (tab == ConfigItems.TABTC || tab == CreativeTabs.SEARCH) {
-            items.add(new ItemStack(this, 1, 0));
-            for (Aspect tag : Aspect.aspects.values()) {
-                ItemStack i = new ItemStack(this, 1, 1);
-                setAspects(i, new AspectList().add(tag, base));
-                items.add(i);
+    public Component getName(ItemStack stack) {
+        if (filled) {
+            AspectList aspects = getAspects(stack);
+            if (aspects != null && aspects.size() > 0) {
+                Aspect aspect = aspects.getAspects()[0];
+                return Component.translatable("item.thaumcraft.phial_filled", aspect.getName());
+            }
+        }
+        return super.getName(stack);
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        if (filled) {
+            AspectList aspects = getAspects(stack);
+            if (aspects != null && aspects.size() > 0) {
+                Aspect aspect = aspects.getAspects()[0];
+                int amount = aspects.getAmount(aspect);
+                tooltip.add(Component.literal(aspect.getName() + ": " + amount)
+                        .withStyle(ChatFormatting.GRAY));
             }
         }
     }
-    
-    public String getItemStackDisplayName(ItemStack stack) {
-        return (getAspects(stack) != null && !getAspects(stack).aspects.isEmpty()) ? String.format(super.getItemStackDisplayName(stack), getAspects(stack).getAspects()[0].getName()) : super.getItemStackDisplayName(stack);
-    }
-    
-    public String getUnlocalizedName(ItemStack stack) {
-        return super.getUnlocalizedName() + "." + getVariantNames()[stack.getItemDamage()];
-    }
-    
+
     @Override
-    public void onUpdate(ItemStack stack, World world, Entity entity, int par4, boolean par5) {
-        if (!world.isRemote && !stack.hasTagCompound() && stack.getItemDamage() == 1) {
-            stack.setItemDamage(0);
-        }
-    }
-    
-    @Override
-    public void onCreated(ItemStack stack, World world, EntityPlayer player) {
-        if (!world.isRemote && !stack.hasTagCompound() && stack.getItemDamage() == 1) {
-            stack.setItemDamage(0);
-        }
-    }
-    
-    public boolean doesSneakBypassUse(ItemStack stack, IBlockAccess world, BlockPos pos, EntityPlayer player) {
-        return true;
-    }
-    
-    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side, float f1, float f2, float f3, EnumHand hand) {
-        IBlockState bi = world.getBlockState(pos);
-        if (player.getHeldItem(hand).getItemDamage() == 0 && bi.getBlock() == BlocksTC.alembic) {
-            TileAlembic tile = (TileAlembic)world.getTileEntity(pos);
-            if (tile.amount >= base) {
-                if (world.isRemote) {
-                    player.swingArm(hand);
-                    return EnumActionResult.PASS;
-                }
-                ItemStack phial = new ItemStack(this, 1, 1);
-                setAspects(phial, new AspectList().add(tile.aspect, base));
-                if (tile.takeFromContainer(tile.aspect, base)) {
-                    player.getHeldItem(hand).shrink(1);
-                    if (!player.inventory.addItemStackToInventory(phial)) {
-                        world.spawnEntity(new EntityItem(world, player.posX, player.posY, player.posZ, phial));
-                    }
-                    player.playSound(SoundEvents.ITEM_BOTTLE_FILL, 0.25f, 1.0f);
-                    player.inventoryContainer.detectAndSendChanges();
-                    return EnumActionResult.SUCCESS;
-                }
-            }
-        }
-        if (player.getHeldItem(hand).getItemDamage() == 0 && (bi.getBlock() == BlocksTC.jarNormal || bi.getBlock() == BlocksTC.jarVoid)) {
-            TileJarFillable tile2 = (TileJarFillable)world.getTileEntity(pos);
-            if (tile2.amount >= base) {
-                if (world.isRemote) {
-                    player.swingArm(hand);
-                    return EnumActionResult.PASS;
-                }
-                Aspect asp = Aspect.getAspect(tile2.aspect.getTag());
-                if (tile2.takeFromContainer(asp, base)) {
-                    player.getHeldItem(hand).shrink(1);
-                    ItemStack phial2 = new ItemStack(this, 1, 1);
-                    setAspects(phial2, new AspectList().add(asp, base));
-                    if (!player.inventory.addItemStackToInventory(phial2)) {
-                        world.spawnEntity(new EntityItem(world, pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f, phial2));
-                    }
-                    player.playSound(SoundEvents.ITEM_BOTTLE_FILL, 0.25f, 1.0f);
-                    player.inventoryContainer.detectAndSendChanges();
-                    return EnumActionResult.SUCCESS;
-                }
-            }
-        }
-        AspectList al = getAspects(player.getHeldItem(hand));
-        if (al != null && al.size() == 1) {
-            Aspect aspect = al.getAspects()[0];
-            if (player.getHeldItem(hand).getItemDamage() != 0 && (bi.getBlock() == BlocksTC.jarNormal || bi.getBlock() == BlocksTC.jarVoid)) {
-                TileJarFillable tile3 = (TileJarFillable)world.getTileEntity(pos);
-                if (tile3.amount <= 250 - base && tile3.doesContainerAccept(aspect)) {
-                    if (world.isRemote) {
-                        player.swingArm(hand);
-                        return EnumActionResult.PASS;
-                    }
-                    if (tile3.addToContainer(aspect, base) == 0) {
-                        world.markAndNotifyBlock(pos, world.getChunkFromBlockCoords(pos), bi, bi, 3);
-                        tile3.markDirty();
-                        player.getHeldItem(hand).shrink(1);
-                        if (!player.inventory.addItemStackToInventory(new ItemStack(this, 1, 0))) {
-                            world.spawnEntity(new EntityItem(world, pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f, new ItemStack(this, 1, 0)));
+    public InteractionResult useOn(UseOnContext context) {
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        Player player = context.getPlayer();
+        InteractionHand hand = context.getHand();
+
+        if (player == null) return InteractionResult.PASS;
+        ItemStack heldStack = player.getItemInHand(hand);
+
+        // Empty phial - try to fill from jar or alembic
+        if (!filled) {
+            BlockEntity te = level.getBlockEntity(pos);
+            if (te instanceof IAspectSource source) {
+                AspectList available = source.getAspects();
+                if (available != null && available.size() > 0) {
+                    Aspect aspect = available.getAspects()[0];
+                    int amount = available.getAmount(aspect);
+                    
+                    if (amount >= PHIAL_CAPACITY) {
+                        if (level.isClientSide()) {
+                            return InteractionResult.SUCCESS;
                         }
-                        player.playSound(SoundEvents.ITEM_BOTTLE_FILL, 0.25f, 1.0f);
-                        player.inventoryContainer.detectAndSendChanges();
-                        return EnumActionResult.SUCCESS;
+                        
+                        if (source.takeFromContainer(aspect, PHIAL_CAPACITY)) {
+                            heldStack.shrink(1);
+                            ItemStack filledPhial = makeFilledPhial(aspect);
+                            
+                            if (!player.getInventory().add(filledPhial)) {
+                                level.addFreshEntity(new ItemEntity(level, 
+                                        pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, filledPhial));
+                            }
+                            
+                            level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.PLAYERS, 0.25f, 1.0f);
+                            return InteractionResult.CONSUME;
+                        }
                     }
                 }
             }
         }
-        return EnumActionResult.PASS;
+        // Filled phial - try to empty into jar
+        else {
+            AspectList myAspects = getAspects(heldStack);
+            if (myAspects != null && myAspects.size() > 0) {
+                Aspect aspect = myAspects.getAspects()[0];
+                int amount = myAspects.getAmount(aspect);
+                
+                BlockEntity te = level.getBlockEntity(pos);
+                if (te instanceof IAspectSource source) {
+                    if (source.doesContainerAccept(aspect)) {
+                        if (level.isClientSide()) {
+                            return InteractionResult.SUCCESS;
+                        }
+                        
+                        int added = source.addToContainer(aspect, amount);
+                        if (added == 0) { // All added successfully
+                            heldStack.shrink(1);
+                            ItemStack emptyPhial = new ItemStack(ModItems.PHIAL_EMPTY.get());
+                            
+                            if (!player.getInventory().add(emptyPhial)) {
+                                level.addFreshEntity(new ItemEntity(level,
+                                        pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, emptyPhial));
+                            }
+                            
+                            level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.PLAYERS, 0.25f, 1.0f);
+                            return InteractionResult.CONSUME;
+                        }
+                    }
+                }
+            }
+        }
+
+        return InteractionResult.PASS;
+    }
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        return InteractionResultHolder.pass(player.getItemInHand(hand));
+    }
+
+    public boolean isFilled() {
+        return filled;
     }
 }

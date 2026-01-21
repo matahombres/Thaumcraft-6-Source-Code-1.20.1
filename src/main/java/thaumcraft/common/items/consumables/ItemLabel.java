@@ -1,72 +1,91 @@
 package thaumcraft.common.items.consumables;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.blocks.ILabelable;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.ItemTCEssentiaContainer;
 
+/**
+ * Label - Can be applied to essentia containers to filter them.
+ * Labels can be blank or filled with an aspect.
+ */
+public class ItemLabel extends Item {
 
-public class ItemLabel extends ItemTCEssentiaContainer
-{
-    public ItemLabel() {
-        super("label", 1, "blank", "filled");
+    private final boolean isFilled;
+
+    public ItemLabel(boolean filled) {
+        super(new Item.Properties());
+        this.isFilled = filled;
     }
-    
-    public String getUnlocalizedName(ItemStack stack) {
-        return super.getUnlocalizedName() + "." + getVariantNames()[stack.getItemDamage()];
+
+    public static ItemLabel createBlank() {
+        return new ItemLabel(false);
     }
-    
+
+    public static ItemLabel createFilled() {
+        return new ItemLabel(true);
+    }
+
+    /**
+     * Gets the aspect stored on this label, if any.
+     */
+    public Aspect getAspect(ItemStack stack) {
+        if (isFilled && stack.hasTag() && stack.getTag().contains("aspect")) {
+            return Aspect.getAspect(stack.getTag().getString("aspect"));
+        }
+        return null;
+    }
+
+    /**
+     * Sets the aspect on this label.
+     */
+    public void setAspect(ItemStack stack, Aspect aspect) {
+        if (aspect != null) {
+            stack.getOrCreateTag().putString("aspect", aspect.getTag());
+        }
+    }
+
     @Override
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
-        if (tab == ConfigItems.TABTC || tab == CreativeTabs.SEARCH) {
-            items.add(new ItemStack(this, 1, 0));
+    public InteractionResult useOn(UseOnContext context) {
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        Direction side = context.getClickedFace();
+        Player player = context.getPlayer();
+        ItemStack stack = context.getItemInHand();
+
+        if (level.isClientSide() || player == null) {
+            return InteractionResult.PASS;
         }
-    }
-    
-    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ, EnumHand hand) {
-        if (world.isRemote) {
-            return EnumActionResult.PASS;
-        }
-        IBlockState bs = world.getBlockState(pos);
-        if (bs.getBlock() instanceof ILabelable) {
-            if (((ILabelable)bs.getBlock()).applyLabel(player, pos, side, player.getHeldItem(hand))) {
-                player.getHeldItem(hand).shrink(1);
-                player.inventoryContainer.detectAndSendChanges();
+
+        BlockState state = level.getBlockState(pos);
+
+        // Check if the block implements ILabelable
+        if (state.getBlock() instanceof ILabelable labelable) {
+            if (labelable.applyLabel(player, pos, side, stack)) {
+                stack.shrink(1);
+                player.inventoryMenu.broadcastChanges();
+                return InteractionResult.SUCCESS;
             }
-            return EnumActionResult.SUCCESS;
         }
-        TileEntity te = world.getTileEntity(pos);
-        if (te instanceof ILabelable) {
-            if (((ILabelable)te).applyLabel(player, pos, side, player.getHeldItem(hand))) {
-                player.getHeldItem(hand).shrink(1);
-                player.inventoryContainer.detectAndSendChanges();
+
+        // Check if the tile entity implements ILabelable
+        BlockEntity te = level.getBlockEntity(pos);
+        if (te instanceof ILabelable labelable) {
+            if (labelable.applyLabel(player, pos, side, stack)) {
+                stack.shrink(1);
+                player.inventoryMenu.broadcastChanges();
+                return InteractionResult.SUCCESS;
             }
-            return EnumActionResult.SUCCESS;
         }
-        return super.onItemUseFirst(player, world, pos, side, hitX, hitY, hitZ, hand);
-    }
-    
-    @Override
-    public void onUpdate(ItemStack stack, World world, Entity entity, int par4, boolean par5) {
-    }
-    
-    @Override
-    public void onCreated(ItemStack stack, World world, EntityPlayer player) {
-    }
-    
-    @Override
-    public boolean ignoreContainedAspects() {
-        return true;
+
+        return InteractionResult.PASS;
     }
 }

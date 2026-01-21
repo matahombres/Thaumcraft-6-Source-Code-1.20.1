@@ -1,76 +1,147 @@
 package thaumcraft.common.entities.projectile;
-import java.util.Iterator;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
+import thaumcraft.init.ModEntities;
+
 import java.util.List;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.projectile.EntityThrowable;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.blocks.BlocksTC;
-import thaumcraft.api.entities.ITaintedMob;
-import thaumcraft.api.potions.PotionFluxTaint;
-import thaumcraft.client.fx.FXDispatcher;
 
-
-public class EntityBottleTaint extends EntityThrowable
-{
-    public EntityBottleTaint(World p_i1788_1_) {
-        super(p_i1788_1_);
+/**
+ * EntityBottleTaint - Taint bottle throwable projectile.
+ * When it hits, it:
+ * 1. Applies flux taint potion effect to nearby living entities (except tainted/undead)
+ * 2. Places flux goo blocks in the area
+ */
+public class EntityBottleTaint extends ThrowableProjectile {
+    
+    public EntityBottleTaint(EntityType<? extends EntityBottleTaint> type, Level level) {
+        super(type, level);
     }
     
-    public EntityBottleTaint(World p_i1790_1_, EntityLivingBase p_i1790_2) {
-        super(p_i1790_1_, p_i1790_2);
+    public EntityBottleTaint(Level level, LivingEntity owner) {
+        super(ModEntities.BOTTLE_TAINT.get(), owner, level);
     }
     
-    public EntityBottleTaint(World worldIn, double x, double y, double z) {
-        super(worldIn, x, y, z);
+    public EntityBottleTaint(Level level, double x, double y, double z) {
+        super(ModEntities.BOTTLE_TAINT.get(), x, y, z, level);
     }
     
-    @SideOnly(Side.CLIENT)
-    public void handleStatusUpdate(byte id) {
+    @Override
+    protected void defineSynchedData() {
+        // No additional synced data needed
+    }
+    
+    @Override
+    public void handleEntityEvent(byte id) {
         if (id == 3) {
-            for (int a = 0; a < 100; ++a) {
-                FXDispatcher.INSTANCE.taintsplosionFX(this);
+            // Spawn taint explosion particles
+            for (int a = 0; a < 100; a++) {
+                double offsetX = (random.nextDouble() - 0.5) * 2.0;
+                double offsetY = (random.nextDouble() - 0.5) * 2.0;
+                double offsetZ = (random.nextDouble() - 0.5) * 2.0;
+                
+                // Purple/taint colored particles
+                level().addParticle(
+                    ParticleTypes.WITCH,
+                    getX() + offsetX,
+                    getY() + offsetY,
+                    getZ() + offsetZ,
+                    offsetX * 0.1,
+                    offsetY * 0.1,
+                    offsetZ * 0.1
+                );
             }
-            FXDispatcher.INSTANCE.bottleTaintBreak(posX, posY, posZ);
+            
+            // Bottle break particles
+            level().addParticle(
+                ParticleTypes.ITEM_SLIME,
+                getX(), getY(), getZ(),
+                0, 0.1, 0
+            );
         }
+        super.handleEntityEvent(id);
     }
     
-    protected void onImpact(RayTraceResult ray) {
-        if (!world.isRemote) {
-            List ents = world.getEntitiesWithinAABB(EntityLivingBase.class, new AxisAlignedBB(posX, posY, posZ, posX, posY, posZ).grow(5.0, 5.0, 5.0));
-            if (ents.size() > 0) {
-                for (Object ent : ents) {
-                    EntityLivingBase el = (EntityLivingBase)ent;
-                    if (!(el instanceof ITaintedMob) && !el.isEntityUndead()) {
-                        el.addPotionEffect(new PotionEffect(PotionFluxTaint.instance, 100, 0, false, true));
-                    }
+    @Override
+    protected void onHit(HitResult result) {
+        super.onHit(result);
+        
+        if (!level().isClientSide) {
+            // Find nearby living entities and apply flux taint effect
+            AABB searchBox = new AABB(getX(), getY(), getZ(), getX(), getY(), getZ()).inflate(5.0, 5.0, 5.0);
+            List<LivingEntity> entities = level().getEntitiesOfClass(LivingEntity.class, searchBox);
+            
+            for (LivingEntity entity : entities) {
+                // Skip tainted mobs and undead
+                // TODO: Check for ITaintedMob interface when implemented
+                if (!entity.isInvertedHealAndHarm()) { // isInvertedHealAndHarm() returns true for undead
+                    // TODO: Apply PotionFluxTaint effect when implemented
+                    // entity.addEffect(new MobEffectInstance(ModEffects.FLUX_TAINT.get(), 100, 0, false, true));
+                    
+                    // For now, apply wither as a placeholder for taint damage
+                    entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                        net.minecraft.world.effect.MobEffects.WITHER, 100, 0, false, true));
                 }
             }
-            for (int a = 0; a < 10; ++a) {
-                int xx = (int)((rand.nextFloat() - rand.nextFloat()) * 4.0f);
-                int zz = (int)((rand.nextFloat() - rand.nextFloat()) * 4.0f);
-                BlockPos p = getPosition().add(xx, 0, zz);
-                if (world.rand.nextBoolean()) {
-                    if (world.isBlockNormalCube(p.down(), false) && world.getBlockState(p).getBlock().isReplaceable(world, p)) {
-                        world.setBlockState(p, BlocksTC.fluxGoo.getDefaultState());
-                    }
-                    else {
-                        p = p.down();
-                        if (world.isBlockNormalCube(p.down(), false) && world.getBlockState(p).getBlock().isReplaceable(world, p)) {
-                            world.setBlockState(p, BlocksTC.fluxGoo.getDefaultState());
+            
+            // Place flux goo blocks in the area
+            for (int a = 0; a < 10; a++) {
+                int xx = (int)((random.nextFloat() - random.nextFloat()) * 4.0f);
+                int zz = (int)((random.nextFloat() - random.nextFloat()) * 4.0f);
+                BlockPos pos = blockPosition().offset(xx, 0, zz);
+                
+                if (random.nextBoolean()) {
+                    // Try to place at current level or one below
+                    if (canPlaceFluxGoo(pos)) {
+                        placeFluxGoo(pos);
+                    } else {
+                        BlockPos belowPos = pos.below();
+                        if (canPlaceFluxGoo(belowPos)) {
+                            placeFluxGoo(belowPos);
                         }
                     }
                 }
             }
-            world.setEntityState(this, (byte)3);
-            setDead();
+            
+            // Notify clients for particle effects
+            level().broadcastEntityEvent(this, (byte)3);
+            discard();
         }
+    }
+    
+    /**
+     * Checks if flux goo can be placed at the given position.
+     * Requires solid ground below and replaceable block at position.
+     */
+    private boolean canPlaceFluxGoo(BlockPos pos) {
+        BlockState stateBelow = level().getBlockState(pos.below());
+        BlockState stateAt = level().getBlockState(pos);
+        
+        // Need solid ground below and air/replaceable at position
+        return stateBelow.isSolidRender(level(), pos.below()) && 
+               (stateAt.isAir() || stateAt.canBeReplaced());
+    }
+    
+    /**
+     * Places flux goo at the given position.
+     * TODO: Replace with actual BlockFluxGoo when implemented
+     */
+    private void placeFluxGoo(BlockPos pos) {
+        // TODO: Replace with ModBlocks.FLUX_GOO when implemented
+        // For now, place slime block as a visual placeholder
+        level().setBlockAndUpdate(pos, Blocks.SLIME_BLOCK.defaultBlockState());
+    }
+    
+    @Override
+    protected float getGravity() {
+        return 0.05f; // Standard potion-like gravity
     }
 }

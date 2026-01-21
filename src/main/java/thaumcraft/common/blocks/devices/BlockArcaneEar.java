@@ -1,159 +1,222 @@
 package thaumcraft.common.blocks.devices;
-import com.google.common.collect.Lists;
-import java.util.List;
-import net.minecraft.block.Block;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.EnumParticleTypes;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import thaumcraft.common.blocks.BlockTCDevice;
-import thaumcraft.common.blocks.IBlockEnabled;
-import thaumcraft.common.blocks.IBlockFacing;
-import thaumcraft.common.lib.utils.BlockStateUtils;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import thaumcraft.common.tiles.devices.TileArcaneEar;
+import thaumcraft.init.ModBlockEntities;
 
+import javax.annotation.Nullable;
 
-public class BlockArcaneEar extends BlockTCDevice implements IBlockFacing, IBlockEnabled
-{
-    private static List<SoundEvent> INSTRUMENTS;
-    
-    public BlockArcaneEar(String name) {
-        super(Material.WOOD, TileArcaneEar.class, name);
-        setSoundType(SoundType.WOOD);
-        setHardness(1.0f);
-        IBlockState bs = blockState.getBaseState();
-        bs.withProperty((IProperty)IBlockFacing.FACING, (Comparable)EnumFacing.UP);
-        bs.withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)false);
-        setDefaultState(bs);
+/**
+ * Arcane Ear block - detects note block sounds and emits redstone.
+ * Can be configured to respond to specific notes and instruments.
+ */
+public class BlockArcaneEar extends Block implements EntityBlock {
+
+    public static final DirectionProperty FACING = BlockStateProperties.FACING;
+    public static final BooleanProperty ENABLED = BlockStateProperties.ENABLED;
+
+    // Bounding boxes for each facing direction
+    private static final VoxelShape SHAPE_DOWN = Block.box(2.0, 10.0, 2.0, 14.0, 16.0, 14.0);
+    private static final VoxelShape SHAPE_UP = Block.box(2.0, 0.0, 2.0, 14.0, 6.0, 14.0);
+    private static final VoxelShape SHAPE_NORTH = Block.box(2.0, 2.0, 10.0, 14.0, 14.0, 16.0);
+    private static final VoxelShape SHAPE_SOUTH = Block.box(2.0, 2.0, 0.0, 14.0, 14.0, 6.0);
+    private static final VoxelShape SHAPE_WEST = Block.box(10.0, 2.0, 2.0, 16.0, 14.0, 14.0);
+    private static final VoxelShape SHAPE_EAST = Block.box(0.0, 2.0, 2.0, 6.0, 14.0, 14.0);
+
+    private final boolean isToggle;
+
+    public BlockArcaneEar(boolean toggle) {
+        super(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.WOOD)
+                .strength(1.0f)
+                .sound(SoundType.WOOD)
+                .noOcclusion());
+        this.isToggle = toggle;
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(FACING, Direction.UP)
+                .setValue(ENABLED, false));
     }
-    
-    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face) {
-        return BlockFaceShape.UNDEFINED;
+
+    public boolean isToggleMode() {
+        return isToggle;
     }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
-    }
-    
+
     @Override
-    public int damageDropped(IBlockState state) {
-        return 0;
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING, ENABLED);
     }
-    
+
     @Override
-    public IBlockState getStateForPlacement(World worldIn, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ, int meta, EntityLivingBase placer) {
-        IBlockState bs = getDefaultState();
-        bs = bs.withProperty((IProperty)IBlockFacing.FACING, (Comparable)facing);
-        bs = bs.withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)false);
-        return bs;
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        Direction facing = context.getClickedFace();
+        BlockPos attachPos = context.getClickedPos().relative(facing.getOpposite());
+        
+        if (context.getLevel().getBlockState(attachPos).isFaceSturdy(context.getLevel(), attachPos, facing)) {
+            return this.defaultBlockState()
+                    .setValue(FACING, facing)
+                    .setValue(ENABLED, false);
+        }
+        return null;
     }
-    
+
     @Override
-    public void onBlockAdded(World worldIn, BlockPos pos, IBlockState state) {
-        TileArcaneEar tile = (TileArcaneEar)worldIn.getTileEntity(pos);
-        if (tile != null) {
-            tile.updateTone();
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, net.minecraft.world.item.ItemStack stack) {
+        if (!level.isClientSide) {
+            BlockEntity te = level.getBlockEntity(pos);
+            if (te instanceof TileArcaneEar ear) {
+                ear.updateInstrument();
+                ear.setToggleMode(isToggle);
+            }
         }
     }
-    
+
     @Override
-    public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos pos2) {
-        TileArcaneEar tile = (TileArcaneEar)worldIn.getTileEntity(pos);
-        if (tile != null) {
-            tile.updateTone();
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return switch (state.getValue(FACING)) {
+            case DOWN -> SHAPE_DOWN;
+            case UP -> SHAPE_UP;
+            case NORTH -> SHAPE_NORTH;
+            case SOUTH -> SHAPE_SOUTH;
+            case WEST -> SHAPE_WEST;
+            case EAST -> SHAPE_EAST;
+        };
+    }
+
+    @Override
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+        Direction facing = state.getValue(FACING);
+        BlockPos attachPos = pos.relative(facing.getOpposite());
+        return level.getBlockState(attachPos).isFaceSturdy(level, attachPos, facing);
+    }
+
+    @Override
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+                                   LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+        Direction facing = state.getValue(FACING);
+        if (direction == facing.getOpposite() && !canSurvive(state, level, pos)) {
+            return Blocks.AIR.defaultBlockState();
         }
-        if (!worldIn.getBlockState(pos.offset(BlockStateUtils.getFacing(state).getOpposite())).isSideSolid(worldIn, pos.offset(BlockStateUtils.getFacing(state).getOpposite()), BlockStateUtils.getFacing(state))) {
-            dropBlockAsItem(worldIn, pos, getDefaultState(), 0);
-            worldIn.setBlockToAir(pos);
+        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+    }
+
+    @Override
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
+        if (!level.isClientSide) {
+            BlockEntity te = level.getBlockEntity(pos);
+            if (te instanceof TileArcaneEar ear) {
+                ear.updateInstrument();
+            }
         }
     }
-    
-    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ) {
-        if (world.isRemote) {
+
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, 
+                                  InteractionHand hand, BlockHitResult hit) {
+        if (level.isClientSide) {
+            return InteractionResult.SUCCESS;
+        }
+
+        BlockEntity te = level.getBlockEntity(pos);
+        if (te instanceof TileArcaneEar ear) {
+            ear.changePitch();
+            ear.triggerNote(true);
+            return InteractionResult.CONSUME;
+        }
+        return InteractionResult.PASS;
+    }
+
+    @Override
+    public boolean isSignalSource(BlockState state) {
+        return true;
+    }
+
+    @Override
+    public int getSignal(BlockState state, BlockGetter level, BlockPos pos, Direction direction) {
+        BlockEntity te = level.getBlockEntity(pos);
+        if (te instanceof TileArcaneEar ear) {
+            return ear.getRedstoneOutput();
+        }
+        return state.getValue(ENABLED) ? 15 : 0;
+    }
+
+    @Override
+    public int getDirectSignal(BlockState state, BlockGetter level, BlockPos pos, Direction direction) {
+        return getSignal(state, level, pos, direction);
+    }
+
+    @Override
+    public boolean triggerEvent(BlockState state, Level level, BlockPos pos, int id, int data) {
+        // Play note sound
+        if (id >= 0 && id < 16) {
+            float pitch = (float) Math.pow(2.0, (data - 12) / 12.0);
+            level.playSound(null, pos, SoundEvents.NOTE_BLOCK_HARP.get(), SoundSource.BLOCKS, 3.0f, pitch);
+            level.addParticle(ParticleTypes.NOTE, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 
+                    data / 24.0, 0.0, 0.0);
             return true;
         }
-        TileArcaneEar tile = (TileArcaneEar)world.getTileEntity(pos);
-        if (tile != null) {
-            tile.changePitch();
-            tile.triggerNote(world, pos, true);
-        }
-        return true;
+        return super.triggerEvent(state, level, pos, id, data);
     }
-    
-    public boolean canProvidePower(IBlockState state) {
-        return true;
-    }
-    
-    public int getWeakPower(IBlockState state, IBlockAccess worldIn, BlockPos pos, EnumFacing side) {
-        return BlockStateUtils.isEnabled(state.getBlock().getMetaFromState(state)) ? 15 : 0;
-    }
-    
-    public int getStrongPower(IBlockState state, IBlockAccess worldIn, BlockPos pos, EnumFacing side) {
-        return BlockStateUtils.isEnabled(state.getBlock().getMetaFromState(state)) ? 15 : 0;
-    }
-    
-    public boolean canPlaceBlockOnSide(World worldIn, BlockPos pos, EnumFacing side) {
-        return worldIn.getBlockState(pos.offset(side.getOpposite())).isSideSolid(worldIn, pos.offset(side.getOpposite()), side);
-    }
-    
-    public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos) {
-        EnumFacing facing = BlockStateUtils.getFacing(getMetaFromState(state));
-        switch (facing.ordinal()) {
-            case 0: {
-                return new AxisAlignedBB(0.125, 0.625, 0.125, 0.875, 1.0, 0.875);
-            }
-            case 1: {
-                return new AxisAlignedBB(0.125, 0.0, 0.125, 0.875, 0.375, 0.875);
-            }
-            case 2: {
-                return new AxisAlignedBB(0.125, 0.125, 0.625, 0.875, 0.875, 1.0);
-            }
-            case 3: {
-                return new AxisAlignedBB(0.125, 0.125, 0.0, 0.875, 0.875, 0.375);
-            }
-            case 4: {
-                return new AxisAlignedBB(0.625, 0.125, 0.125, 1.0, 0.875, 0.875);
-            }
-            default: {
-                return new AxisAlignedBB(0.0, 0.125, 0.125, 0.375, 0.875, 0.875);
-            }
-        }
-    }
-    
-    protected SoundEvent getInstrument(int type) {
-        if (type < 0 || type >= BlockArcaneEar.INSTRUMENTS.size()) {
-            type = 0;
-        }
-        return BlockArcaneEar.INSTRUMENTS.get(type);
-    }
-    
+
+    @Nullable
     @Override
-    public boolean eventReceived(IBlockState state, World worldIn, BlockPos pos, int par5, int par6) {
-        super.eventReceived(state, worldIn, pos, par5, par6);
-        float var7 = (float)Math.pow(2.0, (par6 - 12) / 12.0);
-        worldIn.playSound(null, pos, getInstrument(par5), SoundCategory.BLOCKS, 3.0f, var7);
-        worldIn.spawnParticle(EnumParticleTypes.NOTE, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, par6 / 24.0, 0.0, 0.0);
-        return true;
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        TileArcaneEar ear = new TileArcaneEar(ModBlockEntities.ARCANE_EAR.get(), pos, state);
+        ear.setToggleMode(isToggle);
+        return ear;
     }
-    
-    static {
-        INSTRUMENTS = Lists.newArrayList(SoundEvents.BLOCK_NOTE_HARP, SoundEvents.BLOCK_NOTE_BASEDRUM, SoundEvents.BLOCK_NOTE_SNARE, SoundEvents.BLOCK_NOTE_HAT, SoundEvents.BLOCK_NOTE_BASS, SoundEvents.BLOCK_NOTE_FLUTE, SoundEvents.BLOCK_NOTE_BELL, SoundEvents.BLOCK_NOTE_GUITAR, SoundEvents.BLOCK_NOTE_CHIME, SoundEvents.BLOCK_NOTE_XYLOPHONE);
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (level.isClientSide()) {
+            return null;
+        }
+        return type == ModBlockEntities.ARCANE_EAR.get()
+                ? (lvl, pos, st, te) -> TileArcaneEar.serverTick(lvl, pos, st, (TileArcaneEar) te)
+                : null;
+    }
+
+    /**
+     * Create a pulse-mode arcane ear (emits signal for 10 ticks).
+     */
+    public static BlockArcaneEar createPulse() {
+        return new BlockArcaneEar(false);
+    }
+
+    /**
+     * Create a toggle-mode arcane ear (toggles state on each note).
+     */
+    public static BlockArcaneEar createToggle() {
+        return new BlockArcaneEar(true);
     }
 }

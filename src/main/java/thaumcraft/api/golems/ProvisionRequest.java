@@ -1,139 +1,148 @@
 package thaumcraft.api.golems;
-import net.minecraft.entity.Entity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
 import thaumcraft.api.golems.seals.ISealEntity;
 import thaumcraft.api.golems.tasks.Task;
 
+/**
+ * Represents a request for an item to be provisioned (delivered) to a location.
+ * Used by seals like SealStock and SealProvide for item logistics.
+ */
+public class ProvisionRequest {
 
-public class ProvisionRequest { 
-	private ISealEntity seal;
-	private Entity entity;
-	private BlockPos pos;
-	private EnumFacing side;
-	private ItemStack stack;
-	private int id;
-	private int ui = 0;
-	private Task linkedTask;
-	private boolean invalid;
-	private long timeout;
-	
-	ProvisionRequest(ISealEntity seal, ItemStack stack) {
-		this.seal = seal;
-		this.stack = stack.copy();
-		String s = seal.getSealPos().pos.toString() + seal.getSealPos().face.name() +stack.toString();
-		if (stack.hasTagCompound()) s += stack.getTagCompound().toString();
-		id = s.hashCode();
-		timeout = System.currentTimeMillis() + 10000;
-	}
-	
-	ProvisionRequest(BlockPos pos, EnumFacing side, ItemStack stack) {
-		this.pos = pos;
-		this.side = side;
-		this.stack = stack.copy();
-		String s = pos.toString() + side.name() +stack.toString();
-		if (stack.hasTagCompound()) s += stack.getTagCompound().toString();
-		id = s.hashCode();
-		timeout = System.currentTimeMillis() + 10000;
-	}
-	
-	ProvisionRequest(Entity entity, ItemStack stack) {
-		this.entity = entity;
-		this.stack = stack.copy();
-		String s = entity.getEntityId() + stack.toString();
-		if (stack.hasTagCompound()) s += stack.getTagCompound().toString();
-		id = s.hashCode();
-		timeout = System.currentTimeMillis() + 10000;
-	}
-		
-	
+    private ISealEntity seal;
+    private Entity entity;
+    private BlockPos pos;
+    private Direction side;
+    private ItemStack stack;
+    private int id;
+    private int ui = 0;
+    private Task linkedTask;
+    private boolean invalid;
+    private long timeout;
 
-	public long getTimeout() {
-		return timeout;
-	}
+    /**
+     * Create a provision request for a seal
+     */
+    public ProvisionRequest(ISealEntity seal, ItemStack stack) {
+        this.seal = seal;
+        this.stack = stack.copy();
+        String s = seal.getSealPos().pos.toString() + seal.getSealPos().face.name() + stack.toString();
+        if (stack.hasTag()) s += stack.getTag().toString();
+        id = s.hashCode();
+        timeout = System.currentTimeMillis() + 10000;
+    }
 
-	public int getId() {
-		return id;
-	}
+    /**
+     * Create a provision request for a block position
+     */
+    public ProvisionRequest(BlockPos pos, Direction side, ItemStack stack) {
+        this.pos = pos;
+        this.side = side;
+        this.stack = stack.copy();
+        String s = pos.toString() + side.name() + stack.toString();
+        if (stack.hasTag()) s += stack.getTag().toString();
+        id = s.hashCode();
+        timeout = System.currentTimeMillis() + 10000;
+    }
 
-	public void setId(int id) {
-		this.id = id;
-	}
-	
-	public void setUI(int ui) {
-		this.ui = ui;
-	}
+    /**
+     * Create a provision request for an entity
+     */
+    public ProvisionRequest(Entity entity, ItemStack stack) {
+        this.entity = entity;
+        this.stack = stack.copy();
+        String s = entity.getId() + stack.toString();
+        if (stack.hasTag()) s += stack.getTag().toString();
+        id = s.hashCode();
+        timeout = System.currentTimeMillis() + 10000;
+    }
 
-	public ISealEntity getSeal() {
-		return seal;
-	}
-	
-	public Entity getEntity() {
-		return entity;
-	}
-	
-	public ItemStack getStack() {
-		return stack;
-	}
-	
-	public BlockPos getPos() {
-		return pos;
-	}
+    public long getTimeout() {
+        return timeout;
+    }
 
-	public void setPos(BlockPos pos) {
-		this.pos = pos;
-	}
-	
-	public EnumFacing getSide() {
-		return side;
-	}
+    public int getId() {
+        return id;
+    }
 
-	public void setSide(EnumFacing side) {
-		this.side = side;
-	}
+    public void setId(int id) {
+        this.id = id;
+    }
 
-	public Task getLinkedTask() {
-		return linkedTask;
-	}
+    public void setUI(int ui) {
+        this.ui = ui;
+    }
 
-	public void setLinkedTask(Task linkedTask) {
-		this.linkedTask = linkedTask;
-		timeout = System.currentTimeMillis() + 120000;
-	}
+    public ISealEntity getSeal() {
+        return seal;
+    }
 
-	public boolean isInvalid() {
-		return invalid;
-	}
+    public Entity getEntity() {
+        return entity;
+    }
 
-	public void setInvalid(boolean invalid) {
-		this.invalid = invalid;
-	}
+    public ItemStack getStack() {
+        return stack;
+    }
 
-	@Override
-	public boolean equals(Object p_equals_1_)
-    {
-        if (this == p_equals_1_)
-        {
+    public BlockPos getPos() {
+        return pos;
+    }
+
+    public void setPos(BlockPos pos) {
+        this.pos = pos;
+    }
+
+    public Direction getSide() {
+        return side;
+    }
+
+    public void setSide(Direction side) {
+        this.side = side;
+    }
+
+    public Task getLinkedTask() {
+        return linkedTask;
+    }
+
+    public void setLinkedTask(Task linkedTask) {
+        this.linkedTask = linkedTask;
+        timeout = System.currentTimeMillis() + 120000;
+    }
+
+    public boolean isInvalid() {
+        return invalid;
+    }
+
+    public void setInvalid(boolean invalid) {
+        this.invalid = invalid;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
             return true;
         }
-        else if (!(p_equals_1_ instanceof ProvisionRequest))
-        {
+        if (!(obj instanceof ProvisionRequest pr)) {
             return false;
         }
-        else
-        {        	
-        	ProvisionRequest pr = (ProvisionRequest)p_equals_1_;        	
-            return id == pr.id && ui == pr.ui;
-        }
+        return id == pr.id && ui == pr.ui;
     }
-	
-	private boolean isItemStackEqual(ItemStack first, ItemStack other)
-    {
-        return first.getCount() != other.getCount() ? false : 
-        	(first.getItem() != other.getItem() ? false : 
-        		(first.getItemDamage() != other.getItemDamage() ? false : 
-        			(first.getTagCompound() == null && other.getTagCompound() != null ? false : 
-        				first.getTagCompound() == null || first.getTagCompound().equals(other.getTagCompound()))));
+
+    @Override
+    public int hashCode() {
+        return 31 * id + ui;
+    }
+
+    private boolean isItemStackEqual(ItemStack first, ItemStack other) {
+        if (first.getCount() != other.getCount()) return false;
+        if (first.getItem() != other.getItem()) return false;
+        if (first.getDamageValue() != other.getDamageValue()) return false;
+        if (first.getTag() == null && other.getTag() != null) return false;
+        return first.getTag() == null || first.getTag().equals(other.getTag());
     }
 }

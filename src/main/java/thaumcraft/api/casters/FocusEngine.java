@@ -1,176 +1,170 @@
 package thaumcraft.api.casters;
-import java.util.ArrayList;
+
+import net.minecraft.resources.ResourceLocation;
+import thaumcraft.api.aspects.Aspect;
+
+import javax.annotation.Nullable;
+import java.awt.Color;
 import java.util.HashMap;
-import java.util.UUID;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.RayTraceResult;
+import java.util.Map;
+import java.util.function.Supplier;
 
-
-
-public class FocusEngine {	
-	
-	public static HashMap<String,Class<IFocusElement>> elements = new HashMap<>();
-	private static HashMap<String,ResourceLocation> elementIcons = new HashMap<>();
-	private static HashMap<String,Integer> elementColor = new HashMap<>();
-	
-	public static void registerElement(Class element, ResourceLocation icon, int color) {  
-		try {
-			IFocusElement fe = (IFocusElement) element.newInstance();		
-			elements.put(fe.getKey(), element);
-			elementIcons.put(fe.getKey(), icon);
-			elementColor.put(fe.getKey(), color);
-		} catch (Exception e) {	} 
-	}
-	
-	public static IFocusElement getElement(String key) {
-		try {
-			return elements.get(key).newInstance();
-		} catch (Exception e) {	}
-		return null;
-	}
-	
-	public static ResourceLocation getElementIcon(String key) {
-		return elementIcons.get(key);
-	}
-	
-	public static int getElementColor(String key) {
-		return elementColor.get(key);
-	}
-	
-	public static boolean doesPackageContainElement(FocusPackage focusPackage, String key) {
-		for (IFocusElement node: focusPackage.nodes) {
-			if (node.getKey().equals(key)) return true;
-		}
-		return false;
-	}
-	
-	
-	
-	/**
-	 * 
-	 * @param caster
-	 * @param focusPackage
-	 * @param nocopy set to true only if the focus package passed in is temporary and not attached to an actual focus. 
-	 * Use this to preserve any settings, targets, etc that has been set during package construction
-	 */
-	public static void castFocusPackage(EntityLivingBase caster, FocusPackage focusPackage, boolean nocopy) {
-		FocusPackage focusPackageCopy;
-		if (nocopy) 
-			focusPackageCopy = focusPackage;
-		else
-			focusPackageCopy = focusPackage.copy(caster);
-		
-		focusPackageCopy.initialize(caster);		
-		focusPackageCopy.setUniqueID(UUID.randomUUID());
-		for (FocusEffect effect:focusPackageCopy.getFocusEffects()) {
-			effect.onCast(caster);
-		}	
-		
-		runFocusPackage(focusPackageCopy, null, null);
-	}
-	
-	/**
-	 * Overrides castFocusPackage(EntityLivingBase caster, FocusPackage focusPackage, boolean nocopy) with nocopy = false
-	 * @param caster
-	 * @param focusPackage
-	 */
-	public static void castFocusPackage(EntityLivingBase caster, FocusPackage focusPackage) {
-		castFocusPackage(caster,focusPackage,false);
-	}
-	
-	public static void runFocusPackage(FocusPackage focusPackage, Trajectory[] trajectories, RayTraceResult[] targets) {
-		
-		Trajectory[] prevTrajectories = trajectories;
-		RayTraceResult[] prevTargets = targets;
-		
-		synchronized (focusPackage.nodes) {
-
-			if (!(focusPackage.nodes.get(0) instanceof FocusMediumRoot)) {
-				focusPackage.nodes.add(0,new FocusMediumRoot(trajectories,targets));
-			}		
-		
-			for (int idx=0;idx<focusPackage.nodes.size();idx++) {
-				
-				focusPackage.setExecutionIndex(idx);
-				
-				IFocusElement node = focusPackage.nodes.get(idx);
-				if (idx>0 && ((FocusNode)node).getParent()==null) {
-					IFocusElement nodePrev = focusPackage.nodes.get(idx-1);
-					if (node instanceof FocusNode && nodePrev instanceof FocusNode) {
-						((FocusNode)node).setParent((FocusNode)nodePrev);
-					}
-				}
-				
-				if (node instanceof FocusNode && ((FocusNode)node).getPackage()==null) {
-					((FocusNode)node).setPackage(focusPackage);
-				}	
-				
-				if (node instanceof FocusNode) {			
-					focusPackage.multiplyPower(((FocusNode)node).getPowerMultiplier());
-				} 
-				
-				if (node instanceof FocusPackage) {				
-					runFocusPackage((FocusPackage) node, prevTrajectories, prevTargets);				
-					break;
-				} 
-				else			
-				if (node instanceof FocusMedium) {	
-					FocusMedium medium = (FocusMedium) node;
-					if (prevTrajectories!=null)
-						for (Trajectory trajectory : prevTrajectories) {
-							medium.execute(trajectory);
-						}
-					
-					if (medium.hasIntermediary()) break;
-				} 
-				else
-				if (node instanceof FocusMod) {						
-					if (node instanceof FocusModSplit) {
-						FocusModSplit split = (FocusModSplit) node;
-						for (FocusPackage sp : split.getSplitPackages() ) {
-							split.setPackage(sp);
-							sp.multiplyPower(focusPackage.getPower());
-							split.execute();
-							/*returnLast =*/ runFocusPackage(sp,split.supplyTrajectories(),split.supplyTargets());
-						}
-						break;
-					} else {
-						((FocusMod) node).execute();
-					}
-				}
-				else
-				if (node instanceof FocusEffect) {	
-					FocusEffect effect = (FocusEffect) node;
-					if (prevTargets!=null) {
-						int num=0;
-						for (RayTraceResult target : prevTargets) {		
-							if (target.entityHit!=null) {
-								String k = target.entityHit.getEntityId() + focusPackage.getUniqueID().toString();
-								if (damageResistList.contains(k) && target.entityHit.hurtResistantTime>0) {
-									target.entityHit.hurtResistantTime=0;
-								} else {
-									if (damageResistList.size()>10) damageResistList.remove(0);
-									damageResistList.add(k);
-								}
-							}
-							Trajectory tra = prevTrajectories!=null? ((prevTrajectories.length==prevTargets.length) ? prevTrajectories[num] : prevTrajectories[0]) : null;
-							effect.execute(target, tra, focusPackage.getPower(), num);
-							num++;
-						}
-					}
-				}				
-				
-				if (node instanceof FocusNode) {
-					prevTrajectories = ((FocusNode)node).supplyTrajectories();
-					prevTargets = ((FocusNode)node).supplyTargets();
-				}
-				
-			}
-		}
-		
-	}
-	
-	private static ArrayList<String> damageResistList = new ArrayList<>();
-
+/**
+ * Central registry and engine for focus elements.
+ * Handles registration, lookup, and color mapping for all focus nodes.
+ */
+public class FocusEngine {
+    
+    /** Registry of all focus node factories by key */
+    private static final Map<String, Supplier<? extends FocusNode>> FOCUS_REGISTRY = new HashMap<>();
+    
+    /** Color mappings for focus elements (for visual effects) */
+    private static final Map<String, Integer> ELEMENT_COLORS = new HashMap<>();
+    
+    /** Default colors for aspect-based elements */
+    private static final Map<Aspect, Integer> ASPECT_COLORS = new HashMap<>();
+    
+    static {
+        // Initialize default aspect colors
+        initAspectColors();
+    }
+    
+    /**
+     * Register a focus node type.
+     * @param key The unique key for this focus type (e.g., "thaumcraft.FIRE")
+     * @param factory A supplier that creates new instances of this focus node
+     */
+    public static void registerFocusNode(String key, Supplier<? extends FocusNode> factory) {
+        FOCUS_REGISTRY.put(key, factory);
+    }
+    
+    /**
+     * Register a focus node type with a custom color.
+     */
+    public static void registerFocusNode(String key, Supplier<? extends FocusNode> factory, int color) {
+        FOCUS_REGISTRY.put(key, factory);
+        ELEMENT_COLORS.put(key, color);
+    }
+    
+    /**
+     * Create a new instance of a focus node by key.
+     * @param key The focus key
+     * @return A new focus node instance, or null if not found
+     */
+    @Nullable
+    public static FocusNode createFocusNode(String key) {
+        Supplier<? extends FocusNode> factory = FOCUS_REGISTRY.get(key);
+        if (factory != null) {
+            return factory.get();
+        }
+        return null;
+    }
+    
+    /**
+     * Check if a focus key is registered.
+     */
+    public static boolean isRegistered(String key) {
+        return FOCUS_REGISTRY.containsKey(key);
+    }
+    
+    /**
+     * Get all registered focus keys.
+     */
+    public static Iterable<String> getRegisteredKeys() {
+        return FOCUS_REGISTRY.keySet();
+    }
+    
+    /**
+     * Get the visual color for a focus element.
+     * Falls back to aspect color if no specific color is set.
+     */
+    public static int getElementColor(String key) {
+        // Check for explicit color mapping
+        if (ELEMENT_COLORS.containsKey(key)) {
+            return ELEMENT_COLORS.get(key);
+        }
+        
+        // Try to get color from the focus node's aspect
+        FocusNode node = createFocusNode(key);
+        if (node != null) {
+            Aspect aspect = node.getAspect();
+            if (aspect != null && ASPECT_COLORS.containsKey(aspect)) {
+                return ASPECT_COLORS.get(aspect);
+            }
+        }
+        
+        // Default color (white)
+        return 0xFFFFFF;
+    }
+    
+    /**
+     * Set a custom color for a focus element.
+     */
+    public static void setElementColor(String key, int color) {
+        ELEMENT_COLORS.put(key, color);
+    }
+    
+    /**
+     * Get the color for an aspect.
+     */
+    public static int getAspectColor(Aspect aspect) {
+        return ASPECT_COLORS.getOrDefault(aspect, 0xFFFFFF);
+    }
+    
+    /**
+     * Initialize default aspect colors.
+     */
+    private static void initAspectColors() {
+        // Primal aspects
+        ASPECT_COLORS.put(Aspect.AIR, 0xFFFF7E);
+        ASPECT_COLORS.put(Aspect.EARTH, 0x56C000);
+        ASPECT_COLORS.put(Aspect.FIRE, 0xFF5A01);
+        ASPECT_COLORS.put(Aspect.WATER, 0x3CD4FC);
+        ASPECT_COLORS.put(Aspect.ORDER, 0xD5D4EC);
+        ASPECT_COLORS.put(Aspect.ENTROPY, 0x404040);
+        
+        // Compound aspects
+        ASPECT_COLORS.put(Aspect.LIFE, 0xDE0005);
+        ASPECT_COLORS.put(Aspect.DEATH, 0x6A0005);
+        ASPECT_COLORS.put(Aspect.COLD, 0x00BFFF);
+        ASPECT_COLORS.put(Aspect.FLUX, 0x800080);
+        ASPECT_COLORS.put(Aspect.MOTION, 0xCDCCF4);
+        ASPECT_COLORS.put(Aspect.ENERGY, 0xFFFF00);
+        ASPECT_COLORS.put(Aspect.AVERSION, 0xC05050);
+        ASPECT_COLORS.put(Aspect.ALCHEMY, 0x23AC64);
+        ASPECT_COLORS.put(Aspect.TRAP, 0x9A8080);
+        ASPECT_COLORS.put(Aspect.CRAFT, 0x6991C7);
+        ASPECT_COLORS.put(Aspect.EXCHANGE, 0x87CEEB);
+        ASPECT_COLORS.put(Aspect.ELDRITCH, 0xAA00AA);
+    }
+    
+    /**
+     * Combine multiple colors for mixed effects.
+     */
+    public static int combineColors(int... colors) {
+        if (colors.length == 0) return 0xFFFFFF;
+        if (colors.length == 1) return colors[0];
+        
+        int r = 0, g = 0, b = 0;
+        for (int color : colors) {
+            Color c = new Color(color);
+            r += c.getRed();
+            g += c.getGreen();
+            b += c.getBlue();
+        }
+        
+        r /= colors.length;
+        g /= colors.length;
+        b /= colors.length;
+        
+        return new Color(r, g, b).getRGB();
+    }
+    
+    /**
+     * Clear all registrations (for reloading).
+     */
+    public static void clearRegistry() {
+        FOCUS_REGISTRY.clear();
+        ELEMENT_COLORS.clear();
+    }
 }

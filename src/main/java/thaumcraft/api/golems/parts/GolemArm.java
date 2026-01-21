@@ -1,17 +1,24 @@
 package thaumcraft.api.golems.parts;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.IRangedAttackMob;
-import net.minecraft.entity.ai.EntityAIAttackRanged;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.translation.I18n;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.goal.RangedAttackGoal;
+import net.minecraft.world.entity.monster.RangedAttackMob;
 import thaumcraft.api.golems.EnumGolemTrait;
 import thaumcraft.api.golems.IGolemAPI;
 
+/**
+ * Defines a golem arm type (e.g., Basic, Fine, Claws, Breakers, Darts).
+ * Arms determine combat abilities and dexterity.
+ */
+public class GolemArm {
 
-public class GolemArm
-{
-    protected static GolemArm[] arms;
+    protected static GolemArm[] arms = new GolemArm[1];
+    private static byte lastID = 0;
+
     public byte id;
     public String key;
     public String[] research;
@@ -20,57 +27,71 @@ public class GolemArm
     public EnumGolemTrait[] traits;
     public IArmFunction function;
     public PartModel model;
-    private static byte lastID;
-    
-    public GolemArm(String key, String[] research, ResourceLocation icon, PartModel model, Object[] comp, EnumGolemTrait[] tags) {
+
+    public GolemArm(String key, String[] research, ResourceLocation icon, PartModel model,
+                    Object[] components, EnumGolemTrait[] traits) {
         this.key = key;
         this.research = research;
         this.icon = icon;
-        components = comp;
-        traits = tags;
+        this.components = components;
+        this.traits = traits;
         this.model = model;
-        function = null;
+        this.function = null;
     }
-    
-    public GolemArm(String key, String[] research, ResourceLocation icon, PartModel model, Object[] comp, IArmFunction function, EnumGolemTrait[] tags) {
-        this(key, research, icon, model, comp, tags);
+
+    public GolemArm(String key, String[] research, ResourceLocation icon, PartModel model,
+                    Object[] components, IArmFunction function, EnumGolemTrait[] traits) {
+        this(key, research, icon, model, components, traits);
         this.function = function;
     }
-    
-    public static void register(GolemArm thing) {
-        thing.id = GolemArm.lastID;
-        ++GolemArm.lastID;
-        if (thing.id >= GolemArm.arms.length) {
-            GolemArm[] temp = new GolemArm[thing.id + 1];
-            System.arraycopy(GolemArm.arms, 0, temp, 0, GolemArm.arms.length);
-            GolemArm.arms = temp;
+
+    public static void register(GolemArm arm) {
+        arm.id = lastID;
+        lastID++;
+        if (arm.id >= arms.length) {
+            GolemArm[] temp = new GolemArm[arm.id + 1];
+            System.arraycopy(arms, 0, temp, 0, arms.length);
+            arms = temp;
         }
-        GolemArm.arms[thing.id] = thing;
+        arms[arm.id] = arm;
     }
-    
-    public String getLocalizedName() {
-        return I18n.translateToLocal("golem.arm." + key.toLowerCase());
+
+    public Component getLocalizedName() {
+        return Component.translatable("golem.arm." + key.toLowerCase());
     }
-    
-    public String getLocalizedDescription() {
-        return I18n.translateToLocal("golem.arm.text." + key.toLowerCase());
+
+    public Component getLocalizedDescription() {
+        return Component.translatable("golem.arm.text." + key.toLowerCase());
     }
-    
+
     public static GolemArm[] getArms() {
-        return GolemArm.arms;
+        return arms;
     }
-    
-    static {
-        GolemArm.arms = new GolemArm[1];
-        GolemArm.lastID = 0;
+
+    public static GolemArm getById(int id) {
+        if (id >= 0 && id < arms.length) {
+            return arms[id];
+        }
+        return arms[0];
     }
-    
-    public interface IArmFunction extends IGenericFunction
-    {
-        void onMeleeAttack(IGolemAPI p0, Entity p1);
-        
-        void onRangedAttack(IGolemAPI p0, EntityLivingBase p1, float p2);
-        
-        EntityAIAttackRanged getRangedAttackAI(IRangedAttackMob p0);
+
+    /**
+     * Interface for arm-specific combat functions
+     */
+    public interface IArmFunction extends IGenericFunction {
+        /**
+         * Called when the golem performs a melee attack
+         */
+        void onMeleeAttack(IGolemAPI golem, Entity target);
+
+        /**
+         * Called when the golem performs a ranged attack
+         */
+        void onRangedAttack(IGolemAPI golem, LivingEntity target, float distanceFactor);
+
+        /**
+         * Get the ranged attack AI for this arm type
+         */
+        <T extends Mob & RangedAttackMob> RangedAttackGoal getRangedAttackAI(T mob);
     }
 }

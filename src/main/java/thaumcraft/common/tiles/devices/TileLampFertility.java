@@ -1,189 +1,237 @@
 package thaumcraft.common.tiles.devices;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.passive.EntityAnimal;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.NetworkManager;
-import net.minecraft.network.play.server.SPacketUpdateTileEntity;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.ITickable;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.world.EnumSkyBlock;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.AABB;
 import thaumcraft.api.ThaumcraftApiHelper;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.IEssentiaTransport;
-import thaumcraft.common.blocks.IBlockEnabled;
-import thaumcraft.common.lib.utils.BlockStateUtils;
 import thaumcraft.common.tiles.TileThaumcraft;
+import thaumcraft.init.ModBlockEntities;
 
+import java.util.ArrayList;
+import java.util.List;
 
-public class TileLampFertility extends TileThaumcraft implements IEssentiaTransport, ITickable
-{
-    public int charges;
-    int count;
-    int drawDelay;
-    
-    public TileLampFertility() {
-        charges = 0;
-        count = 0;
-        drawDelay = 0;
+/**
+ * Fertility lamp tile entity - accelerates animal breeding in range.
+ * Consumes Desiderium (desire) essentia to operate.
+ */
+public class TileLampFertility extends TileThaumcraft implements IEssentiaTransport {
+
+    private static final int RANGE = 7;
+    private static final int MAX_CHARGES = 10;
+    private static final int MAX_ANIMALS_PER_TYPE = 9;
+    private static final int BREED_COST = 5;
+    private static final int BREED_INTERVAL = 300; // 15 seconds
+
+    public int charges = 0;
+    private int count = 0;
+    private int drawDelay = 0;
+
+    public TileLampFertility(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
-    
+
+    public TileLampFertility(BlockPos pos, BlockState state) {
+        this(ModBlockEntities.LAMP_FERTILITY.get(), pos, state);
+    }
+
+    // ==================== NBT ====================
+
     @Override
-    public void onDataPacket(NetworkManager net, SPacketUpdateTileEntity pkt) {
-        super.onDataPacket(net, pkt);
-        if (world != null && world.isRemote) {
-            world.checkLightFor(EnumSkyBlock.BLOCK, getPos());
+    protected void writeSyncNBT(CompoundTag tag) {
+        super.writeSyncNBT(tag);
+        tag.putInt("Charges", charges);
+    }
+
+    @Override
+    protected void readSyncNBT(CompoundTag tag) {
+        super.readSyncNBT(tag);
+        charges = tag.getInt("Charges");
+    }
+
+    // ==================== Tick ====================
+
+    public static void serverTick(Level level, BlockPos pos, BlockState state, TileLampFertility tile) {
+        // Try to draw essentia when not full
+        if (tile.charges < MAX_CHARGES) {
+            if (tile.drawEssentia()) {
+                tile.charges++;
+                tile.setChanged();
+                tile.syncTile(true);
+            }
+            
+            // Update enabled state based on charges
+            if (tile.charges <= 1) {
+                tile.setEnabled(state, false);
+            } else if (!tile.gettingPower()) {
+                tile.setEnabled(state, true);
+            }
+        }
+
+        // Try to breed animals periodically
+        if (!tile.gettingPower() && tile.charges > 1 && ++tile.count % BREED_INTERVAL == 0) {
+            tile.updateAnimals();
         }
     }
-    
-    public void update() {
-        if (!world.isRemote) {
-            if (charges < 10) {
-                if (drawEssentia()) {
-                    ++charges;
-                    markDirty();
-                    syncTile(true);
-                }
-                if (charges <= 1) {
-                    if (BlockStateUtils.isEnabled(getBlockMetadata())) {
-                        world.setBlockState(pos, world.getBlockState(getPos()).withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)false), 3);
-                    }
-                }
-                else if (!gettingPower() && !BlockStateUtils.isEnabled(getBlockMetadata())) {
-                    world.setBlockState(pos, world.getBlockState(getPos()).withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)true), 3);
-                }
-            }
-            if (!gettingPower() && charges > 1 && count++ % 300 == 0) {
-                updateAnimals();
-            }
-        }
-    }
-    
+
+    /**
+     * Try to breed animals in range.
+     */
     private void updateAnimals() {
-        int distance = 7;
-        List<EntityAnimal> var5 = world.getEntitiesWithinAABB(EntityAnimal.class, new AxisAlignedBB(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1).grow(distance, distance, distance));
-    Label_0314:
-        for (EntityLivingBase var8 : var5) {
-            EntityAnimal var7 = (EntityAnimal)var8;
-            if (var7.getGrowingAge() == 0) {
-                if (var7.isInLove()) {
-                    continue;
+        if (level == null) return;
+
+        AABB area = new AABB(worldPosition).inflate(RANGE);
+        List<Animal> animals = level.getEntitiesOfClass(Animal.class, area);
+
+        if (animals.isEmpty()) return;
+
+        // Find a pair to breed
+        for (Animal animal : animals) {
+            // Skip if not adult or already in love
+            if (animal.getAge() != 0 || animal.isInLove()) continue;
+
+            // Count animals of this type
+            List<Animal> sameType = new ArrayList<>();
+            for (Animal other : animals) {
+                if (other.getClass().equals(animal.getClass())) {
+                    sameType.add(other);
                 }
-                ArrayList<EntityAnimal> sa = new ArrayList<EntityAnimal>();
-                for (EntityLivingBase var9 : var5) {
-                    if (var9.getClass().equals(var8.getClass())) {
-                        sa.add((EntityAnimal)var9);
-                    }
+            }
+
+            // Skip if too many of this type
+            if (sameType.size() > MAX_ANIMALS_PER_TYPE) continue;
+
+            // Find a partner
+            Animal partner = null;
+            for (Animal candidate : sameType) {
+                if (candidate == animal) continue;
+                if (candidate.getAge() != 0 || candidate.isInLove()) continue;
+
+                if (partner != null && charges >= BREED_COST) {
+                    // Found two valid candidates, make them breed
+                    charges -= BREED_COST;
+                    candidate.setInLove(null);
+                    partner.setInLove(null);
+                    setChanged();
+                    syncTile(true);
+                    return;
                 }
-                if (sa != null && sa.size() > 9) {
-                    continue;
-                }
-                Iterator<EntityAnimal> var10 = sa.iterator();
-                EntityAnimal partner = null;
-                while (var10.hasNext()) {
-                    EntityAnimal var11 = var10.next();
-                    if (var11.getGrowingAge() == 0) {
-                        if (var11.isInLove()) {
-                            continue;
-                        }
-                        if (partner != null) {
-                            charges -= 5;
-                            var11.setInLove(null);
-                            partner.setInLove(null);
-                            break Label_0314;
-                        }
-                        partner = var11;
-                    }
-                }
+                partner = candidate;
             }
         }
     }
-    
-    @Override
-    public void readSyncNBT(NBTTagCompound nbttagcompound) {
-        charges = nbttagcompound.getInteger("charges");
-    }
-    
-    @Override
-    public NBTTagCompound writeSyncNBT(NBTTagCompound nbttagcompound) {
-        nbttagcompound.setInteger("charges", charges);
-        return nbttagcompound;
-    }
-    
-    boolean drawEssentia() {
-        if (++drawDelay % 5 != 0) {
-            return false;
-        }
-        TileEntity te = ThaumcraftApiHelper.getConnectableTile(world, getPos(), BlockStateUtils.getFacing(getBlockMetadata()));
-        if (te != null) {
-            IEssentiaTransport ic = (IEssentiaTransport)te;
-            if (!ic.canOutputTo(BlockStateUtils.getFacing(getBlockMetadata()).getOpposite())) {
-                return false;
-            }
-            if (ic.getSuctionAmount(BlockStateUtils.getFacing(getBlockMetadata()).getOpposite()) < getSuctionAmount(BlockStateUtils.getFacing(getBlockMetadata())) && ic.takeEssentia(Aspect.DESIRE, 1, BlockStateUtils.getFacing(getBlockMetadata()).getOpposite()) == 1) {
+
+    /**
+     * Try to draw essentia from connected transport.
+     */
+    private boolean drawEssentia() {
+        if (++drawDelay % 5 != 0) return false;
+        if (level == null) return false;
+
+        Direction facing = getFacing();
+        BlockEntity te = ThaumcraftApiHelper.getConnectableTile(level, worldPosition, facing);
+
+        if (te instanceof IEssentiaTransport transport) {
+            Direction opposite = facing.getOpposite();
+
+            if (!transport.canOutputTo(opposite)) return false;
+
+            if (transport.getSuctionAmount(opposite) < getSuctionAmount(facing) &&
+                transport.takeEssentia(Aspect.DESIRE, 1, opposite) == 1) {
                 return true;
             }
         }
+
         return false;
     }
-    
-    @Override
-    public boolean isConnectable(EnumFacing face) {
-        return face == BlockStateUtils.getFacing(getBlockMetadata());
+
+    private Direction getFacing() {
+        BlockState state = getBlockState();
+        if (state.hasProperty(BlockStateProperties.FACING)) {
+            return state.getValue(BlockStateProperties.FACING);
+        }
+        return Direction.DOWN;
     }
-    
-    @Override
-    public boolean canInputFrom(EnumFacing face) {
-        return face == BlockStateUtils.getFacing(getBlockMetadata());
+
+    private void setEnabled(BlockState state, boolean enabled) {
+        if (level == null) return;
+        if (state.hasProperty(BlockStateProperties.ENABLED)) {
+            boolean current = state.getValue(BlockStateProperties.ENABLED);
+            if (current != enabled) {
+                level.setBlock(worldPosition, state.setValue(BlockStateProperties.ENABLED, enabled), 3);
+            }
+        }
     }
-    
+
+    protected boolean gettingPower() {
+        return level != null && level.hasNeighborSignal(worldPosition);
+    }
+
+    // ==================== IEssentiaTransport ====================
+
     @Override
-    public boolean canOutputTo(EnumFacing face) {
+    public boolean isConnectable(Direction face) {
+        return face == getFacing();
+    }
+
+    @Override
+    public boolean canInputFrom(Direction face) {
+        return face == getFacing();
+    }
+
+    @Override
+    public boolean canOutputTo(Direction face) {
         return false;
     }
-    
+
     @Override
     public void setSuction(Aspect aspect, int amount) {
+        // Not used
     }
-    
+
     @Override
-    public int getMinimumSuction() {
-        return 0;
-    }
-    
-    @Override
-    public Aspect getSuctionType(EnumFacing face) {
+    public Aspect getSuctionType(Direction face) {
         return Aspect.DESIRE;
     }
-    
+
     @Override
-    public int getSuctionAmount(EnumFacing face) {
-        return (face == BlockStateUtils.getFacing(getBlockMetadata())) ? (128 - charges * 10) : 0;
+    public int getSuctionAmount(Direction face) {
+        if (face == getFacing()) {
+            return 128 - charges * 10;
+        }
+        return 0;
     }
-    
+
     @Override
-    public Aspect getEssentiaType(EnumFacing loc) {
+    public Aspect getEssentiaType(Direction face) {
         return null;
     }
-    
+
     @Override
-    public int getEssentiaAmount(EnumFacing loc) {
+    public int getEssentiaAmount(Direction face) {
         return 0;
     }
-    
+
     @Override
-    public int takeEssentia(Aspect aspect, int amount, EnumFacing facing) {
+    public int takeEssentia(Aspect aspect, int amount, Direction face) {
         return 0;
     }
-    
+
     @Override
-    public int addEssentia(Aspect aspect, int amount, EnumFacing facing) {
+    public int addEssentia(Aspect aspect, int amount, Direction face) {
+        return 0;
+    }
+
+    @Override
+    public int getMinimumSuction() {
         return 0;
     }
 }

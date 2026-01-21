@@ -1,221 +1,207 @@
 package thaumcraft.common.items.casters;
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import javax.annotation.Nullable;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.init.Blocks;
-import net.minecraft.item.EnumAction;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.IItemPropertyGetter;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.World;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.casters.CasterTriggerRegistry;
-import thaumcraft.api.casters.FocusEngine;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import thaumcraft.api.casters.FocusPackage;
 import thaumcraft.api.casters.ICaster;
-import thaumcraft.api.casters.IFocusBlockPicker;
-import thaumcraft.api.casters.IFocusElement;
 import thaumcraft.api.casters.IInteractWithCaster;
-import thaumcraft.api.items.IArchitect;
-import thaumcraft.codechicken.lib.math.MathHelper;
-import thaumcraft.common.items.ItemTCBase;
-import thaumcraft.common.lib.network.PacketHandler;
-import thaumcraft.common.lib.network.misc.PacketAuraToClient;
-import thaumcraft.common.lib.utils.BlockUtils;
-import thaumcraft.common.world.aura.AuraChunk;
+import thaumcraft.api.items.IVisDiscountGear;
 import thaumcraft.common.world.aura.AuraHandler;
 
+import javax.annotation.Nullable;
+import java.text.DecimalFormat;
+import java.util.List;
 
-public class ItemCaster extends ItemTCBase implements IArchitect, ICaster
-{
-    int area;
-    DecimalFormat myFormatter;
-    ArrayList<BlockPos> checked;
+/**
+ * Caster Gauntlet - Main item for casting spells in Thaumcraft.
+ * Holds a focus and consumes vis from the local aura to cast.
+ */
+public class ItemCaster extends Item implements ICaster {
     
-    public ItemCaster(String name, int area) {
-        super(name);
-        this.area = 0;
-        myFormatter = new DecimalFormat("#######.#");
-        checked = new ArrayList<BlockPos>();
-        this.area = area;
-        maxStackSize = 1;
-        setMaxDamage(0);
-        addPropertyOverride(new ResourceLocation("focus"), new IItemPropertyGetter() {
-            @SideOnly(Side.CLIENT)
-            public float apply(ItemStack stack, @Nullable World worldIn, @Nullable EntityLivingBase entityIn) {
-                ItemFocus f = ((ItemCaster)stack.getItem()).getFocus(stack);
-                if (stack.getItem() instanceof ItemCaster && f != null) {
-                    return 1.0f;
-                }
-                return 0.0f;
-            }
-        });
+    private static final DecimalFormat VIS_FORMAT = new DecimalFormat("#######.#");
+    
+    /** Area of aura this caster can draw from (0=chunk, 1=cross, 2=3x3) */
+    private final int auraArea;
+    
+    public ItemCaster(int area) {
+        super(new Item.Properties()
+                .stacksTo(1)
+                .rarity(Rarity.UNCOMMON));
+        this.auraArea = area;
     }
     
-    public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
-        if (oldStack.getItem() != null && oldStack.getItem() == this && newStack.getItem() != null && newStack.getItem() == this) {
-            ItemFocus oldf = ((ItemCaster)oldStack.getItem()).getFocus(oldStack);
-            ItemFocus newf = ((ItemCaster)newStack.getItem()).getFocus(newStack);
-            int s1 = 0;
-            int s2 = 0;
-            if (oldf != null && oldf.getSortingHelper(((ItemCaster)oldStack.getItem()).getFocusStack(oldStack)) != null) {
-                s1 = oldf.getSortingHelper(((ItemCaster)oldStack.getItem()).getFocusStack(oldStack)).hashCode();
-            }
-            if (newf != null && newf.getSortingHelper(((ItemCaster)newStack.getItem()).getFocusStack(newStack)) != null) {
-                s2 = newf.getSortingHelper(((ItemCaster)newStack.getItem()).getFocusStack(newStack)).hashCode();
-            }
-            return s1 != s2;
+    /**
+     * Create a basic caster gauntlet (draws from single chunk).
+     */
+    public static ItemCaster createBasic() {
+        return new ItemCaster(0);
+    }
+    
+    /**
+     * Create an advanced caster gauntlet (draws from 5 chunks in a cross).
+     */
+    public static ItemCaster createAdvanced() {
+        return new ItemCaster(1);
+    }
+    
+    /**
+     * Create a master caster gauntlet (draws from 9 chunks in a 3x3).
+     */
+    public static ItemCaster createMaster() {
+        return new ItemCaster(2);
+    }
+    
+    // ==================== ICaster Implementation ====================
+    
+    @Override
+    public float getConsumptionModifier(ItemStack stack, Player player, boolean crafting) {
+        float modifier = 1.0f;
+        if (player != null) {
+            modifier -= getTotalVisDiscount(player);
         }
-        return newStack.getItem() != oldStack.getItem();
+        return Math.max(modifier, 0.1f); // Minimum 10% cost
     }
     
-    public boolean isDamageable() {
-        return false;
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public boolean isFull3D() {
-        return true;
-    }
-    
-    private float getAuraPool(EntityPlayer player) {
-        float tot = 0.0f;
-        switch (area) {
-            default: {
-                tot = AuraHandler.getVis(player.world, player.getPosition());
-                break;
-            }
-            case 1: {
-                tot = AuraHandler.getVis(player.world, player.getPosition());
-                for (EnumFacing face : EnumFacing.HORIZONTALS) {
-                    tot += AuraHandler.getVis(player.world, player.getPosition().offset(face, 16));
-                }
-                break;
-            }
-            case 2: {
-                tot = 0.0f;
-                for (int xx = -1; xx <= 1; ++xx) {
-                    for (int zz = -1; zz <= 1; ++zz) {
-                        tot += AuraHandler.getVis(player.world, player.getPosition().add(xx * 16, 0, zz * 16));
-                    }
-                }
-                break;
+    /**
+     * Calculate total vis discount from equipped gear.
+     */
+    private float getTotalVisDiscount(Player player) {
+        float discount = 0.0f;
+        
+        // Check armor slots
+        for (ItemStack armor : player.getArmorSlots()) {
+            if (!armor.isEmpty() && armor.getItem() instanceof IVisDiscountGear gear) {
+                discount += gear.getVisDiscount(armor, player) / 100.0f;
             }
         }
-        return tot;
+        
+        // Check held items (other hand)
+        for (ItemStack held : player.getHandSlots()) {
+            if (!held.isEmpty() && held.getItem() instanceof IVisDiscountGear gear) {
+                discount += gear.getVisDiscount(held, player) / 100.0f;
+            }
+        }
+        
+        // Cap at 50%
+        return Math.min(discount, 0.5f);
     }
     
     @Override
-    public boolean consumeVis(ItemStack is, EntityPlayer player, float amount, boolean crafting, boolean sim) {
-        amount *= getConsumptionModifier(is, player, crafting);
-        float tot = getAuraPool(player);
-        if (tot < amount) {
+    public boolean consumeVis(ItemStack stack, Player player, float amount, boolean crafting, boolean simulate) {
+        amount *= getConsumptionModifier(stack, player, crafting);
+        
+        float available = getAuraPool(player);
+        if (available < amount) {
             return false;
         }
-        if (sim) {
+        
+        if (simulate) {
             return true;
         }
-        Label_0309: {
-            switch (area) {
-                default: {
-                    amount -= AuraHandler.drainVis(player.world, player.getPosition(), amount, sim);
-                    break;
+        
+        // Drain vis from the aura
+        return drainFromAura(player, amount);
+    }
+    
+    /**
+     * Get total available vis from the aura pool this caster can access.
+     */
+    private float getAuraPool(Player player) {
+        Level level = player.level();
+        BlockPos pos = player.blockPosition();
+        
+        return switch (auraArea) {
+            case 1 -> { // Cross pattern (5 chunks)
+                float total = AuraHandler.getVis(level, pos);
+                for (Direction face : Direction.Plane.HORIZONTAL) {
+                    total += AuraHandler.getVis(level, pos.relative(face, 16));
                 }
-                case 1: {
-                    float i = amount / 5.0f;
-                    while (amount > 0.0f) {
-                        if (i > amount) {
-                            i = amount;
-                        }
-                        amount -= AuraHandler.drainVis(player.world, player.getPosition(), i, sim);
-                        if (amount <= 0.0f) {
-                            break;
-                        }
-                        if (i > amount) {
-                            i = amount;
-                        }
-                        for (EnumFacing face : EnumFacing.HORIZONTALS) {
-                            amount -= AuraHandler.drainVis(player.world, player.getPosition().offset(face, 16), i, sim);
-                            if (amount <= 0.0f) {
-                                break Label_0309;
-                            }
-                        }
+                yield total;
+            }
+            case 2 -> { // 3x3 grid (9 chunks)
+                float total = 0.0f;
+                for (int xx = -1; xx <= 1; xx++) {
+                    for (int zz = -1; zz <= 1; zz++) {
+                        total += AuraHandler.getVis(level, pos.offset(xx * 16, 0, zz * 16));
                     }
-                    break;
                 }
-                case 2: {
-                    float i = amount / 9.0f;
-                    while (amount > 0.0f) {
-                        if (i > amount) {
-                            i = amount;
-                        }
-                        for (int xx = -1; xx <= 1; ++xx) {
-                            for (int zz = -1; zz <= 1; ++zz) {
-                                amount -= AuraHandler.drainVis(player.world, player.getPosition().add(xx * 16, 0, zz * 16), i, sim);
-                                if (amount <= 0.0f) {
-                                    break Label_0309;
-                                }
-                            }
-                        }
+                yield total;
+            }
+            default -> AuraHandler.getVis(level, pos); // Single chunk
+        };
+    }
+    
+    /**
+     * Drain vis from the aura using this caster's pattern.
+     */
+    private boolean drainFromAura(Player player, float amount) {
+        Level level = player.level();
+        BlockPos pos = player.blockPosition();
+        
+        switch (auraArea) {
+            case 1 -> { // Cross pattern
+                float perChunk = amount / 5.0f;
+                float remaining = amount;
+                remaining -= AuraHandler.drainVis(level, pos, Math.min(perChunk, remaining), false);
+                for (Direction face : Direction.Plane.HORIZONTAL) {
+                    if (remaining <= 0) break;
+                    remaining -= AuraHandler.drainVis(level, pos.relative(face, 16), 
+                            Math.min(perChunk, remaining), false);
+                }
+                return remaining <= 0;
+            }
+            case 2 -> { // 3x3 grid
+                float perChunk = amount / 9.0f;
+                float remaining = amount;
+                for (int xx = -1; xx <= 1; xx++) {
+                    for (int zz = -1; zz <= 1; zz++) {
+                        if (remaining <= 0) break;
+                        remaining -= AuraHandler.drainVis(level, pos.offset(xx * 16, 0, zz * 16),
+                                Math.min(perChunk, remaining), false);
                     }
-                    break;
                 }
+                return remaining <= 0;
+            }
+            default -> { // Single chunk
+                return AuraHandler.drainVis(level, pos, amount, false) >= amount;
             }
         }
-        return amount <= 0.0f;
     }
     
     @Override
-    public float getConsumptionModifier(ItemStack is, EntityPlayer player, boolean crafting) {
-        float consumptionModifier = 1.0f;
-        if (player != null) {
-            consumptionModifier -= CasterManager.getTotalVisDiscount(player);
-        }
-        return Math.max(consumptionModifier, 0.1f);
-    }
-    
-    @Override
-    public ItemFocus getFocus(ItemStack stack) {
-        if (stack.hasTagCompound() && stack.getTagCompound().hasKey("focus")) {
-            NBTTagCompound nbt = stack.getTagCompound().getCompoundTag("focus");
-            ItemStack fs = new ItemStack(nbt);
-            if (fs != null && !fs.isEmpty()) {
-                return (ItemFocus)fs.getItem();
-            }
+    @Nullable
+    public Item getFocus(ItemStack stack) {
+        ItemStack focusStack = getFocusStack(stack);
+        if (focusStack != null && !focusStack.isEmpty()) {
+            return focusStack.getItem();
         }
         return null;
     }
     
     @Override
+    @Nullable
     public ItemStack getFocusStack(ItemStack stack) {
-        if (stack.hasTagCompound() && stack.getTagCompound().hasKey("focus")) {
-            NBTTagCompound nbt = stack.getTagCompound().getCompoundTag("focus");
-            return new ItemStack(nbt);
+        if (stack.hasTag() && stack.getTag().contains("focus")) {
+            CompoundTag focusTag = stack.getTag().getCompound("focus");
+            return ItemStack.of(focusTag);
         }
         return null;
     }
@@ -223,269 +209,165 @@ public class ItemCaster extends ItemTCBase implements IArchitect, ICaster
     @Override
     public void setFocus(ItemStack stack, ItemStack focus) {
         if (focus == null || focus.isEmpty()) {
-            stack.getTagCompound().removeTag("focus");
-        }
-        else {
-            stack.setTagInfo("focus", focus.writeToNBT(new NBTTagCompound()));
-        }
-    }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.UNCOMMON;
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        if (stack.hasTagCompound()) {
-            String text = "";
-            ItemStack focus = getFocusStack(stack);
-            if (focus != null && !focus.isEmpty()) {
-                float amt = ((ItemFocus)focus.getItem()).getVisCost(focus);
-                if (amt > 0.0f) {
-                    text = "§r" + myFormatter.format(amt) + " " + I18n.translateToLocal("item.Focus.cost1");
-                }
+            if (stack.hasTag()) {
+                stack.getTag().remove("focus");
             }
-            tooltip.add(TextFormatting.ITALIC + "" + TextFormatting.AQUA + I18n.translateToLocal("tc.vis.cost") + " " + text);
+        } else {
+            stack.getOrCreateTag().put("focus", focus.save(new CompoundTag()));
         }
-        if (getFocus(stack) != null) {
-            tooltip.add(TextFormatting.BOLD + "" + TextFormatting.ITALIC + "" + TextFormatting.GREEN + getFocus(stack).getItemStackDisplayName(getFocusStack(stack)));
-            getFocus(stack).addFocusInformation(getFocusStack(stack), worldIn, tooltip, flagIn);
-        }
-    }
-    
-    public void onArmorTick(World world, EntityPlayer player, ItemStack itemStack) {
-        super.onArmorTick(world, player, itemStack);
-    }
-    
-    public void onUpdate(ItemStack is, World w, Entity e, int slot, boolean currentItem) {
-        if (!w.isRemote && e.ticksExisted % 10 == 0 && e instanceof EntityPlayerMP) {
-            for (ItemStack h : e.getHeldEquipment()) {
-                if (h != null && !h.isEmpty() && h.getItem() instanceof ICaster) {
-                    updateAura(is, w, (EntityPlayerMP)e);
-                    break;
-                }
-            }
-        }
-    }
-    
-    private void updateAura(ItemStack stack, World world, EntityPlayerMP player) {
-        float cv = 0.0f;
-        float cf = 0.0f;
-        short bv = 0;
-        switch (area) {
-            default: {
-                AuraChunk ac = AuraHandler.getAuraChunk(world.provider.getDimension(), (int)player.posX >> 4, (int)player.posZ >> 4);
-                if (ac == null) {
-                    break;
-                }
-                cv = ac.getVis();
-                cf = ac.getFlux();
-                bv = ac.getBase();
-                break;
-            }
-            case 1: {
-                AuraChunk ac = AuraHandler.getAuraChunk(world.provider.getDimension(), (int)player.posX >> 4, (int)player.posZ >> 4);
-                if (ac == null) {
-                    break;
-                }
-                cv = ac.getVis();
-                cf = ac.getFlux();
-                bv = ac.getBase();
-                for (EnumFacing face : EnumFacing.HORIZONTALS) {
-                    ac = AuraHandler.getAuraChunk(world.provider.getDimension(), ((int)player.posX >> 4) + face.getFrontOffsetX(), ((int)player.posZ >> 4) + face.getFrontOffsetZ());
-                    if (ac != null) {
-                        cv += ac.getVis();
-                        cf += ac.getFlux();
-                        bv += ac.getBase();
-                    }
-                }
-                break;
-            }
-            case 2: {
-                for (int xx = -1; xx <= 1; ++xx) {
-                    for (int zz = -1; zz <= 1; ++zz) {
-                        AuraChunk ac = AuraHandler.getAuraChunk(world.provider.getDimension(), ((int)player.posX >> 4) + xx, ((int)player.posZ >> 4) + zz);
-                        if (ac != null) {
-                            cv += ac.getVis();
-                            cf += ac.getFlux();
-                            bv += ac.getBase();
-                        }
-                    }
-                }
-                break;
-            }
-        }
-        PacketHandler.INSTANCE.sendTo(new PacketAuraToClient(new AuraChunk(null, bv, cv, cf)), player);
-    }
-    
-    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side, float hitX, float hitY, float hitZ, EnumHand hand) {
-        IBlockState bs = world.getBlockState(pos);
-        if (bs.getBlock() instanceof IInteractWithCaster && ((IInteractWithCaster)bs.getBlock()).onCasterRightClick(world, player.getHeldItem(hand), player, pos, side, hand)) {
-            return EnumActionResult.PASS;
-        }
-        TileEntity tile = world.getTileEntity(pos);
-        if (tile != null && tile instanceof IInteractWithCaster && ((IInteractWithCaster)tile).onCasterRightClick(world, player.getHeldItem(hand), player, pos, side, hand)) {
-            return EnumActionResult.PASS;
-        }
-        if (CasterTriggerRegistry.hasTrigger(bs)) {
-            return CasterTriggerRegistry.performTrigger(world, player.getHeldItem(hand), player, pos, side, bs) ? EnumActionResult.SUCCESS : EnumActionResult.FAIL;
-        }
-        ItemStack fb = getFocusStack(player.getHeldItem(hand));
-        if (fb != null && !fb.isEmpty()) {
-            FocusPackage core = ItemFocus.getPackage(fb);
-            for (IFocusElement fe : core.nodes) {
-                if (fe instanceof IFocusBlockPicker && player.isSneaking() && world.getTileEntity(pos) == null) {
-                    if (!world.isRemote) {
-                        ItemStack isout = new ItemStack(bs.getBlock(), 1, bs.getBlock().getMetaFromState(bs));
-                        try {
-                            if (bs != Blocks.AIR) {
-                                ItemStack is = BlockUtils.getSilkTouchDrop(bs);
-                                if (is != null && !is.isEmpty()) {
-                                    isout = is.copy();
-                                }
-                            }
-                        }
-                        catch (Exception ex) {}
-                        storePickedBlock(player.getHeldItem(hand), isout);
-                        return EnumActionResult.SUCCESS;
-                    }
-                    player.swingArm(hand);
-                    return EnumActionResult.PASS;
-                }
-            }
-        }
-        return EnumActionResult.PASS;
-    }
-    
-    private RayTraceResult generateSourceVector(Entity e) {
-        Vec3d v = e.getPositionVector();
-        boolean mainhand = true;
-        if (e instanceof EntityPlayer) {
-            if (((EntityPlayer)e).getHeldItemMainhand() != null && ((EntityPlayer)e).getHeldItemMainhand().getItem() instanceof ICaster) {
-                mainhand = true;
-            }
-            else if (((EntityPlayer)e).getHeldItemOffhand() != null && ((EntityPlayer)e).getHeldItemOffhand().getItem() instanceof ICaster) {
-                mainhand = false;
-            }
-        }
-        double posX = -MathHelper.cos((e.rotationYaw - 0.5f) / 180.0f * 3.141593f) * 0.20000000298023224 * (mainhand ? 1 : -1);
-        double posZ = -MathHelper.sin((e.rotationYaw - 0.5f) / 180.0f * 3.141593f) * 0.30000001192092896 * (mainhand ? 1 : -1);
-        Vec3d vl = e.getLookVec();
-        v = v.addVector(posX, e.getEyeHeight() - 0.4000000014901161, posZ);
-        v = v.add(vl);
-        return new RayTraceResult(e, v);
-    }
-    
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
-        ItemStack focusStack = getFocusStack(player.getHeldItem(hand));
-        ItemFocus focus = getFocus(player.getHeldItem(hand));
-        if (focus == null || CasterManager.isOnCooldown(player)) {
-            return super.onItemRightClick(world, player, hand);
-        }
-        CasterManager.setCooldown(player, focus.getActivationTime(focusStack));
-        FocusPackage core = ItemFocus.getPackage(focusStack);
-        if (player.isSneaking()) {
-            for (IFocusElement fe : core.nodes) {
-                if (fe instanceof IFocusBlockPicker && player.isSneaking()) {
-                    return (ActionResult<ItemStack>)new ActionResult(EnumActionResult.PASS, player.getHeldItem(hand));
-                }
-            }
-        }
-        if (world.isRemote) {
-            return (ActionResult<ItemStack>)new ActionResult(EnumActionResult.SUCCESS, player.getHeldItem(hand));
-        }
-        if (consumeVis(player.getHeldItem(hand), player, focus.getVisCost(focusStack), false, false)) {
-            FocusEngine.castFocusPackage(player, core);
-            player.swingArm(hand);
-            return (ActionResult<ItemStack>)new ActionResult(EnumActionResult.SUCCESS, player.getHeldItem(hand));
-        }
-        return (ActionResult<ItemStack>)new ActionResult(EnumActionResult.FAIL, player.getHeldItem(hand));
-    }
-    
-    public int getMaxItemUseDuration(ItemStack itemstack) {
-        return 72000;
-    }
-    
-    public EnumAction getItemUseAction(ItemStack stack1) {
-        return EnumAction.BOW;
-    }
-    
-    @Override
-    public ArrayList<BlockPos> getArchitectBlocks(ItemStack stack, World world, BlockPos pos, EnumFacing side, EntityPlayer player) {
-        ItemFocus focus = getFocus(stack);
-        if (focus != null) {
-            FocusPackage fp = ItemFocus.getPackage(getFocusStack(stack));
-            if (fp != null) {
-                for (IFocusElement fe : fp.nodes) {
-                    if (fe instanceof IArchitect) {
-                        return ((IArchitect)fe).getArchitectBlocks(stack, world, pos, side, player);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-    
-    @Override
-    public boolean showAxis(ItemStack stack, World world, EntityPlayer player, EnumFacing side, EnumAxis axis) {
-        ItemFocus focus = getFocus(stack);
-        if (focus != null) {
-            FocusPackage fp = ItemFocus.getPackage(getFocusStack(stack));
-            if (fp != null) {
-                for (IFocusElement fe : fp.nodes) {
-                    if (fe instanceof IArchitect) {
-                        return ((IArchitect)fe).showAxis(stack, world, player, side, axis);
-                    }
-                }
-            }
-        }
-        return false;
-    }
-    
-    @Override
-    public RayTraceResult getArchitectMOP(ItemStack stack, World world, EntityLivingBase player) {
-        ItemFocus focus = getFocus(stack);
-        if (focus != null) {
-            FocusPackage fp = ItemFocus.getPackage(getFocusStack(stack));
-            if (fp != null && FocusEngine.doesPackageContainElement(fp, "thaumcraft.PLAN")) {
-                return ((IArchitect)FocusEngine.getElement("thaumcraft.PLAN")).getArchitectMOP(getFocusStack(stack), world, player);
-            }
-        }
-        return null;
-    }
-    
-    @Override
-    public boolean useBlockHighlight(ItemStack stack) {
-        return false;
-    }
-    
-    public void storePickedBlock(ItemStack stack, ItemStack stackout) {
-        NBTTagCompound item = new NBTTagCompound();
-        stack.setTagInfo("picked", stackout.writeToNBT(item));
     }
     
     @Override
     public ItemStack getPickedBlock(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return ItemStack.EMPTY;
+        if (stack.hasTag() && stack.getTag().contains("picked")) {
+            return ItemStack.of(stack.getTag().getCompound("picked"));
         }
-        ItemStack out = null;
-        ItemFocus focus = getFocus(stack);
-        if (focus != null && stack.hasTagCompound() && stack.getTagCompound().hasKey("picked")) {
-            FocusPackage fp = ItemFocus.getPackage(getFocusStack(stack));
-            if (fp != null) {
-                for (IFocusElement fe : fp.nodes) {
-                    if (fe instanceof IFocusBlockPicker) {
-                        out = new ItemStack(Blocks.AIR);
-                        try {
-                            out = new ItemStack(stack.getTagCompound().getCompoundTag("picked"));
-                        }
-                        catch (Exception ex) {}
-                        break;
-                    }
-                }
+        return ItemStack.EMPTY;
+    }
+    
+    /**
+     * Store a picked block for Equal Trade focus.
+     */
+    public void storePickedBlock(ItemStack stack, ItemStack pickedBlock) {
+        stack.getOrCreateTag().put("picked", pickedBlock.save(new CompoundTag()));
+    }
+    
+    // ==================== Item Behavior ====================
+    
+    @Override
+    public InteractionResult useOn(UseOnContext context) {
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        Player player = context.getPlayer();
+        ItemStack stack = context.getItemInHand();
+        Direction side = context.getClickedFace();
+        InteractionHand hand = context.getHand();
+        
+        // Check for IInteractWithCaster blocks
+        BlockState state = level.getBlockState(pos);
+        if (state.getBlock() instanceof IInteractWithCaster casterBlock) {
+            if (casterBlock.onCasterRightClick(level, stack, player, pos, side, hand)) {
+                return InteractionResult.SUCCESS;
             }
         }
-        return out;
+        
+        // Check tile entities
+        BlockEntity tile = level.getBlockEntity(pos);
+        if (tile instanceof IInteractWithCaster casterTile) {
+            if (casterTile.onCasterRightClick(level, stack, player, pos, side, hand)) {
+                return InteractionResult.SUCCESS;
+            }
+        }
+        
+        // TODO: Add focus-specific block interactions
+        
+        return InteractionResult.PASS;
+    }
+    
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        ItemStack focusStack = getFocusStack(stack);
+        
+        if (focusStack == null || focusStack.isEmpty()) {
+            return InteractionResultHolder.pass(stack);
+        }
+        
+        if (!(focusStack.getItem() instanceof ItemFocus focus)) {
+            return InteractionResultHolder.pass(stack);
+        }
+        
+        // Calculate vis cost
+        float visCost = focus.getVisCost(focusStack);
+        
+        // Try to consume vis
+        if (!consumeVis(stack, player, visCost, false, false)) {
+            // Not enough vis
+            return InteractionResultHolder.fail(stack);
+        }
+        
+        // Cast the spell!
+        if (!level.isClientSide()) {
+            // TODO: Execute focus effect using FocusEngine
+            FocusPackage focusPackage = ItemFocus.getPackage(focusStack);
+            if (focusPackage != null) {
+                // Execute the focus package
+                // For now, just swing arm to indicate cast
+            }
+        }
+        
+        player.swing(hand);
+        
+        // Apply cooldown
+        int cooldown = focus.getActivationTime(focusStack);
+        player.getCooldowns().addCooldown(this, cooldown);
+        
+        return InteractionResultHolder.success(stack);
+    }
+    
+    @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
+        // TODO: Sync aura information to client when holding caster
+    }
+    
+    @Override
+    public int getUseDuration(ItemStack stack) {
+        return 72000; // Long duration for channeled spells
+    }
+    
+    @Override
+    public UseAnim getUseAnimation(ItemStack stack) {
+        return UseAnim.BOW;
+    }
+    
+    @Override
+    public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+        // Only re-animate if focus changed
+        if (oldStack.getItem() == this && newStack.getItem() == this) {
+            ItemStack oldFocus = getFocusStack(oldStack);
+            ItemStack newFocus = getFocusStack(newStack);
+            
+            if (oldFocus == null && newFocus == null) return false;
+            if (oldFocus == null || newFocus == null) return true;
+            
+            // Compare focus configurations
+            if (oldFocus.getItem() instanceof ItemFocus oldF && newFocus.getItem() instanceof ItemFocus newF) {
+                String oldSort = oldF.getSortingHelper(oldFocus);
+                String newSort = newF.getSortingHelper(newFocus);
+                if (oldSort != null && newSort != null) {
+                    return !oldSort.equals(newSort);
+                }
+            }
+            return !ItemStack.isSameItemSameTags(oldFocus, newFocus);
+        }
+        return oldStack.getItem() != newStack.getItem();
+    }
+    
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        ItemStack focusStack = getFocusStack(stack);
+        
+        if (focusStack != null && !focusStack.isEmpty() && focusStack.getItem() instanceof ItemFocus focus) {
+            // Show vis cost
+            float visCost = focus.getVisCost(focusStack);
+            if (visCost > 0) {
+                tooltip.add(Component.translatable("tc.vis.cost")
+                        .append(" ")
+                        .append(Component.literal(VIS_FORMAT.format(visCost)))
+                        .withStyle(ChatFormatting.ITALIC, ChatFormatting.AQUA));
+            }
+            
+            // Show focus name
+            tooltip.add(Component.empty());
+            tooltip.add(focusStack.getHoverName()
+                    .copy()
+                    .withStyle(ChatFormatting.BOLD, ChatFormatting.ITALIC, ChatFormatting.GREEN));
+            
+            // Add focus details
+            focus.addFocusInformation(focusStack, level, tooltip, flag);
+        } else {
+            tooltip.add(Component.translatable("item.thaumcraft.caster.no_focus")
+                    .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+        }
     }
 }

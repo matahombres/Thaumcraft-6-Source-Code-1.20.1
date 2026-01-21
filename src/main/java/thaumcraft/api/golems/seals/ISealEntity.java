@@ -1,47 +1,107 @@
 package thaumcraft.api.golems.seals;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.Level;
 
+/**
+ * Interface for a seal entity instance in the world.
+ * Represents a placed seal with its configuration.
+ */
 public interface ISealEntity {
 
-	public void tickSealEntity(World world);
+    /**
+     * Called each tick to update the seal entity
+     */
+    void tickSealEntity(Level level);
 
-	public ISeal getSeal();
+    /**
+     * @return The seal type for this entity
+     */
+    ISeal getSeal();
 
-	public SealPos getSealPos();
+    /**
+     * @return The position and face of this seal
+     */
+    SealPos getSealPos();
 
-	public byte getPriority();
+    /**
+     * @return Task priority (higher = more important)
+     */
+    byte getPriority();
 
-	public void setPriority(byte priority);
+    /**
+     * Set task priority
+     */
+    void setPriority(byte priority);
 
-	public void readNBT(NBTTagCompound nbt);
+    /**
+     * Read seal entity data from NBT
+     */
+    void readNBT(CompoundTag nbt);
 
-	public NBTTagCompound writeNBT();
+    /**
+     * Write seal entity data to NBT
+     */
+    CompoundTag writeNBT();
 
-	public void syncToClient(World world);
+    /**
+     * Sync seal data to clients
+     */
+    void syncToClient(Level level);
 
-	public BlockPos getArea();
+    /**
+     * @return The area of effect for this seal (as x, y, z extents)
+     */
+    BlockPos getArea();
 
-	public void setArea(BlockPos v);
+    /**
+     * Set the area of effect
+     */
+    void setArea(BlockPos area);
 
-	boolean isLocked();
+    /**
+     * @return true if seal configuration is locked
+     */
+    boolean isLocked();
 
-	void setLocked(boolean locked);
-	
-	public boolean isRedstoneSensitive();
+    /**
+     * Set locked state
+     */
+    void setLocked(boolean locked);
 
-	public void setRedstoneSensitive(boolean redstone);
+    /**
+     * @return true if seal responds to redstone
+     */
+    boolean isRedstoneSensitive();
 
-	String getOwner();
+    /**
+     * Set redstone sensitivity
+     */
+    void setRedstoneSensitive(boolean redstone);
 
-	void setOwner(String owner);
-	
-	public byte getColor();
+    /**
+     * @return Owner's name/UUID
+     */
+    String getOwner();
 
-	public void setColor(byte color);
+    /**
+     * Set owner
+     */
+    void setOwner(String owner);
 
-	public boolean isStoppedByRedstone(World world);
+    /**
+     * @return Color for golem matching (0-16, 0 = any color)
+     */
+    byte getColor();
 
+    /**
+     * Set color
+     */
+    void setColor(byte color);
+
+    /**
+     * @return true if seal is currently stopped by redstone signal
+     */
+    boolean isStoppedByRedstone(Level level);
 }

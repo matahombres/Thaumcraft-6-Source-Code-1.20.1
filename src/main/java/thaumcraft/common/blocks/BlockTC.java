@@ -1,38 +1,60 @@
 package thaumcraft.common.blocks;
-import net.minecraft.block.Block;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.NonNullList;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.common.config.ConfigItems;
 
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.MapColor;
 
-public class BlockTC extends Block
-{
-    public BlockTC(Material material, String name) {
-        super(material);
-        setUnlocalizedName(name);
-        setRegistryName("thaumcraft", name);
-        setCreativeTab(ConfigItems.TABTC);
-        setResistance(2.0f);
-        setHardness(1.5f);
+/**
+ * Base class for all Thaumcraft blocks.
+ * Provides common functionality and default properties.
+ */
+public class BlockTC extends Block {
+
+    public BlockTC(Properties properties) {
+        super(properties);
     }
-    
-    public BlockTC(Material mat, String name, SoundType st) {
-        this(mat, name);
-        setSoundType(st);
+
+    /**
+     * Creates default properties for a stone-type block.
+     */
+    public static Properties defaultStoneProperties() {
+        return Properties.of()
+                .mapColor(MapColor.STONE)
+                .strength(2.0f, 10.0f)
+                .sound(SoundType.STONE)
+                .requiresCorrectToolForDrops();
     }
-    
-    @SideOnly(Side.CLIENT)
-    public void getSubBlocks(CreativeTabs tab, NonNullList<ItemStack> list) {
-        list.add(new ItemStack(this, 1, 0));
+
+    /**
+     * Creates default properties for a wood-type block.
+     */
+    public static Properties defaultWoodProperties() {
+        return Properties.of()
+                .mapColor(MapColor.WOOD)
+                .strength(2.0f, 3.0f)
+                .sound(SoundType.WOOD);
     }
-    
-    public int damageDropped(IBlockState state) {
-        return 0;
+
+    /**
+     * Creates default properties for a metal-type block.
+     */
+    public static Properties defaultMetalProperties() {
+        return Properties.of()
+                .mapColor(MapColor.METAL)
+                .strength(5.0f, 6.0f)
+                .sound(SoundType.METAL)
+                .requiresCorrectToolForDrops();
+    }
+
+    /**
+     * Creates default properties for a glass-type block.
+     */
+    public static Properties defaultGlassProperties() {
+        return Properties.of()
+                .mapColor(MapColor.NONE)
+                .strength(0.3f)
+                .sound(SoundType.GLASS)
+                .noOcclusion();
     }
 }

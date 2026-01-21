@@ -1,173 +1,250 @@
 package thaumcraft.common.entities.projectile;
-import io.netty.buffer.ByteBuf;
-import java.util.ArrayList;
-import java.util.Iterator;
+
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import thaumcraft.init.ModEntities;
+
 import java.util.List;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.projectile.EntityThrowable;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.registry.IEntityAdditionalSpawnData;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.client.lib.UtilsFX;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.utils.EntityUtils;
 
-
-public class EntityHomingShard extends EntityThrowable implements IEntityAdditionalSpawnData
-{
-    Class tclass;
-    boolean persistant;
-    int targetID;
-    EntityLivingBase target;
-    private static DataParameter<Byte> STRENGTH;
-    public ArrayList<UtilsFX.Vector> vl;
+/**
+ * EntityHomingShard - A homing magic projectile that seeks targets.
+ * Used by various Thaumcraft creatures and effects.
+ * 
+ * Features:
+ * - Homes in on target entity
+ * - Bounces off walls
+ * - Can persist and find new targets after current dies
+ * - Variable damage based on strength
+ */
+public class EntityHomingShard extends ThrowableProjectile {
     
-    public EntityHomingShard(World par1World) {
-        super(par1World);
-        tclass = null;
-        persistant = false;
-        targetID = 0;
-        vl = new ArrayList<UtilsFX.Vector>();
+    private static final EntityDataAccessor<Byte> DATA_STRENGTH = 
+            SynchedEntityData.defineId(EntityHomingShard.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Integer> DATA_TARGET_ID = 
+            SynchedEntityData.defineId(EntityHomingShard.class, EntityDataSerializers.INT);
+    
+    private Class<? extends LivingEntity> targetClass = null;
+    private boolean persistent = false;
+    private LivingEntity target = null;
+    
+    public EntityHomingShard(EntityType<? extends EntityHomingShard> type, Level level) {
+        super(type, level);
     }
     
-    public EntityHomingShard(World par1World, EntityLivingBase p, EntityLivingBase t, int strength, boolean b) {
-        super(par1World, p);
-        tclass = null;
-        persistant = false;
-        targetID = 0;
-        vl = new ArrayList<UtilsFX.Vector>();
-        target = t;
-        tclass = t.getClass();
-        persistant = b;
+    public EntityHomingShard(Level level, LivingEntity owner, LivingEntity target, int strength, boolean persistent) {
+        super(ModEntities.HOMING_SHARD.get(), owner, level);
+        this.target = target;
+        this.targetClass = target.getClass();
+        this.persistent = persistent;
         setStrength(strength);
-        Vec3d v = p.getLookVec();
-        setLocationAndAngles(p.posX + v.x / 2.0, p.posY + p.getEyeHeight() + v.y / 2.0, p.posZ + v.z / 2.0, p.rotationYaw, p.rotationPitch);
-        float f = 0.5f;
-        float ry = p.rotationYaw + (rand.nextFloat() - rand.nextFloat()) * 60.0f;
-        float rp = p.rotationPitch + (rand.nextFloat() - rand.nextFloat()) * 60.0f;
-        motionX = -MathHelper.sin(ry / 180.0f * 3.1415927f) * MathHelper.cos(rp / 180.0f * 3.1415927f) * f;
-        motionZ = MathHelper.cos(ry / 180.0f * 3.1415927f) * MathHelper.cos(rp / 180.0f * 3.1415927f) * f;
-        motionY = -MathHelper.sin(rp / 180.0f * 3.1415927f) * f;
+        entityData.set(DATA_TARGET_ID, target.getId());
+        
+        // Start with randomized direction that will home in
+        Vec3 look = owner.getLookAngle();
+        setPos(owner.getX() + look.x / 2.0, 
+               owner.getEyeY() + look.y / 2.0, 
+               owner.getZ() + look.z / 2.0);
+        
+        float speed = 0.5f;
+        float yaw = owner.getYRot() + (random.nextFloat() - random.nextFloat()) * 60.0f;
+        float pitch = owner.getXRot() + (random.nextFloat() - random.nextFloat()) * 60.0f;
+        
+        double mx = -Mth.sin(yaw * Mth.DEG_TO_RAD) * Mth.cos(pitch * Mth.DEG_TO_RAD) * speed;
+        double mz = Mth.cos(yaw * Mth.DEG_TO_RAD) * Mth.cos(pitch * Mth.DEG_TO_RAD) * speed;
+        double my = -Mth.sin(pitch * Mth.DEG_TO_RAD) * speed;
+        
+        setDeltaMovement(mx, my, mz);
     }
     
-    public void entityInit() {
-        super.entityInit();
-        getDataManager().register((DataParameter)EntityHomingShard.STRENGTH, 0);
+    @Override
+    protected void defineSynchedData() {
+        entityData.define(DATA_STRENGTH, (byte)0);
+        entityData.define(DATA_TARGET_ID, -1);
     }
     
-    public void setStrength(int str) {
-        getDataManager().set(EntityHomingShard.STRENGTH, (byte)str);
+    public void setStrength(int strength) {
+        entityData.set(DATA_STRENGTH, (byte)strength);
     }
     
     public int getStrength() {
-        return (byte) getDataManager().get((DataParameter)EntityHomingShard.STRENGTH);
+        return entityData.get(DATA_STRENGTH);
     }
     
-    protected float getGravityVelocity() {
-        return 0.0f;
+    @Override
+    protected float getGravity() {
+        return 0.0f; // No gravity - floats toward target
     }
     
-    public void writeSpawnData(ByteBuf data) {
-        int id = -1;
-        if (target != null) {
-            id = target.getEntityId();
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Client-side: spawn particles
+        if (level().isClientSide) {
+            level().addParticle(ParticleTypes.WITCH,
+                getX(), getY(), getZ(),
+                (random.nextFloat() - 0.5) * 0.1,
+                (random.nextFloat() - 0.5) * 0.1,
+                (random.nextFloat() - 0.5) * 0.1);
         }
-        data.writeInt(id);
-    }
-    
-    public void readSpawnData(ByteBuf data) {
-        int id = data.readInt();
-        try {
-            if (id >= 0) {
-                target = (EntityLivingBase) world.getEntityByID(id);
-            }
-        }
-        catch (Exception ex) {}
-    }
-    
-    protected void onImpact(RayTraceResult mop) {
-        if (!world.isRemote && mop.typeOfHit == RayTraceResult.Type.ENTITY && (getThrower() == null || (getThrower() != null && mop.entityHit != getThrower()))) {
-            mop.entityHit.attackEntityFrom(DamageSource.causeIndirectMagicDamage(this, getThrower()), 1.0f + getStrength() * 0.5f);
-            playSound(SoundsTC.zap, 1.0f, 1.0f + (rand.nextFloat() - rand.nextFloat()) * 0.2f);
-            world.setEntityState(this, (byte)16);
-            setDead();
-        }
-        if (mop.typeOfHit == RayTraceResult.Type.BLOCK) {
-            if (mop.sideHit.getFrontOffsetZ() != 0) {
-                motionZ *= -0.8;
-            }
-            if (mop.sideHit.getFrontOffsetX() != 0) {
-                motionX *= -0.8;
-            }
-            if (mop.sideHit.getFrontOffsetY() != 0) {
-                motionY *= -0.8;
-            }
-        }
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public void handleStatusUpdate(byte par1) {
-        if (par1 == 16) {
-            FXDispatcher.INSTANCE.burst(posX, posY, posZ, 0.3f);
-        }
-        else {
-            super.handleStatusUpdate(par1);
-        }
-    }
-    
-    public void onUpdate() {
-        vl.add(0, new UtilsFX.Vector((float) lastTickPosX, (float) lastTickPosY, (float) lastTickPosZ));
-        if (vl.size() > 6) {
-            vl.remove(vl.size() - 1);
-        }
-        super.onUpdate();
-        if (!world.isRemote) {
-            if (persistant && (target == null || target.isDead || target.getDistanceSq(this) > 1250.0)) {
-                List<Entity> es = EntityUtils.getEntitiesInRange(world, posX, posY, posZ, this, (Class<? extends Entity>) tclass, 16.0);
-                for (Entity e : es) {
-                    if (e instanceof EntityLivingBase && !e.isDead && (getThrower() == null || e.getEntityId() != getThrower().getEntityId())) {
-                        target = (EntityLivingBase)e;
-                        break;
+        
+        // Server-side: target management
+        if (!level().isClientSide) {
+            // Try to resolve target from synced ID
+            if (target == null) {
+                int targetId = entityData.get(DATA_TARGET_ID);
+                if (targetId >= 0) {
+                    Entity e = level().getEntity(targetId);
+                    if (e instanceof LivingEntity le) {
+                        target = le;
                     }
                 }
             }
-            if (target == null || target.isDead) {
-                world.setEntityState(this, (byte)16);
-                setDead();
+            
+            // If persistent, find new target when current is dead/far
+            if (persistent && (target == null || !target.isAlive() || distanceToSqr(target) > 1250.0)) {
+                findNewTarget();
+            }
+            
+            // Die if no valid target
+            if (target == null || !target.isAlive()) {
+                level().broadcastEntityEvent(this, (byte)16);
+                discard();
+                return;
             }
         }
-        if (ticksExisted > 300) {
-            world.setEntityState(this, (byte)16);
-            setDead();
+        
+        // Die after 15 seconds
+        if (tickCount > 300) {
+            if (!level().isClientSide) {
+                level().broadcastEntityEvent(this, (byte)16);
+            }
+            discard();
+            return;
         }
-        if (ticksExisted % 20 == 0 && target != null && !target.isDead) {
-            double d = getDistance(target);
-            double dx = target.posX - posX;
-            double dy = target.getEntityBoundingBox().minY + target.height * 0.6 - posY;
-            double dz = target.posZ - posZ;
-            dx /= d;
-            dy /= d;
-            dz /= d;
-            motionX = dx;
-            motionY = dy;
-            motionZ = dz;
+        
+        // Update homing every second
+        if (tickCount % 20 == 0 && target != null && target.isAlive()) {
+            double dist = distanceTo(target);
+            if (dist > 0) {
+                double dx = (target.getX() - getX()) / dist;
+                double dy = (target.getY() + target.getBbHeight() * 0.6 - getY()) / dist;
+                double dz = (target.getZ() - getZ()) / dist;
+                setDeltaMovement(dx, dy, dz);
+            }
         }
-        motionX *= 0.85;
-        motionY *= 0.85;
-        motionZ *= 0.85;
+        
+        // Slow down gradually
+        setDeltaMovement(getDeltaMovement().scale(0.85));
     }
     
-    static {
-        STRENGTH = EntityDataManager.createKey(EntityHomingShard.class, DataSerializers.BYTE);
+    private void findNewTarget() {
+        if (targetClass == null) return;
+        
+        AABB searchBox = getBoundingBox().inflate(16.0);
+        List<LivingEntity> entities = level().getEntitiesOfClass(LivingEntity.class, searchBox, 
+            e -> targetClass.isInstance(e) && e.isAlive() && (getOwner() == null || e.getId() != getOwner().getId()));
+        
+        if (!entities.isEmpty()) {
+            target = entities.get(0);
+            entityData.set(DATA_TARGET_ID, target.getId());
+        }
+    }
+    
+    @Override
+    public void handleEntityEvent(byte id) {
+        if (id == 16) {
+            // Burst particles on death
+            for (int i = 0; i < 8; i++) {
+                level().addParticle(ParticleTypes.WITCH,
+                    getX(), getY(), getZ(),
+                    (random.nextFloat() - 0.5) * 0.3,
+                    (random.nextFloat() - 0.5) * 0.3,
+                    (random.nextFloat() - 0.5) * 0.3);
+            }
+        }
+        super.handleEntityEvent(id);
+    }
+    
+    @Override
+    protected void onHitEntity(EntityHitResult result) {
+        if (!level().isClientSide) {
+            Entity hit = result.getEntity();
+            Entity owner = getOwner();
+            
+            // Don't hit owner
+            if (owner != null && hit == owner) return;
+            
+            // Deal damage: 1 + (strength * 0.5)
+            float damage = 1.0f + getStrength() * 0.5f;
+            DamageSource source = level().damageSources().indirectMagic(this, owner);
+            hit.hurt(source, damage);
+            
+            playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f + (random.nextFloat() - random.nextFloat()) * 0.2f);
+            level().broadcastEntityEvent(this, (byte)16);
+            discard();
+        }
+    }
+    
+    @Override
+    protected void onHitBlock(BlockHitResult result) {
+        // Bounce off walls
+        Vec3 motion = getDeltaMovement();
+        
+        switch (result.getDirection().getAxis()) {
+            case X -> setDeltaMovement(motion.x * -0.8, motion.y, motion.z);
+            case Y -> setDeltaMovement(motion.x, motion.y * -0.8, motion.z);
+            case Z -> setDeltaMovement(motion.x, motion.y, motion.z * -0.8);
+        }
+    }
+    
+    @Override
+    protected void onHit(HitResult result) {
+        // Handle specific hit types
+        if (result.getType() == HitResult.Type.ENTITY) {
+            onHitEntity((EntityHitResult) result);
+        } else if (result.getType() == HitResult.Type.BLOCK) {
+            onHitBlock((BlockHitResult) result);
+        }
+    }
+    
+    @Override
+    protected void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putByte("Strength", (byte)getStrength());
+        tag.putBoolean("Persistent", persistent);
+        if (target != null) {
+            tag.putInt("TargetId", target.getId());
+        }
+        if (targetClass != null) {
+            tag.putString("TargetClass", targetClass.getName());
+        }
+    }
+    
+    @Override
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setStrength(tag.getByte("Strength"));
+        persistent = tag.getBoolean("Persistent");
+        if (tag.contains("TargetId")) {
+            entityData.set(DATA_TARGET_ID, tag.getInt("TargetId"));
+        }
+        // Note: targetClass restoration would require reflection, skipping for safety
     }
 }

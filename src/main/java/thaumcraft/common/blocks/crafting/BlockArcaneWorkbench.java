@@ -1,50 +1,82 @@
 package thaumcraft.common.blocks.crafting;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.inventory.InventoryHelper;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import thaumcraft.Thaumcraft;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Containers;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import thaumcraft.common.blocks.BlockTCDevice;
-import thaumcraft.common.tiles.crafting.TileArcaneWorkbench;
 
+import javax.annotation.Nullable;
 
-public class BlockArcaneWorkbench extends BlockTCDevice
-{
+/**
+ * The Arcane Workbench - a crafting station for creating magical items.
+ * Uses vis from the aura and crystals as catalysts.
+ */
+public class BlockArcaneWorkbench extends BlockTCDevice {
+
+    private static final VoxelShape SHAPE = Block.box(0.0, 0.0, 0.0, 16.0, 15.0, 16.0);
+
     public BlockArcaneWorkbench() {
-        super(Material.WOOD, TileArcaneWorkbench.class, "arcane_workbench");
-        setSoundType(SoundType.WOOD);
+        super(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.WOOD)
+                .strength(2.5f)
+                .sound(SoundType.WOOD)
+                .noOcclusion(),
+                true,  // hasFacing
+                false  // hasEnabled
+        );
     }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ) {
-        if (world.isRemote) {
-            return true;
-        }
-        player.openGui(Thaumcraft.instance, 13, world, pos.getX(), pos.getY(), pos.getZ());
-        return true;
-    }
-    
+
     @Override
-    public void breakBlock(World world, BlockPos pos, IBlockState state) {
-        TileEntity tileEntity = world.getTileEntity(pos);
-        if (tileEntity != null && tileEntity instanceof TileArcaneWorkbench) {
-            InventoryHelper.dropInventoryItems(world, pos, ((TileArcaneWorkbench)tileEntity).inventoryCraft);
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
+    }
+
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, 
+                                  InteractionHand hand, BlockHitResult hit) {
+        if (level.isClientSide) {
+            return InteractionResult.SUCCESS;
         }
-        super.breakBlock(world, pos, state);
-        world.removeTileEntity(pos);
+
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity != null && player instanceof ServerPlayer serverPlayer) {
+            // TODO: Open the arcane workbench GUI
+            // NetworkHooks.openScreen(serverPlayer, (MenuProvider) blockEntity, pos);
+        }
+
+        return InteractionResult.CONSUME;
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (blockEntity != null) {
+                // TODO: Drop inventory contents when TileArcaneWorkbench is implemented
+                // Containers.dropContents(level, pos, ((TileArcaneWorkbench) blockEntity).getInventory());
+            }
+            super.onRemove(state, level, pos, newState, isMoving);
+        }
+    }
+
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        // TODO: Return TileArcaneWorkbench when implemented
+        return null;
     }
 }

@@ -1,134 +1,149 @@
 package thaumcraft.common.items.tools;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import thaumcraft.init.ModBlocks;
+
+import javax.annotation.Nullable;
 import java.util.List;
-import net.minecraft.block.Block;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagInt;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.World;
-import net.minecraftforge.common.DimensionManager;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.Thaumcraft;
-import thaumcraft.api.blocks.BlocksTC;
-import thaumcraft.common.items.ItemTCBase;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.tiles.devices.TileMirror;
 
+/**
+ * Hand Mirror - Links to a magic mirror block for remote inventory access.
+ * Right-click on a magic mirror to link.
+ * Right-click in air to access linked mirror's inventory.
+ */
+public class ItemHandMirror extends Item {
 
-public class ItemHandMirror extends ItemTCBase
-{
     public ItemHandMirror() {
-        super("hand_mirror");
-        setMaxStackSize(1);
+        super(new Item.Properties()
+                .stacksTo(1)
+                .rarity(Rarity.UNCOMMON));
     }
-    
-    public boolean getShareTag() {
-        return true;
+
+    @Override
+    public boolean isFoil(ItemStack stack) {
+        return stack.hasTag() && stack.getTag().contains("linkX");
     }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.UNCOMMON;
-    }
-    
-    public boolean hasEffect(ItemStack stack1) {
-        return stack1.hasTagCompound();
-    }
-    
-    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side, float par8, float par9, float par10, EnumHand hand) {
-        Block bi = world.getBlockState(pos).getBlock();
-        if (bi != BlocksTC.mirror) {
-            return EnumActionResult.FAIL;
+
+    @Override
+    public InteractionResult useOn(UseOnContext context) {
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        Player player = context.getPlayer();
+        ItemStack stack = context.getItemInHand();
+
+        if (player == null) {
+            return InteractionResult.FAIL;
         }
-        if (world.isRemote) {
-            player.swingArm(hand);
-            return super.onItemUseFirst(player, world, pos, side, par8, par9, par10, hand);
+
+        // Check if clicking on a magic mirror
+        if (!level.getBlockState(pos).is(ModBlocks.MIRROR_ITEM.get())) {
+            return InteractionResult.FAIL;
         }
-        TileEntity tm = world.getTileEntity(pos);
-        if (tm != null && tm instanceof TileMirror) {
-            player.getHeldItem(hand).setTagInfo("linkX", new NBTTagInt(pos.getX()));
-            player.getHeldItem(hand).setTagInfo("linkY", new NBTTagInt(pos.getY()));
-            player.getHeldItem(hand).setTagInfo("linkZ", new NBTTagInt(pos.getZ()));
-            player.getHeldItem(hand).setTagInfo("linkDim", new NBTTagInt(world.provider.getDimension()));
-            world.playSound(null, pos.getX(), pos.getY(), pos.getZ(), SoundsTC.jar, SoundCategory.BLOCKS, 1.0f, 2.0f);
-            player.sendMessage(new TextComponentTranslation("tc.handmirrorlinked"));
-            player.inventoryContainer.detectAndSendChanges();
+
+        if (level.isClientSide()) {
+            player.swing(context.getHand());
+            return InteractionResult.SUCCESS;
         }
-        return EnumActionResult.PASS;
+
+        // Link to the mirror
+        BlockEntity te = level.getBlockEntity(pos);
+        if (te != null) {
+            CompoundTag tag = stack.getOrCreateTag();
+            tag.putInt("linkX", pos.getX());
+            tag.putInt("linkY", pos.getY());
+            tag.putInt("linkZ", pos.getZ());
+            tag.putString("linkDim", level.dimension().location().toString());
+
+            // TODO: Play linking sound (SoundsTC.jar)
+            player.sendSystemMessage(Component.translatable("tc.handmirrorlinked"));
+            player.inventoryMenu.broadcastChanges();
+        }
+
+        return InteractionResult.SUCCESS;
     }
-    
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
-        if (!world.isRemote && player.getHeldItem(hand).hasTagCompound()) {
-            int lx = player.getHeldItem(hand).getTagCompound().getInteger("linkX");
-            int ly = player.getHeldItem(hand).getTagCompound().getInteger("linkY");
-            int lz = player.getHeldItem(hand).getTagCompound().getInteger("linkZ");
-            int ldim = player.getHeldItem(hand).getTagCompound().getInteger("linkDim");
-            World targetWorld = DimensionManager.getWorld(ldim);
-            if (targetWorld == null) {
-                return super.onItemRightClick(world, player, hand);
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+
+        if (!level.isClientSide() && stack.hasTag()) {
+            CompoundTag tag = stack.getTag();
+            if (tag != null && tag.contains("linkX")) {
+                int lx = tag.getInt("linkX");
+                int ly = tag.getInt("linkY");
+                int lz = tag.getInt("linkZ");
+                String dimKey = tag.getString("linkDim");
+
+                // Try to find the target dimension
+                ServerLevel targetLevel = null;
+                if (level.getServer() != null) {
+                    for (ServerLevel serverLevel : level.getServer().getAllLevels()) {
+                        if (serverLevel.dimension().location().toString().equals(dimKey)) {
+                            targetLevel = serverLevel;
+                            break;
+                        }
+                    }
+                }
+
+                if (targetLevel == null) {
+                    return InteractionResultHolder.pass(stack);
+                }
+
+                BlockPos targetPos = new BlockPos(lx, ly, lz);
+                BlockEntity te = targetLevel.getBlockEntity(targetPos);
+
+                // Check if the mirror still exists
+                if (te == null || !targetLevel.getBlockState(targetPos).is(ModBlocks.MIRROR_ITEM.get())) {
+                    // Mirror is gone, clear link
+                    stack.setTag(null);
+                    // TODO: Play error sound (SoundsTC.zap)
+                    player.sendSystemMessage(Component.translatable("tc.handmirrorerror"));
+                    return InteractionResultHolder.fail(stack);
+                }
+
+                // TODO: Open mirror GUI
+                // player.openMenu(...);
+                player.sendSystemMessage(Component.translatable("tc.handmirror.notimplemented"));
             }
-            TileEntity te = targetWorld.getTileEntity(new BlockPos(lx, ly, lz));
-            if (te == null || !(te instanceof TileMirror)) {
-                player.getHeldItem(hand).setTagCompound(null);
-                player.playSound(SoundsTC.zap, 1.0f, 0.8f);
-                player.sendMessage(new TextComponentTranslation("tc.handmirrorerror"));
-                return super.onItemRightClick(world, player, hand);
+        }
+
+        return InteractionResultHolder.pass(stack);
+    }
+
+    @Override
+    @OnlyIn(Dist.CLIENT)
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        if (stack.hasTag()) {
+            CompoundTag tag = stack.getTag();
+            if (tag != null && tag.contains("linkX")) {
+                int lx = tag.getInt("linkX");
+                int ly = tag.getInt("linkY");
+                int lz = tag.getInt("linkZ");
+                String dim = tag.getString("linkDim");
+                tooltip.add(Component.translatable("tc.handmirrorlinkedto",
+                        lx + "," + ly + "," + lz + " in " + dim)
+                        .withStyle(style -> style.withColor(0x808080)));
             }
-            player.openGui(Thaumcraft.instance, 4, world, MathHelper.floor(player.posX), MathHelper.floor(player.posY), MathHelper.floor(player.posZ));
         }
-        return super.onItemRightClick(world, player, hand);
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        if (stack.hasTagCompound()) {
-            int lx = stack.getTagCompound().getInteger("linkX");
-            int ly = stack.getTagCompound().getInteger("linkY");
-            int lz = stack.getTagCompound().getInteger("linkZ");
-            int ldim = stack.getTagCompound().getInteger("linkDim");
-            tooltip.add(I18n.translateToLocal("tc.handmirrorlinkedto") + " " + lx + "," + ly + "," + lz + " in " + ldim);
-        }
-    }
-    
-    public static boolean transport(ItemStack mirror, ItemStack items, EntityPlayer player, World worldObj) {
-        if (!mirror.hasTagCompound()) {
-            return false;
-        }
-        int lx = mirror.getTagCompound().getInteger("linkX");
-        int ly = mirror.getTagCompound().getInteger("linkY");
-        int lz = mirror.getTagCompound().getInteger("linkZ");
-        int ldim = mirror.getTagCompound().getInteger("linkDim");
-        World targetWorld = DimensionManager.getWorld(ldim);
-        if (targetWorld == null) {
-            return false;
-        }
-        TileEntity te = targetWorld.getTileEntity(new BlockPos(lx, ly, lz));
-        if (te == null || !(te instanceof TileMirror)) {
-            mirror.setTagCompound(null);
-            player.playSound(SoundsTC.zap, 1.0f, 0.8f);
-            player.sendMessage(new TextComponentTranslation("tc.handmirrorerror"));
-            return false;
-        }
-        TileMirror tm = (TileMirror)te;
-        if (tm.transportDirect(items)) {
-            items = ItemStack.EMPTY;
-            player.playSound(SoundEvents.ENTITY_ENDERMEN_TELEPORT, 0.1f, 1.0f);
-        }
-        return true;
+        super.appendHoverText(stack, level, tooltip, flag);
     }
 }

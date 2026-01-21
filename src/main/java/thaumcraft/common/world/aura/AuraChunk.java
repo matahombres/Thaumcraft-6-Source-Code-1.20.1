@@ -1,64 +1,79 @@
 package thaumcraft.common.world.aura;
+
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.LevelChunk;
+
 import java.lang.ref.WeakReference;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.chunk.Chunk;
 
+/**
+ * Stores aura data for a single chunk.
+ * Contains the base aura level, current vis, and current flux.
+ */
+public class AuraChunk {
 
-public class AuraChunk
-{
-    ChunkPos loc;
-    short base;
-    float vis;
-    float flux;
-    WeakReference<Chunk> chunkRef;
-    
+    private static final float MAX_VALUE = 32766.0f;
+
+    private ChunkPos loc;
+    private short base;
+    private float vis;
+    private float flux;
+    private WeakReference<LevelChunk> chunkRef;
+
     public AuraChunk(ChunkPos loc) {
         this.loc = loc;
     }
-    
-    public AuraChunk(Chunk chunk, short base, float vis, float flux) {
+
+    public AuraChunk(LevelChunk chunk, short base, float vis, float flux) {
         if (chunk != null) {
-            loc = chunk.getPos();
-            chunkRef = new WeakReference<Chunk>(chunk);
+            this.loc = chunk.getPos();
+            this.chunkRef = new WeakReference<>(chunk);
         }
         this.base = base;
         this.vis = vis;
         this.flux = flux;
     }
-    
+
+    /**
+     * Checks if the chunk has been modified and needs saving.
+     * @return true if the chunk is dirty
+     */
     public boolean isModified() {
-        return chunkRef != null && chunkRef.get() != null && chunkRef.get().needsSaving(false);
+        return chunkRef != null && chunkRef.get() != null && chunkRef.get().isUnsaved();
     }
-    
+
     public short getBase() {
         return base;
     }
-    
+
     public void setBase(short base) {
         this.base = base;
     }
-    
+
     public float getVis() {
         return vis;
     }
-    
+
     public void setVis(float vis) {
-        this.vis = Math.min(32766.0f, Math.max(0.0f, vis));
+        this.vis = Math.min(MAX_VALUE, Math.max(0.0f, vis));
     }
-    
+
     public float getFlux() {
         return flux;
     }
-    
+
     public void setFlux(float flux) {
-        this.flux = Math.min(32766.0f, Math.max(0.0f, flux));
+        this.flux = Math.min(MAX_VALUE, Math.max(0.0f, flux));
     }
-    
+
     public ChunkPos getLoc() {
         return loc;
     }
-    
+
     public void setLoc(ChunkPos loc) {
         this.loc = loc;
+    }
+
+    public LevelChunk getChunk() {
+        return chunkRef != null ? chunkRef.get() : null;
     }
 }

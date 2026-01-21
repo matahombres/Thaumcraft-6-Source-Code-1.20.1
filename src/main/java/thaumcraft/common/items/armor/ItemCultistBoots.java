@@ -1,72 +1,37 @@
 package thaumcraft.common.items.armor;
-import net.minecraft.client.renderer.ItemMeshDefinition;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Items;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemArmor;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.items.IVisDiscountGear;
-import thaumcraft.api.items.IWarpingGear;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.IThaumcraftItems;
 
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.ArmorMaterials;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.Rarity;
 
-public class ItemCultistBoots extends ItemArmor implements IWarpingGear, IVisDiscountGear, IThaumcraftItems
-{
+import javax.annotation.Nullable;
+
+/**
+ * Crimson Cult Boots - Standard iron-quality boots worn by cultists.
+ * Shared between robe and plate variants.
+ */
+public class ItemCultistBoots extends ArmorItem {
+    
     public ItemCultistBoots() {
-        super(ItemArmor.ArmorMaterial.IRON, 2, EntityEquipmentSlot.FEET);
-        setCreativeTab(ConfigItems.TABTC);
-        setRegistryName("crimson_boots");
-        setUnlocalizedName("crimson_boots");
-        ConfigItems.ITEM_VARIANT_HOLDERS.add(this);
+        super(ArmorMaterials.IRON, Type.BOOTS, 
+                new Item.Properties()
+                        .stacksTo(1)
+                        .rarity(Rarity.UNCOMMON));
     }
     
-    public Item getItem() {
-        return this;
+    @Override
+    public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+        return repair.is(Items.IRON_INGOT) || super.isValidRepairItem(toRepair, repair);
     }
     
-    public String[] getVariantNames() {
-        return new String[] { "normal" };
-    }
-    
-    public int[] getVariantMeta() {
-        return new int[] { 0 };
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public ItemMeshDefinition getCustomMesh() {
-        return null;
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public ModelResourceLocation getCustomModelResourceLocation(String variant) {
-        return new ModelResourceLocation("thaumcraft:" + variant);
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public String getArmorTexture(ItemStack stack, Entity entity, EntityEquipmentSlot slot, String type) {
-        return "thaumcraft:textures/entity/armor/cultistboots.png";
-    }
-    
-    public boolean getIsRepairable(ItemStack stack1, ItemStack stack2) {
-        return stack2.isItemEqual(new ItemStack(Items.IRON_INGOT)) || super.getIsRepairable(stack1, stack2);
-    }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.UNCOMMON;
-    }
-    
-    public int getWarp(ItemStack itemstack, EntityPlayer player) {
-        return 1;
-    }
-    
-    public int getVisDiscount(ItemStack stack, EntityPlayer player) {
-        return 1;
+    @Nullable
+    @Override
+    public String getArmorTexture(ItemStack stack, Entity entity, EquipmentSlot slot, String type) {
+        return "thaumcraft:textures/entity/armor/cultist_boots.png";
     }
 }

@@ -1,368 +1,389 @@
 package thaumcraft.common.entities.monster;
-import io.netty.buffer.ByteBuf;
-import java.awt.Color;
-import java.util.Iterator;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.scores.Team;
+import net.minecraftforge.entity.IEntityAdditionalSpawnData;
+import thaumcraft.api.casters.FocusPackage;
+import thaumcraft.init.ModEntities;
+
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.UUID;
-import javax.annotation.Nullable;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.monster.EntityMob;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
-import net.minecraftforge.fml.common.registry.IEntityAdditionalSpawnData;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.casters.FocusEffect;
-import thaumcraft.api.casters.FocusEngine;
-import thaumcraft.api.casters.FocusPackage;
-import thaumcraft.api.casters.Trajectory;
-import thaumcraft.common.lib.utils.EntityUtils;
-import thaumcraft.common.lib.utils.Utils;
 
-
-public class EntitySpellBat extends EntityMob implements IEntityAdditionalSpawnData
-{
+/**
+ * EntitySpellBat - A magical bat summoned by focus spells.
+ * Can be friendly (healing allies) or hostile (attacking enemies).
+ * Executes focus effects on targets it attacks.
+ */
+public class EntitySpellBat extends Monster implements IEntityAdditionalSpawnData {
+    
+    private static final EntityDataAccessor<Boolean> DATA_FRIENDLY = 
+            SynchedEntityData.defineId(EntitySpellBat.class, EntityDataSerializers.BOOLEAN);
+    
     private BlockPos currentFlightTarget;
-    public EntityLivingBase owner;
-    FocusPackage focusPackage;
-    private UUID ownerUniqueId;
-    private static DataParameter<Boolean> FRIENDLY;
-    public int damBonus;
+    public LivingEntity owner;
+    private UUID ownerUUID;
+    private FocusPackage focusPackage;
     private int attackTime;
-    FocusEffect[] effects;
-    public int color;
+    public int damBonus = 0;
+    public int color = 0xFFFFFF;
     
-    public EntitySpellBat(World world) {
-        super(world);
-        owner = null;
-        damBonus = 0;
-        effects = null;
-        color = 16777215;
-        setSize(0.5f, 0.9f);
+    public EntitySpellBat(EntityType<? extends EntitySpellBat> type, Level level) {
+        super(type, level);
     }
     
-    public EntitySpellBat(FocusPackage pac, boolean friendly) {
-        super(pac.world);
-        owner = null;
-        damBonus = 0;
-        effects = null;
-        color = 16777215;
-        setSize(0.5f, 0.9f);
-        focusPackage = pac;
-        setOwner(pac.getCaster());
-        setIsFriendly(friendly);
+    public EntitySpellBat(Level level) {
+        this(ModEntities.SPELL_BAT.get(), level);
     }
     
-    public void entityInit() {
-        super.entityInit();
-        getDataManager().register(EntitySpellBat.FRIENDLY, false);
+    public EntitySpellBat(Level level, FocusPackage pack, boolean friendly) {
+        this(ModEntities.SPELL_BAT.get(), level);
+        this.focusPackage = pack;
+        setOwner(pack.getCaster());
+        setFriendly(friendly);
     }
     
-    public boolean getIsFriendly() {
-        return (boolean) getDataManager().get((DataParameter)EntitySpellBat.FRIENDLY);
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_FRIENDLY, false);
     }
     
-    public void setIsFriendly(boolean par1) {
-        getDataManager().set(EntitySpellBat.FRIENDLY, par1);
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 5.0)
+                .add(Attributes.ATTACK_DAMAGE, 1.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.3);
     }
     
-    public void writeSpawnData(ByteBuf data) {
-        Utils.writeNBTTagCompoundToBuffer(data, focusPackage.serialize());
+    public boolean isFriendly() {
+        return this.entityData.get(DATA_FRIENDLY);
     }
     
-    public void readSpawnData(ByteBuf data) {
-        try {
-            (focusPackage = new FocusPackage()).deserialize(Utils.readNBTTagCompoundFromBuffer(data));
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
+    public void setFriendly(boolean friendly) {
+        this.entityData.set(DATA_FRIENDLY, friendly);
     }
     
-    public void setOwner(@Nullable EntityLivingBase ownerIn) {
-        owner = ownerIn;
-        ownerUniqueId = ((ownerIn == null) ? null : ownerIn.getUniqueID());
+    public void setOwner(@Nullable LivingEntity owner) {
+        this.owner = owner;
+        this.ownerUUID = owner != null ? owner.getUUID() : null;
     }
     
     @Nullable
-    public EntityLivingBase getOwner() {
-        if (owner == null && ownerUniqueId != null && world instanceof WorldServer) {
-            Entity entity = ((WorldServer) world).getEntityFromUuid(ownerUniqueId);
-            if (entity instanceof EntityLivingBase) {
-                owner = (EntityLivingBase)entity;
+    public LivingEntity getOwner() {
+        if (owner == null && ownerUUID != null && level() instanceof ServerLevel serverLevel) {
+            Entity entity = serverLevel.getEntity(ownerUUID);
+            if (entity instanceof LivingEntity living) {
+                owner = living;
             }
         }
         return owner;
     }
     
-    @SideOnly(Side.CLIENT)
-    public int getBrightnessForRender() {
-        return 15728880;
+    public FocusPackage getFocusPackage() {
+        return focusPackage;
     }
     
-    public float getBrightness() {
-        return 1.0f;
+    @Override
+    public float getLightLevelDependentMagicValue() {
+        return 1.0f; // Always bright
     }
     
+    @Override
     protected float getSoundVolume() {
         return 0.1f;
     }
     
-    protected float getSoundPitch() {
-        return super.getSoundPitch() * 0.95f;
+    @Override
+    public float getVoicePitch() {
+        return super.getVoicePitch() * 0.95f;
     }
     
+    @Override
     protected SoundEvent getAmbientSound() {
-        return SoundEvents.ENTITY_BAT_AMBIENT;
+        return SoundEvents.BAT_AMBIENT;
     }
     
-    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-        return SoundEvents.ENTITY_BAT_HURT;
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return SoundEvents.BAT_HURT;
     }
     
+    @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.ENTITY_BAT_DEATH;
+        return SoundEvents.BAT_DEATH;
     }
     
-    public boolean canBePushed() {
+    @Override
+    public boolean isPushable() {
         return false;
     }
     
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(5.0);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(1.0);
-    }
-    
+    @Override
     public Team getTeam() {
-        EntityLivingBase entitylivingbase = getOwner();
-        if (entitylivingbase != null) {
-            return entitylivingbase.getTeam();
+        LivingEntity owner = getOwner();
+        if (owner != null) {
+            return owner.getTeam();
         }
         return super.getTeam();
     }
     
-    public boolean isOnSameTeam(Entity otherEntity) {
-        EntityLivingBase owner = getOwner();
-        if (otherEntity == owner) {
+    @Override
+    public boolean isAlliedTo(Entity other) {
+        LivingEntity owner = getOwner();
+        if (other == owner) {
             return true;
         }
         if (owner != null) {
-            return owner.isOnSameTeam(otherEntity) || otherEntity.isOnSameTeam(owner);
+            return owner.isAlliedTo(other) || other.isAlliedTo(owner);
         }
-        return super.isOnSameTeam(otherEntity);
+        return super.isAlliedTo(other);
     }
     
-    public void onUpdate() {
-        super.onUpdate();
-        if (!world.isRemote && (ticksExisted > 600 || getOwner() == null)) {
-            setDead();
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Dampen vertical movement (floaty flight)
+        setDeltaMovement(getDeltaMovement().multiply(1.0, 0.6, 1.0));
+        
+        // Despawn after timeout or if owner is gone
+        if (!level().isClientSide && (tickCount > 600 || getOwner() == null)) {
+            discard();
+            return;
         }
-        motionY *= 0.6000000238418579;
-        if (isEntityAlive() && world.isRemote) {
-            if (effects == null) {
-                effects = focusPackage.getFocusEffects();
-                int r = 0;
-                int g = 0;
-                int b = 0;
-                for (FocusEffect ef : effects) {
-                    Color c = new Color(FocusEngine.getElementColor(ef.getKey()));
-                    r += c.getRed();
-                    g += c.getGreen();
-                    b += c.getBlue();
-                }
-                r /= effects.length;
-                g /= effects.length;
-                b /= effects.length;
-                Color c2 = new Color(r, g, b);
-                color = c2.getRGB();
-            }
-            if (effects != null && effects.length > 0) {
-                FocusEffect eff = effects[rand.nextInt(effects.length)];
-                eff.renderParticleFX(world, posX + world.rand.nextGaussian() * 0.125, posY + height / 2.0f + world.rand.nextGaussian() * 0.125, posZ + world.rand.nextGaussian() * 0.125, 0.0, 0.0, 0.0);
-            }
+        
+        // Client-side particle effects
+        if (level().isClientSide && isAlive() && focusPackage != null) {
+            // TODO: Render focus effect particles
         }
     }
     
-    protected void updateAITasks() {
-        super.updateAITasks();
+    @Override
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        
         if (attackTime > 0) {
             --attackTime;
         }
-        BlockPos blockpos = new BlockPos(this);
-        BlockPos blockpos2 = blockpos.up();
-        if (getAttackTarget() == null) {
-            if (currentFlightTarget != null && (!world.isAirBlock(currentFlightTarget) || currentFlightTarget.getY() < 1)) {
+        
+        BlockPos currentPos = blockPosition();
+        
+        // Flight AI
+        if (getTarget() == null) {
+            // Wander around
+            if (currentFlightTarget != null && 
+                    (!level().isEmptyBlock(currentFlightTarget) || currentFlightTarget.getY() < 1)) {
                 currentFlightTarget = null;
             }
-            if (currentFlightTarget == null || rand.nextInt(30) == 0 || getDistanceSqToCenter(currentFlightTarget) < 4.0) {
-                currentFlightTarget = new BlockPos((int) posX + rand.nextInt(7) - rand.nextInt(7), (int) posY + rand.nextInt(6) - 2, (int) posZ + rand.nextInt(7) - rand.nextInt(7));
+            
+            if (currentFlightTarget == null || random.nextInt(30) == 0 || 
+                    currentPos.distSqr(currentFlightTarget) < 4.0) {
+                currentFlightTarget = new BlockPos(
+                        (int) getX() + random.nextInt(7) - random.nextInt(7),
+                        (int) getY() + random.nextInt(6) - 2,
+                        (int) getZ() + random.nextInt(7) - random.nextInt(7));
             }
-            double var1 = currentFlightTarget.getX() + 0.5 - posX;
-            double var2 = currentFlightTarget.getY() + 0.1 - posY;
-            double var3 = currentFlightTarget.getZ() + 0.5 - posZ;
-            motionX += (Math.signum(var1) * 0.5 - motionX) * 0.10000000149011612;
-            motionY += (Math.signum(var2) * 0.699999988079071 - motionY) * 0.10000000149011612;
-            motionZ += (Math.signum(var3) * 0.5 - motionZ) * 0.10000000149011612;
-            float var4 = (float)(Math.atan2(motionZ, motionX) * 180.0 / 3.141592653589793) - 90.0f;
-            float var5 = MathHelper.wrapDegrees(var4 - rotationYaw);
-            moveForward = 0.5f;
-            rotationYaw += var5;
+            
+            moveTowardsTarget(currentFlightTarget.getX() + 0.5, 
+                    currentFlightTarget.getY() + 0.1,
+                    currentFlightTarget.getZ() + 0.5);
+        } else {
+            // Move toward attack target
+            moveTowardsTarget(getTarget().getX(),
+                    getTarget().getY() + getTarget().getEyeHeight() * 0.66,
+                    getTarget().getZ());
         }
-        else {
-            double var1 = getAttackTarget().posX - posX;
-            double var2 = getAttackTarget().posY + getAttackTarget().getEyeHeight() * 0.66f - posY;
-            double var3 = getAttackTarget().posZ - posZ;
-            motionX += (Math.signum(var1) * 0.5 - motionX) * 0.10000000149011612;
-            motionY += (Math.signum(var2) * 0.699999988079071 - motionY) * 0.10000000149011612;
-            motionZ += (Math.signum(var3) * 0.5 - motionZ) * 0.10000000149011612;
-            float var4 = (float)(Math.atan2(motionZ, motionX) * 180.0 / 3.141592653589793) - 90.0f;
-            float var5 = MathHelper.wrapDegrees(var4 - rotationYaw);
-            moveForward = 0.5f;
-            rotationYaw += var5;
-        }
-        if (getAttackTarget() == null) {
-            setAttackTarget(findTargetToAttack());
-        }
-        else if (getAttackTarget().isEntityAlive()) {
-            float f = getAttackTarget().getDistance(this);
-            if (isEntityAlive() && canEntityBeSeen(getAttackTarget())) {
-                attackEntity(getAttackTarget(), f);
+        
+        // Find target if we don't have one
+        if (getTarget() == null) {
+            setTarget(findTargetToAttack());
+        } else if (getTarget().isAlive()) {
+            float dist = distanceTo(getTarget());
+            if (isAlive() && hasLineOfSight(getTarget())) {
+                attackEntity(getTarget(), dist);
             }
+        } else {
+            setTarget(null);
         }
-        else {
-            setAttackTarget(null);
+        
+        // Don't attack creative players
+        if (!isFriendly() && getTarget() instanceof Player player && player.getAbilities().invulnerable) {
+            setTarget(null);
         }
-        if (!getIsFriendly() && getAttackTarget() instanceof EntityPlayer && ((EntityPlayer) getAttackTarget()).capabilities.disableDamage) {
-            setAttackTarget(null);
-        }
     }
     
-    protected boolean canTriggerWalking() {
-        return false;
+    private void moveTowardsTarget(double x, double y, double z) {
+        double dx = x - getX();
+        double dy = y - getY();
+        double dz = z - getZ();
+        
+        Vec3 delta = getDeltaMovement();
+        setDeltaMovement(
+                delta.x + (Math.signum(dx) * 0.5 - delta.x) * 0.1,
+                delta.y + (Math.signum(dy) * 0.7 - delta.y) * 0.1,
+                delta.z + (Math.signum(dz) * 0.5 - delta.z) * 0.1
+        );
+        
+        float yaw = (float)(Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0f;
+        float yawDiff = Mth.wrapDegrees(yaw - getYRot());
+        zza = 0.5f;
+        setYRot(getYRot() + yawDiff);
     }
     
-    public void fall(float par1, float damageMultiplier) {
-    }
-    
-    protected void updateFallState(double p_180433_1_, boolean p_180433_3_, IBlockState state, BlockPos pos) {
-    }
-    
-    public boolean doesEntityNotTriggerPressurePlate() {
-        return true;
-    }
-    
-    public boolean attackEntityFrom(DamageSource par1DamageSource, float par2) {
-        return super.attackEntityFrom(par1DamageSource, par2);
-    }
-    
-    protected void attackEntity(Entity target, float par2) {
-        if (attackTime <= 0 && par2 < Math.max(2.5f, target.width * 1.1f) && target.getEntityBoundingBox().maxY > getEntityBoundingBox().minY && target.getEntityBoundingBox().minY < getEntityBoundingBox().maxY) {
+    protected void attackEntity(Entity target, float distance) {
+        if (attackTime <= 0 && distance < Math.max(2.5f, target.getBbWidth() * 1.1f) &&
+                target.getBoundingBox().maxY > getBoundingBox().minY &&
+                target.getBoundingBox().minY < getBoundingBox().maxY) {
+            
             attackTime = 40;
-            if (!world.isRemote) {
-                RayTraceResult ray = new RayTraceResult(target);
-                ray.hitVec = target.getPositionVector().addVector(0.0, target.height / 2.0f, 0.0);
-                Trajectory tra = new Trajectory(getPositionVector(), getPositionVector().subtractReverse(ray.hitVec));
-                FocusEngine.runFocusPackage(focusPackage.copy(getOwner()), new Trajectory[] { tra }, new RayTraceResult[] { ray });
+            
+            if (!level().isClientSide) {
+                // Execute focus package on target
+                // TODO: Integrate with FocusEngine when fully implemented
+                // RayTraceResult ray = new RayTraceResult(target);
+                // Trajectory tra = new Trajectory(position(), ...);
+                // FocusEngine.runFocusPackage(focusPackage.copy(getOwner()), ...);
+                
+                // Self-damage for attacking
                 setHealth(getHealth() - 1.0f);
             }
-            playSound(SoundEvents.ENTITY_BAT_HURT, 0.5f, 0.9f + world.rand.nextFloat() * 0.2f);
+            
+            playSound(SoundEvents.BAT_HURT, 0.5f, 0.9f + random.nextFloat() * 0.2f);
         }
     }
     
-    protected void collideWithEntity(Entity entityIn) {
-        if (getIsFriendly()) {
-            return;
-        }
-        super.collideWithEntity(entityIn);
-    }
-    
-    protected EntityLivingBase findTargetToAttack() {
-        double var1 = 12.0;
-        List<EntityLivingBase> list = EntityUtils.getEntitiesInRange(world, posX, posY, posZ, this, EntityLivingBase.class, var1);
-        double d = Double.MAX_VALUE;
-        EntityLivingBase ret = null;
-        for (EntityLivingBase e : list) {
-            if (e.isDead) {
-                continue;
-            }
-            if (getIsFriendly()) {
-                if (!EntityUtils.isFriendly(getOwner(), e)) {
+    @Nullable
+    protected LivingEntity findTargetToAttack() {
+        double range = 12.0;
+        List<LivingEntity> entities = level().getEntitiesOfClass(LivingEntity.class,
+                getBoundingBox().inflate(range),
+                e -> e != this && e.isAlive() && !e.isSpectator());
+        
+        double closestDist = Double.MAX_VALUE;
+        LivingEntity closest = null;
+        
+        for (LivingEntity e : entities) {
+            // Skip based on friendly/hostile mode
+            if (isFriendly()) {
+                // Only target friendlies (to heal/buff)
+                if (!isAlliedTo(e) && e != getOwner()) {
+                    continue;
+                }
+            } else {
+                // Skip friendlies when hostile
+                if (isAlliedTo(e) || e == getOwner()) {
                     continue;
                 }
             }
-            else {
-                if (EntityUtils.isFriendly(getOwner(), e)) {
-                    continue;
-                }
-                if (isOnSameTeam(e)) {
-                    continue;
-                }
+            
+            double dist = distanceToSqr(e);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = e;
             }
-            double ed = getDistanceSq(e);
-            if (ed >= d) {
-                continue;
-            }
-            d = ed;
-            ret = e;
         }
-        return ret;
+        
+        return closest;
     }
     
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        ownerUniqueId = nbt.getUniqueId("OwnerUUID");
-        setIsFriendly(nbt.getBoolean("friendly"));
-        try {
-            (focusPackage = new FocusPackage()).deserialize(nbt.getCompoundTag("pack"));
+    @Override
+    protected void pushEntities() {
+        if (!isFriendly()) {
+            super.pushEntities();
         }
-        catch (Exception ex) {}
     }
     
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        if (ownerUniqueId != null) {
-            nbt.setUniqueId("OwnerUUID", ownerUniqueId);
-        }
-        nbt.setTag("pack", focusPackage.serialize());
-        nbt.setBoolean("friendly", getIsFriendly());
-    }
-    
-    public boolean getCanSpawnHere() {
-        int i = MathHelper.floor(posX);
-        int j = MathHelper.floor(getEntityBoundingBox().minY);
-        int k = MathHelper.floor(posZ);
-        BlockPos blockpos = new BlockPos(i, j, k);
-        int var4 = world.getLight(blockpos);
-        byte var5 = 7;
-        return var4 <= rand.nextInt(var5) && super.getCanSpawnHere();
-    }
-    
-    protected boolean canDropLoot() {
+    @Override
+    protected boolean shouldDespawnInPeaceful() {
         return false;
     }
     
-    protected boolean isValidLightLevel() {
-        return true;
+    @Override
+    public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
+        return false; // Flying - no fall damage
     }
     
-    static {
-        FRIENDLY = EntityDataManager.createKey(EntitySpellBat.class, DataSerializers.BOOLEAN);
+    @Override
+    protected void checkFallDamage(double y, boolean onGround, BlockState state, BlockPos pos) {
+        // Flying - no fall damage
+    }
+    
+    @Override
+    public boolean isIgnoringBlockTriggers() {
+        return true; // Don't trigger pressure plates
+    }
+    
+    @Override
+    protected boolean isAffectedByFluids() {
+        return false;
+    }
+    
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        if (ownerUUID != null) {
+            tag.putUUID("OwnerUUID", ownerUUID);
+        }
+        tag.putBoolean("friendly", isFriendly());
+        if (focusPackage != null) {
+            tag.put("pack", focusPackage.serialize());
+        }
+    }
+    
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.hasUUID("OwnerUUID")) {
+            ownerUUID = tag.getUUID("OwnerUUID");
+        }
+        setFriendly(tag.getBoolean("friendly"));
+        if (tag.contains("pack")) {
+            focusPackage = new FocusPackage();
+            try {
+                focusPackage.deserialize(tag.getCompound("pack"));
+            } catch (Exception ignored) {}
+        }
+    }
+    
+    @Override
+    public void writeSpawnData(FriendlyByteBuf buffer) {
+        if (focusPackage != null) {
+            CompoundTag tag = focusPackage.serialize();
+            buffer.writeNbt(tag);
+        } else {
+            buffer.writeNbt(new CompoundTag());
+        }
+    }
+    
+    @Override
+    public void readSpawnData(FriendlyByteBuf buffer) {
+        try {
+            CompoundTag tag = buffer.readNbt();
+            if (tag != null && !tag.isEmpty()) {
+                focusPackage = new FocusPackage();
+                focusPackage.deserialize(tag);
+            }
+        } catch (Exception ignored) {}
     }
 }

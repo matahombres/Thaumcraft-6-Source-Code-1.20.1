@@ -1,216 +1,280 @@
 package thaumcraft.common.tiles.essentia;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
 import thaumcraft.api.aspects.IAspectContainer;
 import thaumcraft.api.aspects.IEssentiaTransport;
 import thaumcraft.common.tiles.TileThaumcraft;
+import thaumcraft.init.ModBlockEntities;
 
+/**
+ * Alembic tile entity - distills essentia from crucible/smelter below.
+ * Stacks on top of furnaces/crucibles and collects specific aspects.
+ */
+public class TileAlembic extends TileThaumcraft implements IAspectContainer, IEssentiaTransport {
 
-public class TileAlembic extends TileThaumcraft implements IAspectContainer, IEssentiaTransport
-{
-    public Aspect aspect;
-    public Aspect aspectFilter;
-    public int amount;
-    public int maxAmount;
-    public int facing;
-    public boolean aboveFurnace;
-    EnumFacing fd;
+    public static final int MAX_AMOUNT = 128;
+
+    public Aspect aspect = null;
+    public Aspect aspectFilter = null;
+    public int amount = 0;
+    public int facing = Direction.DOWN.ordinal();
+    public boolean aboveFurnace = false;
     
-    public TileAlembic() {
-        aspectFilter = null;
-        amount = 0;
-        maxAmount = 128;
-        facing = EnumFacing.DOWN.ordinal();
-        aboveFurnace = false;
-        fd = null;
+    private Direction facingDir = null;
+
+    public TileAlembic(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
-    
+
+    public TileAlembic(BlockPos pos, BlockState state) {
+        this(ModBlockEntities.ALEMBIC.get(), pos, state);
+    }
+
+    // ==================== NBT ====================
+
     @Override
-    public AspectList getAspects() {
-        return (aspect != null) ? new AspectList().add(aspect, amount) : new AspectList();
-    }
-    
-    @Override
-    public void setAspects(AspectList aspects) {
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public AxisAlignedBB getRenderBoundingBox() {
-        return new AxisAlignedBB(getPos().getX() - 0.1, getPos().getY() - 0.1, getPos().getZ() - 0.1, getPos().getX() + 1.1, getPos().getY() + 1.1, getPos().getZ() + 1.1);
-    }
-    
-    @Override
-    public void readSyncNBT(NBTTagCompound nbttagcompound) {
-        facing = nbttagcompound.getByte("facing");
-        aspectFilter = Aspect.getAspect(nbttagcompound.getString("AspectFilter"));
-        String tag = nbttagcompound.getString("aspect");
-        if (tag != null) {
-            aspect = Aspect.getAspect(tag);
-        }
-        amount = nbttagcompound.getShort("amount");
-        fd = EnumFacing.VALUES[facing];
-    }
-    
-    @Override
-    public NBTTagCompound writeSyncNBT(NBTTagCompound nbttagcompound) {
+    protected void writeSyncNBT(CompoundTag tag) {
+        super.writeSyncNBT(tag);
         if (aspect != null) {
-            nbttagcompound.setString("aspect", aspect.getTag());
+            tag.putString("Aspect", aspect.getTag());
         }
         if (aspectFilter != null) {
-            nbttagcompound.setString("AspectFilter", aspectFilter.getTag());
+            tag.putString("AspectFilter", aspectFilter.getTag());
         }
-        nbttagcompound.setShort("amount", (short) amount);
-        nbttagcompound.setByte("facing", (byte) facing);
-        return nbttagcompound;
+        tag.putShort("Amount", (short) amount);
+        tag.putByte("Facing", (byte) facing);
     }
-    
+
     @Override
-    public int addToContainer(Aspect tt, int am) {
-        if (aspectFilter != null && tt != aspectFilter) {
-            return am;
+    protected void readSyncNBT(CompoundTag tag) {
+        super.readSyncNBT(tag);
+        aspect = Aspect.getAspect(tag.getString("Aspect"));
+        aspectFilter = Aspect.getAspect(tag.getString("AspectFilter"));
+        amount = tag.getShort("Amount");
+        facing = tag.getByte("Facing");
+        facingDir = Direction.values()[facing];
+    }
+
+    // ==================== IAspectContainer ====================
+
+    @Override
+    public AspectList getAspects() {
+        return (aspect != null && amount > 0) ? new AspectList().add(aspect, amount) : new AspectList();
+    }
+
+    @Override
+    public void setAspects(AspectList aspects) {
+        // Alembics don't allow direct setting
+    }
+
+    @Override
+    public int addToContainer(Aspect tag, int amt) {
+        if (aspectFilter != null && tag != aspectFilter) {
+            return amt;
         }
-        if ((amount < maxAmount && tt == aspect) || amount == 0) {
-            aspect = tt;
-            int added = Math.min(am, maxAmount - amount);
+        if ((amount < MAX_AMOUNT && tag == aspect) || amount == 0) {
+            aspect = tag;
+            int added = Math.min(amt, MAX_AMOUNT - amount);
             amount += added;
-            am -= added;
+            amt -= added;
         }
-        markDirty();
-        syncTile(false);
-        return am;
+        markDirtyAndSync();
+        return amt;
     }
-    
+
     @Override
-    public boolean takeFromContainer(Aspect tt, int am) {
+    public boolean takeFromContainer(Aspect tag, int amt) {
         if (amount == 0 || aspect == null) {
             aspect = null;
             amount = 0;
         }
-        if (aspect != null && amount >= am && tt == aspect) {
-            amount -= am;
+        if (aspect != null && amount >= amt && tag == aspect) {
+            amount -= amt;
             if (amount <= 0) {
                 aspect = null;
                 amount = 0;
             }
-            markDirty();
-            syncTile(false);
+            markDirtyAndSync();
             return true;
         }
         return false;
     }
-    
+
     @Override
-    public boolean doesContainerContain(AspectList ot) {
-        return amount > 0 && aspect != null && ot.getAmount(aspect) > 0;
+    public boolean takeFromContainer(AspectList list) {
+        return false;
     }
-    
+
     @Override
-    public boolean doesContainerContainAmount(Aspect tt, int am) {
-        return amount >= am && tt == aspect;
+    public boolean doesContainerContainAmount(Aspect tag, int amt) {
+        return amount >= amt && tag == aspect;
     }
-    
+
     @Override
-    public int containerContains(Aspect tt) {
-        return (tt == aspect) ? amount : 0;
+    public boolean doesContainerContain(AspectList list) {
+        return amount > 0 && aspect != null && list.getAmount(aspect) > 0;
     }
-    
+
+    @Override
+    public int containerContains(Aspect tag) {
+        return (tag == aspect) ? amount : 0;
+    }
+
     @Override
     public boolean doesContainerAccept(Aspect tag) {
-        return true;
+        return aspectFilter == null || tag == aspectFilter;
     }
-    
+
+    // ==================== IEssentiaTransport ====================
+
     @Override
-    public boolean takeFromContainer(AspectList ot) {
-        return false;
+    public boolean isConnectable(Direction face) {
+        return face != Direction.values()[facing] && face != Direction.DOWN;
     }
-    
+
     @Override
-    public boolean isConnectable(EnumFacing face) {
-        return face != EnumFacing.VALUES[facing] && face != EnumFacing.DOWN;
+    public boolean canInputFrom(Direction face) {
+        return false; // Alembics only receive from below (special handling)
     }
-    
+
     @Override
-    public boolean canInputFrom(EnumFacing face) {
-        return false;
+    public boolean canOutputTo(Direction face) {
+        return face != Direction.values()[facing] && face != Direction.DOWN;
     }
-    
-    @Override
-    public boolean canOutputTo(EnumFacing face) {
-        return face != EnumFacing.VALUES[facing] && face != EnumFacing.DOWN;
-    }
-    
+
     @Override
     public void setSuction(Aspect aspect, int amount) {
+        // Alembics don't have suction
     }
-    
+
     @Override
-    public Aspect getSuctionType(EnumFacing loc) {
+    public Aspect getSuctionType(Direction face) {
         return null;
     }
-    
+
     @Override
-    public int getSuctionAmount(EnumFacing loc) {
+    public int getSuctionAmount(Direction face) {
         return 0;
     }
-    
+
     @Override
-    public Aspect getEssentiaType(EnumFacing loc) {
+    public Aspect getEssentiaType(Direction face) {
         return aspect;
     }
-    
+
     @Override
-    public int getEssentiaAmount(EnumFacing loc) {
+    public int getEssentiaAmount(Direction face) {
         return amount;
     }
-    
+
     @Override
-    public int takeEssentia(Aspect aspect, int amount, EnumFacing face) {
+    public int takeEssentia(Aspect aspect, int amount, Direction face) {
         return (canOutputTo(face) && takeFromContainer(aspect, amount)) ? amount : 0;
     }
-    
+
     @Override
-    public int addEssentia(Aspect aspect, int amount, EnumFacing loc) {
-        return 0;
+    public int addEssentia(Aspect aspect, int amount, Direction face) {
+        return 0; // Alembics don't accept essentia through transport
     }
-    
+
     @Override
     public int getMinimumSuction() {
         return 0;
     }
-    
-    protected static boolean processAlembics(World world, BlockPos pos, Aspect aspect) {
+
+    // Uses default isBlocked() from interface
+
+    // ==================== Static Helpers ====================
+
+    /**
+     * Process alembics stacked above a position.
+     * Called by crucibles/smelters to push essentia up into alembics.
+     * 
+     * @param level The world
+     * @param pos Position of the source (crucible/smelter)
+     * @param aspect The aspect to try to add
+     * @return true if the aspect was successfully added to an alembic
+     */
+    public static boolean processAlembics(Level level, BlockPos pos, Aspect aspect) {
+        // First pass: find alembics that already have this aspect
         int deep = 1;
         while (true) {
-            TileEntity te = world.getTileEntity(pos.up(deep));
-            if (te != null && te instanceof TileAlembic) {
-                TileAlembic alembic = (TileAlembic)te;
+            BlockEntity be = level.getBlockEntity(pos.above(deep));
+            if (be instanceof TileAlembic alembic) {
                 if (alembic.amount > 0 && alembic.aspect == aspect && alembic.addToContainer(aspect, 1) == 0) {
                     return true;
                 }
-                ++deep;
-            }
-            else {
-                deep = 1;
-                while (true) {
-                    te = world.getTileEntity(pos.up(deep));
-                    if (te == null || !(te instanceof TileAlembic)) {
-                        return false;
-                    }
-                    TileAlembic alembic = (TileAlembic)te;
-                    if ((alembic.aspectFilter == null || alembic.aspectFilter == aspect) && alembic.addToContainer(aspect, 1) == 0) {
-                        return true;
-                    }
-                    ++deep;
-                }
+                deep++;
+            } else {
+                break;
             }
         }
+
+        // Second pass: find any alembic that can accept this aspect
+        deep = 1;
+        while (true) {
+            BlockEntity be = level.getBlockEntity(pos.above(deep));
+            if (be instanceof TileAlembic alembic) {
+                if ((alembic.aspectFilter == null || alembic.aspectFilter == aspect) && alembic.addToContainer(aspect, 1) == 0) {
+                    return true;
+                }
+                deep++;
+            } else {
+                break;
+            }
+        }
+
+        return false;
+    }
+
+    // ==================== Getters/Setters ====================
+
+    public Aspect getAspect() {
+        return aspect;
+    }
+
+    public int getAmount() {
+        return amount;
+    }
+
+    public Aspect getAspectFilter() {
+        return aspectFilter;
+    }
+
+    public void setAspectFilter(Aspect filter) {
+        this.aspectFilter = filter;
+        markDirtyAndSync();
+    }
+
+    public int getFacing() {
+        return facing;
+    }
+
+    public void setFacing(int facing) {
+        this.facing = facing;
+        this.facingDir = Direction.values()[facing];
+        markDirtyAndSync();
+    }
+
+    // ==================== Rendering ====================
+
+    /**
+     * Custom render bounding box for rendering.
+     * Note: In 1.20.1, this is accessed via TESR if needed.
+     */
+    public AABB getCustomRenderBoundingBox() {
+        return new AABB(
+                worldPosition.getX() - 0.1, worldPosition.getY() - 0.1, worldPosition.getZ() - 0.1,
+                worldPosition.getX() + 1.1, worldPosition.getY() + 1.1, worldPosition.getZ() + 1.1
+        );
     }
 }

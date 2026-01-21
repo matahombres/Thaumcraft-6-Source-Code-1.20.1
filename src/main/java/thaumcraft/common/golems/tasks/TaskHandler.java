@@ -1,153 +1,238 @@
 package thaumcraft.common.golems.tasks;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import net.minecraft.entity.Entity;
-import net.minecraft.world.World;
-import thaumcraft.api.golems.IGolemAPI;
+
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import thaumcraft.api.golems.seals.ISealEntity;
 import thaumcraft.api.golems.tasks.Task;
 import thaumcraft.common.golems.EntityThaumcraftGolem;
 import thaumcraft.common.golems.seals.SealHandler;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
-public class TaskHandler
-{
-    static int TASK_LIMIT = 10000;
-    public static ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Task>> tasks;
+/**
+ * TaskHandler - Manages per-dimension task queues for golems.
+ * Tasks are created by seals and claimed by golems to perform work.
+ * 
+ * Ported from 1.12.2. Key changes:
+ * - Dimension is now ResourceKey<Level> instead of int
+ * - Uses String dimension key for map storage
+ */
+public class TaskHandler {
     
-    public static void addTask(int dim, Task ticket) {
-        if (!TaskHandler.tasks.containsKey(dim)) {
-            TaskHandler.tasks.put(dim, new ConcurrentHashMap<Integer, Task>());
-        }
-        ConcurrentHashMap<Integer, Task> dc = TaskHandler.tasks.get(dim);
-        if (dc.size() > 10000) {
-            try {
-                Iterator<Task> i = dc.values().iterator();
-                if (i.hasNext()) {
-                    i.next();
-                    i.remove();
-                }
-            }
-            catch (Exception ex) {}
-        }
-        dc.put(ticket.getId(), ticket);
+    private static final int TASK_LIMIT = 10000;
+    
+    // Map of dimension -> (task ID -> task)
+    // Uses dimension path string as key since ResourceKey doesn't have stable hashCode for ConcurrentHashMap
+    public static ConcurrentHashMap<String, ConcurrentHashMap<Integer, Task>> tasks = new ConcurrentHashMap<>();
+    
+    /**
+     * Get the string key for a dimension
+     */
+    private static String getDimKey(ResourceKey<Level> dim) {
+        return dim.location().toString();
     }
     
-    public static Task getTask(int dim, int id) {
+    /**
+     * Add a task to the dimension's task queue
+     */
+    public static void addTask(ResourceKey<Level> dim, Task task) {
+        String dimKey = getDimKey(dim);
+        tasks.computeIfAbsent(dimKey, k -> new ConcurrentHashMap<>());
+        
+        ConcurrentHashMap<Integer, Task> dimTasks = tasks.get(dimKey);
+        
+        // Evict oldest task if over limit
+        if (dimTasks.size() > TASK_LIMIT) {
+            try {
+                Iterator<Task> iter = dimTasks.values().iterator();
+                if (iter.hasNext()) {
+                    iter.next();
+                    iter.remove();
+                }
+            } catch (Exception ignored) {}
+        }
+        
+        dimTasks.put(task.getId(), task);
+    }
+    
+    /**
+     * Get a specific task by ID
+     */
+    public static Task getTask(ResourceKey<Level> dim, int id) {
         return getTasks(dim).get(id);
     }
     
-    public static ConcurrentHashMap<Integer, Task> getTasks(int dim) {
-        if (!TaskHandler.tasks.containsKey(dim)) {
-            TaskHandler.tasks.put(dim, new ConcurrentHashMap<Integer, Task>());
-        }
-        return TaskHandler.tasks.get(dim);
+    /**
+     * Get all tasks for a dimension
+     */
+    public static ConcurrentHashMap<Integer, Task> getTasks(ResourceKey<Level> dim) {
+        String dimKey = getDimKey(dim);
+        return tasks.computeIfAbsent(dimKey, k -> new ConcurrentHashMap<>());
     }
     
-    public static ArrayList<Task> getBlockTasksSorted(int dim, UUID uuid, Entity golem) {
-        ConcurrentHashMap<Integer, Task> tickets = getTasks(dim);
-        ArrayList<Task> out = new ArrayList<Task>();
-    Label_0025:
-        for (Task ticket : tickets.values()) {
-            if (!ticket.isReserved()) {
-                if (ticket.getType() != 0) {
-                    continue;
-                }
-                if (uuid != null && ticket.getGolemUUID() != null && !uuid.equals(ticket.getGolemUUID())) {
-                    continue;
-                }
-                if (out.size() == 0) {
-                    out.add(ticket);
-                }
-                else {
-                    double d = ticket.getPos().distanceSqToCenter(golem.posX, golem.posY, golem.posZ);
-                    d -= ticket.getPriority() * 256;
-                    for (int a = 0; a < out.size(); ++a) {
-                        double d2 = out.get(a).getPos().distanceSqToCenter(golem.posX, golem.posY, golem.posZ);
-                        d2 -= out.get(a).getPriority() * 256;
-                        if (d < d2) {
-                            out.add(a, ticket);
-                            continue Label_0025;
-                        }
+    /**
+     * Get block-targeted tasks sorted by distance and priority.
+     * Tasks closer to the golem and with higher priority come first.
+     * 
+     * @param dim The dimension
+     * @param golemUUID Optional UUID filter - if not null, only tasks assigned to this golem or unassigned
+     * @param golem The golem entity (for distance calculation)
+     * @return Sorted list of available tasks
+     */
+    public static ArrayList<Task> getBlockTasksSorted(ResourceKey<Level> dim, UUID golemUUID, Entity golem) {
+        ConcurrentHashMap<Integer, Task> dimTasks = getTasks(dim);
+        ArrayList<Task> out = new ArrayList<>();
+        
+        taskLoop:
+        for (Task task : dimTasks.values()) {
+            // Skip reserved tasks
+            if (task.isReserved()) continue;
+            
+            // Only block tasks (type 0)
+            if (task.getType() != 0) continue;
+            
+            // Check golem UUID filter
+            if (golemUUID != null && task.getGolemUUID() != null && !golemUUID.equals(task.getGolemUUID())) {
+                continue;
+            }
+            
+            // Insert sorted by adjusted distance (distance - priority bonus)
+            if (out.isEmpty()) {
+                out.add(task);
+            } else {
+                double d = task.getPos().distToCenterSqr(golem.getX(), golem.getY(), golem.getZ());
+                d -= task.getPriority() * 256; // Priority bonus
+                
+                for (int i = 0; i < out.size(); i++) {
+                    double d2 = out.get(i).getPos().distToCenterSqr(golem.getX(), golem.getY(), golem.getZ());
+                    d2 -= out.get(i).getPriority() * 256;
+                    
+                    if (d < d2) {
+                        out.add(i, task);
+                        continue taskLoop;
                     }
-                    out.add(ticket);
                 }
+                out.add(task);
             }
         }
+        
         return out;
     }
     
-    public static ArrayList<Task> getEntityTasksSorted(int dim, UUID uuid, Entity golem) {
-        ConcurrentHashMap<Integer, Task> tickets = getTasks(dim);
-        ArrayList<Task> out = new ArrayList<Task>();
-    Label_0025:
-        for (Task ticket : tickets.values()) {
-            if (!ticket.isReserved()) {
-                if (ticket.getType() != 1) {
-                    continue;
-                }
-                if (uuid != null && ticket.getGolemUUID() != null && !uuid.equals(ticket.getGolemUUID())) {
-                    continue;
-                }
-                if (ticket.getEntity() == null || ticket.getEntity().isDead) {
-                    ticket.setSuspended(true);
-                }
-                else if (out.size() == 0) {
-                    out.add(ticket);
-                }
-                else {
-                    double d = ticket.getPos().distanceSqToCenter(golem.posX, golem.posY, golem.posZ);
-                    d -= ticket.getPriority() * 256;
-                    for (int a = 0; a < out.size(); ++a) {
-                        double d2 = out.get(a).getPos().distanceSqToCenter(golem.posX, golem.posY, golem.posZ);
-                        d2 -= out.get(a).getPriority() * 256;
-                        if (d < d2) {
-                            out.add(a, ticket);
-                            continue Label_0025;
-                        }
+    /**
+     * Get entity-targeted tasks sorted by distance and priority.
+     * Tasks targeting dead entities are automatically suspended.
+     * 
+     * @param dim The dimension
+     * @param golemUUID Optional UUID filter
+     * @param golem The golem entity
+     * @return Sorted list of available entity tasks
+     */
+    public static ArrayList<Task> getEntityTasksSorted(ResourceKey<Level> dim, UUID golemUUID, Entity golem) {
+        ConcurrentHashMap<Integer, Task> dimTasks = getTasks(dim);
+        ArrayList<Task> out = new ArrayList<>();
+        
+        taskLoop:
+        for (Task task : dimTasks.values()) {
+            // Skip reserved tasks
+            if (task.isReserved()) continue;
+            
+            // Only entity tasks (type 1)
+            if (task.getType() != 1) continue;
+            
+            // Check golem UUID filter
+            if (golemUUID != null && task.getGolemUUID() != null && !golemUUID.equals(task.getGolemUUID())) {
+                continue;
+            }
+            
+            // Check if target entity is still valid
+            if (task.getEntity() == null || !task.getEntity().isAlive()) {
+                task.setSuspended(true);
+                continue;
+            }
+            
+            // Insert sorted by adjusted distance
+            if (out.isEmpty()) {
+                out.add(task);
+            } else {
+                double d = task.getPos().distToCenterSqr(golem.getX(), golem.getY(), golem.getZ());
+                d -= task.getPriority() * 256;
+                
+                for (int i = 0; i < out.size(); i++) {
+                    double d2 = out.get(i).getPos().distToCenterSqr(golem.getX(), golem.getY(), golem.getZ());
+                    d2 -= out.get(i).getPriority() * 256;
+                    
+                    if (d < d2) {
+                        out.add(i, task);
+                        continue taskLoop;
                     }
-                    out.add(ticket);
                 }
+                out.add(task);
             }
         }
+        
         return out;
     }
     
+    /**
+     * Complete a task and notify the seal
+     */
     public static void completeTask(Task task, EntityThaumcraftGolem golem) {
         if (task.isCompleted() || task.isSuspended()) {
             return;
         }
-        ISealEntity se = SealHandler.getSealEntity(golem.world.provider.getDimension(), task.getSealPos());
-        if (se != null) {
-            task.setCompletion(se.getSeal().onTaskCompletion(golem.world, golem, task));
-        }
-        else {
+        
+        ISealEntity sealEntity = SealHandler.getSealEntity(golem.level().dimension(), task.getSealPos());
+        if (sealEntity != null) {
+            boolean completed = sealEntity.getSeal().onTaskCompletion(golem.level(), golem, task);
+            task.setCompletion(completed);
+        } else {
             task.setCompletion(true);
         }
     }
     
-    public static void clearSuspendedOrExpiredTasks(World world) {
-        ConcurrentHashMap<Integer, Task> tickets = getTasks(world.provider.getDimension());
-        ConcurrentHashMap<Integer, Task> temp = new ConcurrentHashMap<Integer, Task>();
-        for (Task ticket : tickets.values()) {
-            if (!ticket.isSuspended() && ticket.getLifespan() > 0L) {
-                ticket.setLifespan((short)(ticket.getLifespan() - 1L));
-                temp.put(ticket.getId(), ticket);
-            }
-            else {
-                ISealEntity sEnt = SealHandler.getSealEntity(world.provider.getDimension(), ticket.getSealPos());
-                if (sEnt == null) {
-                    continue;
+    /**
+     * Clear suspended or expired tasks from the world's dimension.
+     * Called periodically during world tick.
+     */
+    public static void clearSuspendedOrExpiredTasks(Level level) {
+        ResourceKey<Level> dim = level.dimension();
+        ConcurrentHashMap<Integer, Task> dimTasks = getTasks(dim);
+        ConcurrentHashMap<Integer, Task> remaining = new ConcurrentHashMap<>();
+        
+        for (Task task : dimTasks.values()) {
+            if (!task.isSuspended() && task.getLifespan() > 0) {
+                // Decrement lifespan
+                task.setLifespan((short) (task.getLifespan() - 1));
+                remaining.put(task.getId(), task);
+            } else {
+                // Notify seal of task suspension
+                ISealEntity sealEntity = SealHandler.getSealEntity(dim, task.getSealPos());
+                if (sealEntity != null) {
+                    sealEntity.getSeal().onTaskSuspension(level, task);
                 }
-                sEnt.getSeal().onTaskSuspension(world, ticket);
             }
         }
-        TaskHandler.tasks.put(world.provider.getDimension(), temp);
+        
+        // Replace task map with remaining tasks
+        tasks.put(getDimKey(dim), remaining);
     }
     
-    static {
-        TaskHandler.tasks = new ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Task>>();
+    /**
+     * Remove all tasks for a dimension (e.g., when unloading)
+     */
+    public static void clearDimension(ResourceKey<Level> dim) {
+        tasks.remove(getDimKey(dim));
+    }
+    
+    /**
+     * Remove a specific task
+     */
+    public static void removeTask(ResourceKey<Level> dim, int taskId) {
+        getTasks(dim).remove(taskId);
     }
 }

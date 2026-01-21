@@ -1,186 +1,136 @@
 package thaumcraft.common.blocks.devices;
-import net.minecraft.block.Block;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.item.EntityItem;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagInt;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumBlockRenderType;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import thaumcraft.common.blocks.BlockTCDevice;
-import thaumcraft.common.blocks.IBlockFacing;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.utils.BlockStateUtils;
-import thaumcraft.common.tiles.devices.TileMirror;
-import thaumcraft.common.tiles.devices.TileMirrorEssentia;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class BlockMirror extends BlockTCDevice implements IBlockFacing
-{
-    public BlockMirror(Class cls, String name) {
-        super(Material.IRON, cls, name);
-        setSoundType(SoundsTC.JAR);
-        setHardness(0.1f);
-        setHarvestLevel(null, 0);
-        IBlockState bs = blockState.getBaseState();
-        bs.withProperty((IProperty)IBlockFacing.FACING, (Comparable)EnumFacing.UP);
-        setDefaultState(bs);
+import javax.annotation.Nullable;
+
+/**
+ * Magic mirror for item teleportation.
+ * Links to another mirror to teleport items between locations.
+ * Can also teleport players when configured.
+ */
+public class BlockMirror extends Block implements EntityBlock {
+
+    public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+    public static final BooleanProperty LINKED = BooleanProperty.create("linked");
+
+    private static final VoxelShape SHAPE_NORTH = Block.box(2.0, 2.0, 0.0, 14.0, 14.0, 4.0);
+    private static final VoxelShape SHAPE_SOUTH = Block.box(2.0, 2.0, 12.0, 14.0, 14.0, 16.0);
+    private static final VoxelShape SHAPE_EAST = Block.box(12.0, 2.0, 2.0, 16.0, 14.0, 14.0);
+    private static final VoxelShape SHAPE_WEST = Block.box(0.0, 2.0, 2.0, 4.0, 14.0, 14.0);
+
+    public enum MirrorType {
+        ITEM,       // Teleports items only
+        PLAYER,     // Teleports players (essentia mirror)
+        HAND        // Hand mirror - portable
     }
-    
-    public SoundType getSoundType() {
-        return SoundsTC.JAR;
+
+    private final MirrorType mirrorType;
+
+    public BlockMirror(MirrorType type) {
+        super(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.METAL)
+                .strength(2.0f)
+                .sound(SoundType.GLASS)
+                .noOcclusion()
+                .lightLevel(state -> state.getValue(LINKED) ? 7 : 0));
+        this.mirrorType = type;
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(FACING, Direction.NORTH)
+                .setValue(LINKED, false));
     }
-    
-    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face) {
-        return BlockFaceShape.UNDEFINED;
+
+    public MirrorType getMirrorType() {
+        return mirrorType;
     }
-    
+
     @Override
-    public boolean canHarvestBlock(IBlockAccess world, BlockPos pos, EntityPlayer player) {
-        return true;
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING, LINKED);
     }
-    
-    public EnumBlockRenderType getRenderType(IBlockState state) {
-        return EnumBlockRenderType.INVISIBLE;
-    }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
-    }
-    
+
     @Override
-    public int damageDropped(IBlockState state) {
-        return 0;
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return this.defaultBlockState()
+                .setValue(FACING, context.getHorizontalDirection().getOpposite())
+                .setValue(LINKED, false);
     }
-    
+
     @Override
-    public IBlockState getStateForPlacement(World worldIn, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ, int meta, EntityLivingBase placer) {
-        IBlockState bs = getDefaultState();
-        bs = bs.withProperty((IProperty)IBlockFacing.FACING, (Comparable)facing);
-        return bs;
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return switch (state.getValue(FACING)) {
+            case NORTH -> SHAPE_NORTH;
+            case SOUTH -> SHAPE_SOUTH;
+            case EAST -> SHAPE_EAST;
+            case WEST -> SHAPE_WEST;
+            default -> SHAPE_NORTH;
+        };
     }
-    
+
     @Override
-    public void onBlockAdded(World worldIn, BlockPos pos, IBlockState state) {
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player,
+                                  InteractionHand hand, BlockHitResult hit) {
+        if (level.isClientSide) {
+            return InteractionResult.SUCCESS;
+        }
+
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        // TODO: Handle mirror linking and configuration when TileMirror is implemented
+        // - Right-click with hand mirror to link
+        // - Shift-right-click to clear link
+        // - Configure teleportation settings
+
+        return InteractionResult.CONSUME;
     }
-    
+
+    @Nullable
     @Override
-    public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos pos2) {
-        EnumFacing d = BlockStateUtils.getFacing(state);
-        if (!worldIn.getBlockState(pos.offset(d.getOpposite())).isSideSolid(worldIn, pos.offset(d.getOpposite()), d)) {
-            dropBlockAsItem(worldIn, pos, getDefaultState(), 0);
-            worldIn.setBlockToAir(pos);
-        }
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        // TODO: Return TileMirror when implemented
+        return null;
     }
-    
-    public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos) {
-        EnumFacing facing = BlockStateUtils.getFacing(state);
-        switch (facing.ordinal()) {
-            default: {
-                return new AxisAlignedBB(0.0, 0.875, 0.0, 1.0, 1.0, 1.0);
-            }
-            case 1: {
-                return new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 0.125, 1.0);
-            }
-            case 2: {
-                return new AxisAlignedBB(0.0, 0.0, 0.875, 1.0, 1.0, 1.0);
-            }
-            case 3: {
-                return new AxisAlignedBB(0.0, 0.0, 0.0, 1.0, 1.0, 0.125);
-            }
-            case 4: {
-                return new AxisAlignedBB(0.875, 0.0, 0.0, 1.0, 1.0, 1.0);
-            }
-            case 5: {
-                return new AxisAlignedBB(0.0, 0.0, 0.0, 0.125, 1.0, 1.0);
-            }
-        }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        // TODO: Return ticker when TileMirror is implemented
+        return null;
     }
-    
-    public boolean canPlaceBlockOnSide(World worldIn, BlockPos pos, EnumFacing side) {
-        return worldIn.getBlockState(pos.offset(side.getOpposite())).isSideSolid(worldIn, pos.offset(side.getOpposite()), side);
+
+    /**
+     * Create an item mirror (teleports items).
+     */
+    public static BlockMirror createItem() {
+        return new BlockMirror(MirrorType.ITEM);
     }
-    
-    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ) {
-        return !world.isRemote || true;
-    }
-    
-    public void dropBlockAsItemWithChance(World worldIn, BlockPos pos, IBlockState state, float chance, int fortune) {
-        TileEntity te = worldIn.getTileEntity(pos);
-        if (te instanceof TileMirror || te instanceof TileMirrorEssentia) {
-            dropMirror(worldIn, pos, state, te);
-        }
-        else {
-            super.dropBlockAsItemWithChance(worldIn, pos, state, chance, fortune);
-        }
-    }
-    
-    public void harvestBlock(World worldIn, EntityPlayer player, BlockPos pos, IBlockState state, TileEntity te, ItemStack stack) {
-        if (te instanceof TileMirror || te instanceof TileMirrorEssentia) {
-            dropMirror(worldIn, pos, state, te);
-        }
-        else {
-            super.harvestBlock(worldIn, player, pos, state, null, stack);
-        }
-    }
-    
-    public void dropMirror(World world, BlockPos pos, IBlockState state, TileEntity te) {
-        if (tileClass == TileMirror.class) {
-            TileMirror tm = (TileMirror)te;
-            ItemStack drop = new ItemStack(this, 1, 0);
-            if (tm != null && tm instanceof TileMirror) {
-                if (tm.linked) {
-                    drop.setItemDamage(1);
-                    drop.setTagInfo("linkX", new NBTTagInt(tm.linkX));
-                    drop.setTagInfo("linkY", new NBTTagInt(tm.linkY));
-                    drop.setTagInfo("linkZ", new NBTTagInt(tm.linkZ));
-                    drop.setTagInfo("linkDim", new NBTTagInt(tm.linkDim));
-                    tm.invalidateLink();
-                }
-                spawnAsEntity(world, pos, drop);
-            }
-        }
-        else {
-            TileMirrorEssentia tm2 = (TileMirrorEssentia)te;
-            ItemStack drop = new ItemStack(this, 1, 0);
-            if (tm2 != null && tm2 instanceof TileMirrorEssentia) {
-                if (tm2.linked) {
-                    drop.setItemDamage(1);
-                    drop.setTagInfo("linkX", new NBTTagInt(tm2.linkX));
-                    drop.setTagInfo("linkY", new NBTTagInt(tm2.linkY));
-                    drop.setTagInfo("linkZ", new NBTTagInt(tm2.linkZ));
-                    drop.setTagInfo("linkDim", new NBTTagInt(tm2.linkDim));
-                    tm2.invalidateLink();
-                }
-                spawnAsEntity(world, pos, drop);
-            }
-        }
-    }
-    
-    public void onEntityCollidedWithBlock(World world, BlockPos pos, IBlockState state, Entity entity) {
-        if (!world.isRemote && tileClass == TileMirror.class && entity instanceof EntityItem && !entity.isDead && entity.timeUntilPortal == 0) {
-            TileMirror taf = (TileMirror)world.getTileEntity(pos);
-            if (taf != null) {
-                taf.transport((EntityItem)entity);
-            }
-        }
-        super.onEntityCollidedWithBlock(world, pos, state, entity);
+
+    /**
+     * Create a player mirror (essentia mirror - teleports players).
+     */
+    public static BlockMirror createPlayer() {
+        return new BlockMirror(MirrorType.PLAYER);
     }
 }

@@ -1,9 +1,8 @@
 package thaumcraft.api.golems.seals;
 
-
 /**
- * This class identifies this seal as using the default area configuration options.
+ * Marker interface indicating this seal uses the default area configuration options.
+ * Seals implementing this will show area controls in the GUI.
  */
 public interface ISealConfigArea {
-	
 }

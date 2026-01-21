@@ -1,259 +1,283 @@
 package thaumcraft.common.entities.monster.tainted;
-import java.util.ArrayList;
-import net.minecraft.client.particle.Particle;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.monster.EntityMob;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
-import net.minecraft.item.Item;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.entities.ITaintedMob;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.client.fx.particles.FXSwarm;
-import thaumcraft.common.blocks.world.taint.TaintHelper;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.lib.SoundsTC;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import thaumcraft.init.ModEntities;
 
-public class EntityTaintSwarm extends EntityMob implements ITaintedMob
-{
+/**
+ * EntityTaintSwarm - A flying swarm of tainted insects.
+ * Floats around and attacks players, applying weakness on hit.
+ * Can be summoned by other entities (in which case it takes damage when no target).
+ */
+public class EntityTaintSwarm extends Monster {
+    
+    private static final EntityDataAccessor<Boolean> DATA_SUMMONED = 
+            SynchedEntityData.defineId(EntityTaintSwarm.class, EntityDataSerializers.BOOLEAN);
+    
     private BlockPos currentFlightTarget;
-    private static DataParameter<Boolean> SUMMONED;
-    public int damBonus;
-    public ArrayList<FXSwarm> swarm;
-    private int attackTime;
+    public int damBonus = 0;
+    private int attackTime = 0;
     
-    public EntityTaintSwarm(World par1World) {
-        super(par1World);
-        damBonus = 0;
-        swarm = new ArrayList();
-        setSize(2.0f, 2.0f);
+    public EntityTaintSwarm(EntityType<? extends EntityTaintSwarm> type, Level level) {
+        super(type, level);
     }
     
-    public boolean canAttackClass(Class clazz) {
-        return !ITaintedMob.class.isAssignableFrom(clazz);
+    public EntityTaintSwarm(Level level) {
+        super(ModEntities.TAINT_SWARM.get(), level);
     }
     
-    public boolean isOnSameTeam(Entity otherEntity) {
-        return otherEntity instanceof ITaintedMob || super.isOnSameTeam(otherEntity);
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_SUMMONED, false);
     }
     
-    protected void entityInit() {
-        super.entityInit();
-        getDataManager().register(EntityTaintSwarm.SUMMONED, false);
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 30.0)
+                .add(Attributes.ATTACK_DAMAGE, 2.0)
+                .add(Attributes.FLYING_SPEED, 0.5)
+                .add(Attributes.MOVEMENT_SPEED, 0.25);
     }
     
-    @SideOnly(Side.CLIENT)
-    public int getBrightnessForRender() {
-        return 15728880;
+    public boolean isSummoned() {
+        return this.entityData.get(DATA_SUMMONED);
     }
     
-    protected boolean canDespawn() {
-        return true;
+    public void setSummoned(boolean summoned) {
+        this.entityData.set(DATA_SUMMONED, summoned);
     }
     
-    public float getBrightness() {
-        return 1.0f;
+    /**
+     * Check if entity is a tainted mob.
+     */
+    public boolean isTaintedMob(Entity entity) {
+        return entity instanceof EntityTaintCrawler || 
+               entity instanceof EntityTaintSwarm ||
+               entity instanceof EntityTaintacle;
     }
     
+    @Override
+    public boolean canAttack(LivingEntity target) {
+        if (isTaintedMob(target)) {
+            return false;
+        }
+        return super.canAttack(target);
+    }
+    
+    @Override
+    public boolean isAlliedTo(Entity other) {
+        if (isTaintedMob(other)) {
+            return true;
+        }
+        return super.isAlliedTo(other);
+    }
+    
+    @Override
+    public float getLightLevelDependentMagicValue() {
+        return 1.0f; // Always fully bright
+    }
+    
+    @Override
     protected float getSoundVolume() {
         return 0.1f;
     }
     
+    @Override
     protected SoundEvent getAmbientSound() {
-        return SoundsTC.swarm;
+        // TODO: Return SoundsTC.swarm when implemented
+        return SoundEvents.BEEHIVE_WORK;
     }
     
-    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-        return SoundsTC.swarmattack;
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        // TODO: Return SoundsTC.swarmattack when implemented
+        return SoundEvents.BEEHIVE_DRIP;
     }
     
+    @Override
     protected SoundEvent getDeathSound() {
-        return SoundsTC.swarmattack;
+        return SoundEvents.BEEHIVE_DRIP;
     }
     
-    public boolean canBePushed() {
+    @Override
+    public boolean isPushable() {
         return false;
     }
     
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(30.0);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(2 + damBonus);
-    }
-    
-    public boolean getIsSummoned() {
-        return (boolean) getDataManager().get((DataParameter)EntityTaintSwarm.SUMMONED);
-    }
-    
-    public void setIsSummoned(boolean par1) {
-        getDataManager().set(EntityTaintSwarm.SUMMONED, par1);
-    }
-    
-    public void onUpdate() {
-        super.onUpdate();
-        motionY *= 0.6000000238418579;
-        if (world.isRemote) {
-            for (int a = 0; a < swarm.size(); ++a) {
-                if (swarm.get(a) == null || !swarm.get(a).isAlive()) {
-                    swarm.remove(a);
-                    break;
-                }
-            }
-            if (swarm.size() < 30) {
-                swarm.add(FXDispatcher.INSTANCE.swarmParticleFX(this, 0.22f, 15.0f, 0.08f));
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Reduce vertical momentum
+        Vec3 motion = getDeltaMovement();
+        setDeltaMovement(motion.x, motion.y * 0.6, motion.z);
+        
+        // Client-side swarm particles
+        if (level().isClientSide) {
+            for (int i = 0; i < 3; i++) {
+                double offsetX = (random.nextDouble() - 0.5) * getBbWidth() * 2;
+                double offsetY = random.nextDouble() * getBbHeight();
+                double offsetZ = (random.nextDouble() - 0.5) * getBbWidth() * 2;
+                
+                level().addParticle(ParticleTypes.SMOKE,
+                        getX() + offsetX, getY() + offsetY, getZ() + offsetZ,
+                        (random.nextDouble() - 0.5) * 0.05,
+                        random.nextDouble() * 0.02,
+                        (random.nextDouble() - 0.5) * 0.05);
             }
         }
     }
     
-    public void onLivingUpdate() {
-        super.onLivingUpdate();
+    @Override
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        
         if (attackTime > 0) {
-            --attackTime;
+            attackTime--;
         }
-        if (getAttackTarget() == null) {
-            if (getIsSummoned()) {
-                attackEntityFrom(DamageSource.GENERIC, 5.0f);
+        
+        LivingEntity target = getTarget();
+        
+        if (target == null) {
+            // Summoned swarms take damage when they have no target
+            if (isSummoned()) {
+                hurt(damageSources().generic(), 5.0f);
             }
-            if (currentFlightTarget != null && (!world.isAirBlock(currentFlightTarget) || currentFlightTarget.getY() < 1 || currentFlightTarget.getY() > world.getPrecipitationHeight(currentFlightTarget).up(2).getY() || !TaintHelper.isNearTaintSeed(world, currentFlightTarget))) {
+            
+            // Wander around
+            if (currentFlightTarget != null && 
+                    (!level().isEmptyBlock(currentFlightTarget) || 
+                     currentFlightTarget.getY() < 1 ||
+                     currentFlightTarget.getY() > level().getHeightmapPos(
+                             net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING,
+                             currentFlightTarget).above(2).getY())) {
                 currentFlightTarget = null;
             }
-            if (currentFlightTarget == null || rand.nextInt(30) == 0 || getDistanceSqToCenter(currentFlightTarget) < 4.0) {
-                currentFlightTarget = new BlockPos((int) posX + rand.nextInt(7) - rand.nextInt(7), (int) posY + rand.nextInt(6) - 2, (int) posZ + rand.nextInt(7) - rand.nextInt(7));
+            
+            if (currentFlightTarget == null || random.nextInt(30) == 0 || 
+                    currentFlightTarget.distSqr(blockPosition()) < 4.0) {
+                currentFlightTarget = new BlockPos(
+                        (int)getX() + random.nextInt(7) - random.nextInt(7),
+                        (int)getY() + random.nextInt(6) - 2,
+                        (int)getZ() + random.nextInt(7) - random.nextInt(7));
             }
-            double var1 = currentFlightTarget.getX() + 0.5 - posX;
-            double var2 = currentFlightTarget.getY() + 0.1 - posY;
-            double var3 = currentFlightTarget.getZ() + 0.5 - posZ;
-            motionX += (Math.signum(var1) * 0.5 - motionX) * 0.015000000014901161;
-            motionY += (Math.signum(var2) * 0.699999988079071 - motionY) * 0.10000000149011612;
-            motionZ += (Math.signum(var3) * 0.5 - motionZ) * 0.015000000014901161;
-            float var4 = (float)(Math.atan2(motionZ, motionX) * 180.0 / 3.141592653589793) - 90.0f;
-            float var5 = MathHelper.wrapDegrees(var4 - rotationYaw);
-            moveForward = 0.1f;
-            rotationYaw += var5;
-        }
-        else if (getAttackTarget() != null) {
-            double var1 = getAttackTarget().posX - posX;
-            double var2 = getAttackTarget().posY + getAttackTarget().getEyeHeight() - posY;
-            double var3 = getAttackTarget().posZ - posZ;
-            motionX += (Math.signum(var1) * 0.5 - motionX) * 0.025000000149011613;
-            motionY += (Math.signum(var2) * 0.699999988079071 - motionY) * 0.10000000149011612;
-            motionZ += (Math.signum(var3) * 0.5 - motionZ) * 0.02500000001490116;
-            float var4 = (float)(Math.atan2(motionZ, motionX) * 180.0 / 3.141592653589793) - 90.0f;
-            float var5 = MathHelper.wrapDegrees(var4 - rotationYaw);
-            moveForward = 0.1f;
-            rotationYaw += var5;
-        }
-        if (getAttackTarget() == null) {
-            setAttackTarget((EntityLivingBase) findPlayerToAttack());
-        }
-        else if (isEntityAlive() && getAttackTarget().isEntityAlive()) {
-            float f = getAttackTarget().getDistance(this);
-            if (canEntityBeSeen(getAttackTarget())) {
-                attackEntity(getAttackTarget(), f);
+            
+            flyToward(currentFlightTarget.getX() + 0.5, currentFlightTarget.getY() + 0.1, 
+                    currentFlightTarget.getZ() + 0.5, 0.015, 0.1);
+            
+            // Look for targets
+            if (!isSummoned()) {
+                Player nearestPlayer = level().getNearestPlayer(this, 8.0);
+                if (nearestPlayer != null && !nearestPlayer.getAbilities().invulnerable) {
+                    setTarget(nearestPlayer);
+                }
+            }
+        } else {
+            // Chase target
+            flyToward(target.getX(), target.getEyeY(), target.getZ(), 0.025, 0.1);
+            
+            // Attack if close enough
+            if (target.isAlive() && hasLineOfSight(target)) {
+                float dist = distanceTo(target);
+                if (attackTime <= 0 && dist < 3.0f && 
+                        target.getBoundingBox().maxY > getBoundingBox().minY &&
+                        target.getBoundingBox().minY < getBoundingBox().maxY) {
+                    
+                    if (isSummoned()) {
+                        target.invulnerableTime = 0; // Reset invulnerability for summoned swarms
+                    }
+                    
+                    attackTime = 15 + random.nextInt(10);
+                    
+                    // Preserve target's momentum (swarm doesn't knock back)
+                    Vec3 targetMotion = target.getDeltaMovement();
+                    
+                    if (doHurtTarget(target)) {
+                        // Apply weakness (target is already LivingEntity from getTarget())
+                        target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 100, 0));
+                    }
+                    
+                    // Restore momentum
+                    target.setDeltaMovement(targetMotion);
+                    target.hurtMarked = false;
+                    
+                    // TODO: Play SoundsTC.swarmattack when implemented
+                    playSound(SoundEvents.BEEHIVE_DRIP, 0.3f, 0.9f + random.nextFloat() * 0.2f);
+                }
+            } else if (!target.isAlive()) {
+                setTarget(null);
+            }
+            
+            // Clear target if in creative
+            if (target instanceof Player player && player.getAbilities().invulnerable) {
+                setTarget(null);
             }
         }
-        else {
-            setAttackTarget(null);
-        }
-        if (getAttackTarget() instanceof EntityPlayer && ((EntityPlayer) getAttackTarget()).capabilities.disableDamage) {
-            setAttackTarget(null);
-        }
     }
     
-    protected void updateAITasks() {
-        super.updateAITasks();
+    private void flyToward(double x, double y, double z, double horizAccel, double vertAccel) {
+        double dx = x - getX();
+        double dy = y - getY();
+        double dz = z - getZ();
+        
+        Vec3 motion = getDeltaMovement();
+        setDeltaMovement(
+                motion.x + (Math.signum(dx) * 0.5 - motion.x) * horizAccel,
+                motion.y + (Math.signum(dy) * 0.7 - motion.y) * vertAccel,
+                motion.z + (Math.signum(dz) * 0.5 - motion.z) * horizAccel);
+        
+        float yaw = (float)(Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0f;
+        float yawDiff = Mth.wrapDegrees(yaw - getYRot());
+        zza = 0.1f;
+        setYRot(getYRot() + yawDiff);
     }
     
-    protected boolean canTriggerWalking() {
-        return false;
+    @Override
+    public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
+        return false; // Flying mob
     }
     
-    public void fall(float distance, float damageMultiplier) {
-    }
-    
-    public boolean doesEntityNotTriggerPressurePlate() {
-        return true;
-    }
-    
-    public boolean attackEntityFrom(DamageSource par1DamageSource, float par2) {
-        return !isEntityInvulnerable(par1DamageSource) && super.attackEntityFrom(par1DamageSource, par2);
-    }
-    
-    protected void attackEntity(Entity par1Entity, float par2) {
-        if (attackTime <= 0 && par2 < 3.0f && par1Entity.getEntityBoundingBox().maxY > getEntityBoundingBox().minY && par1Entity.getEntityBoundingBox().minY < getEntityBoundingBox().maxY) {
-            if (getIsSummoned()) {
-                ((EntityLivingBase)par1Entity).recentlyHit = 100;
-            }
-            attackTime = 15 + rand.nextInt(10);
-            double mx = par1Entity.motionX;
-            double my = par1Entity.motionY;
-            double mz = par1Entity.motionZ;
-            if (attackEntityAsMob(par1Entity) && !world.isRemote && par1Entity instanceof EntityLivingBase) {
-                ((EntityLivingBase)par1Entity).addPotionEffect(new PotionEffect(MobEffects.WEAKNESS, 100, 0));
-            }
-            par1Entity.isAirBorne = false;
-            par1Entity.motionX = mx;
-            par1Entity.motionY = my;
-            par1Entity.motionZ = mz;
-            playSound(SoundsTC.swarmattack, 0.3f, 0.9f + world.rand.nextFloat() * 0.2f);
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
+        super.dropCustomDeathLoot(source, lootingLevel, wasRecentlyHit);
+        
+        // 50% chance to drop flux crystal
+        if (random.nextBoolean()) {
+            // TODO: Drop ConfigItems.FLUX_CRYSTAL when implemented
         }
     }
     
-    protected Entity findPlayerToAttack() {
-        double var1 = 8.0;
-        return getIsSummoned() ? null : world.getClosestPlayerToEntity(this, var1);
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("Summoned", isSummoned());
+        tag.putByte("DamBonus", (byte)damBonus);
     }
     
-    public void readEntityFromNBT(NBTTagCompound par1NBTTagCompound) {
-        super.readEntityFromNBT(par1NBTTagCompound);
-        setIsSummoned(par1NBTTagCompound.getBoolean("summoned"));
-        damBonus = par1NBTTagCompound.getByte("damBonus");
-    }
-    
-    public void writeEntityToNBT(NBTTagCompound par1NBTTagCompound) {
-        super.writeEntityToNBT(par1NBTTagCompound);
-        par1NBTTagCompound.setBoolean("summoned", getIsSummoned());
-        par1NBTTagCompound.setByte("damBonus", (byte) damBonus);
-    }
-    
-    public boolean getCanSpawnHere() {
-        int var1 = MathHelper.floor(getEntityBoundingBox().minY);
-        int var2 = MathHelper.floor(posX);
-        int var3 = MathHelper.floor(posZ);
-        int var4 = world.getLight(new BlockPos(var2, var1, var3));
-        byte var5 = 7;
-        return var4 <= rand.nextInt(var5) && super.getCanSpawnHere();
-    }
-    
-    protected boolean isValidLightLevel() {
-        return true;
-    }
-    
-    protected Item getDropItem() {
-        return Item.getItemById(0);
-    }
-    
-    protected void dropFewItems(boolean flag, int i) {
-        if (world.rand.nextBoolean()) {
-            entityDropItem(ConfigItems.FLUX_CRYSTAL.copy(), height / 2.0f);
-        }
-    }
-    
-    static {
-        SUMMONED = EntityDataManager.createKey(EntityTaintSwarm.class, DataSerializers.BOOLEAN);
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setSummoned(tag.getBoolean("Summoned"));
+        damBonus = tag.getByte("DamBonus");
     }
 }

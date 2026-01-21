@@ -1,183 +1,158 @@
 package thaumcraft.api.aspects;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Random;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityList;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import thaumcraft.api.ThaumcraftApi.EntityTagsNBT;
-import thaumcraft.api.ThaumcraftApi;
-import thaumcraft.api.ThaumcraftApiHelper;
-import thaumcraft.api.internal.CommonInternals;
 
+import java.util.HashMap;
+import java.util.Map;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 
-
+/**
+ * AspectHelper - Utility class for working with aspects.
+ * Handles aspect lookups for items, blocks, and entities.
+ * 
+ * @author Azanor
+ * Ported to 1.20.1
+ */
 public class AspectHelper {
-	
-	public static AspectList cullTags(AspectList temp) {
-		return cullTags(temp,7);
-	}
-
-	public static AspectList cullTags(AspectList temp, int cap) {
-		AspectList temp2 = new AspectList();
-		for (Aspect tag:temp.getAspects()) {
-			if (tag!=null)
-				temp2.add(tag, temp.getAmount(tag));
-		}
-		while (temp2!=null && temp2.size()>cap) {
-			Aspect lowest = null;
-			float low = Short.MAX_VALUE;
-			for (Aspect tag:temp2.getAspects()) {
-				if (tag==null) continue;
-				float ta=temp2.getAmount(tag);
-				if (tag.isPrimal()) {
-					ta *= .9f;
-				} else {
-					if (!tag.getComponents()[0].isPrimal()) {
-						ta *= 1.1f;
-						if (!tag.getComponents()[0].getComponents()[0].isPrimal()) {
-							ta *= 1.05f;
-						}
-						if (!tag.getComponents()[0].getComponents()[1].isPrimal()) {
-							ta *= 1.05f;
-						}
-					}
-					if (!tag.getComponents()[1].isPrimal()) {
-						ta *= 1.1f;
-						if (!tag.getComponents()[1].getComponents()[0].isPrimal()) {
-							ta *= 1.05f;
-						}
-						if (!tag.getComponents()[1].getComponents()[1].isPrimal()) {
-							ta *= 1.05f;
-						}
-					}
-				}
-				
-				if (ta<low) {
-					low = ta;					 
-					lowest = tag;
-				}
-			}
-			temp2.aspects.remove(lowest);
-		}
-		return temp2; 
-	}
-
-	public static AspectList getObjectAspects(ItemStack is) {
-		return ThaumcraftApi.internalMethods.getObjectAspects(is);
-	}
-
-	public static AspectList generateTags(ItemStack is) {
-		return ThaumcraftApi.internalMethods.generateTags(is);
-	}
-
-	public static AspectList getEntityAspects(Entity entity) { 		
-		AspectList tags = null;               
-		String entityString = EntityList.getEntityString(entity);
-	    if (entity instanceof EntityPlayer) {
-	    	tags = new AspectList();
-	    	tags.add(Aspect.MAN, 4);        	
-			Random rand = new Random(entity.getName().hashCode());
-	    	Aspect[] posa = Aspect.aspects.values().toArray(new Aspect[]{});
-			tags.add(posa[rand.nextInt(posa.length)], 15);
-	    	tags.add(posa[rand.nextInt(posa.length)], 15);
-	    	tags.add(posa[rand.nextInt(posa.length)], 15);
-	    } else {
-	        f1:
-			for (ThaumcraftApi.EntityTags et:CommonInternals.scanEntities) {
-				if (!et.entityName.equals(entityString)) continue;
-				if (et.nbts==null || et.nbts.length==0) {
-					tags = et.aspects;
-				} else {
-					NBTTagCompound tc = new NBTTagCompound();
-					entity.writeToNBT(tc);
-					for (EntityTagsNBT nbt:et.nbts) {
-						if (tc.hasKey(nbt.name)) {
-							if (!ThaumcraftApiHelper.getNBTDataFromId(tc, tc.getTagId(nbt.name), nbt.name).equals(nbt.value)) continue f1; 
-						} else {
-							continue f1;
-						}
-					}
-					tags = et.aspects;
-				}
-			}
-	    }           	
-		return tags;
-	}
-
-	public static Aspect getCombinationResult(Aspect aspect1, Aspect aspect2) {
-		Collection<Aspect> aspects = Aspect.aspects.values();
-		for (Aspect aspect:aspects) {
-			if (aspect.getComponents()!=null && (
-				(aspect.getComponents()[0]==aspect1 && aspect.getComponents()[1]==aspect2) ||
-				(aspect.getComponents()[0]==aspect2 && aspect.getComponents()[1]==aspect1))) {
-				
-				return aspect;
-			}
-		}
-		return null;
-	}
-
-	public static Aspect getRandomPrimal(Random rand, Aspect aspect) {
-		ArrayList<Aspect> list = new ArrayList<Aspect>();
-		if (aspect!=null) {			
-			AspectList temp = new AspectList();
-			temp.add(aspect, 1);
-			AspectList temp2 = AspectHelper.reduceToPrimals(temp);
-			for (Aspect a:temp2.getAspects()) {
-				for (int b=0;b<temp2.getAmount(a);b++) {
-					list.add(a);
-				}
-			}
-		}
-		
-		return list.size()>0?list.get(rand.nextInt(list.size())):null;
-	}
-
-	public static AspectList reduceToPrimals(AspectList in) {
-		AspectList out = new AspectList();
-		for (Aspect aspect:in.getAspects()) {
-			if (aspect!=null) {
-				if (aspect.isPrimal()) {
-					out.add(aspect, in.getAmount(aspect));
-				} else {
-					AspectList temp = new AspectList();
-					temp.add(aspect.getComponents()[0],in.getAmount(aspect));
-					temp.add(aspect.getComponents()[1],in.getAmount(aspect));
-					AspectList temp2 = reduceToPrimals(temp);
-					
-					for (Aspect a:temp2.getAspects()) {
-						out.add(a, temp2.getAmount(a));
-					}
-				}
-			}
-		}
-		return out;
-	}
-
-	public static AspectList getPrimalAspects(AspectList in) {
-		AspectList t = new AspectList();
-		t.add(Aspect.AIR, in.getAmount(Aspect.AIR));
-		t.add(Aspect.FIRE, in.getAmount(Aspect.FIRE));
-		t.add(Aspect.WATER, in.getAmount(Aspect.WATER));
-		t.add(Aspect.EARTH, in.getAmount(Aspect.EARTH));
-		t.add(Aspect.ORDER, in.getAmount(Aspect.ORDER));
-		t.add(Aspect.ENTROPY, in.getAmount(Aspect.ENTROPY));
-		return t;
-	}
-	
-	public static AspectList getAuraAspects(AspectList in) {
-		AspectList t = new AspectList();
-		t.add(Aspect.AIR, in.getAmount(Aspect.AIR));
-		t.add(Aspect.FIRE, in.getAmount(Aspect.FIRE));
-		t.add(Aspect.WATER, in.getAmount(Aspect.WATER));
-		t.add(Aspect.EARTH, in.getAmount(Aspect.EARTH));
-		t.add(Aspect.ORDER, in.getAmount(Aspect.ORDER));
-		t.add(Aspect.ENTROPY, in.getAmount(Aspect.ENTROPY));
-		t.add(Aspect.FLUX, in.getAmount(Aspect.FLUX));
-		return t;
-	}
-
+    
+    /**
+     * Registry of aspects for items/blocks
+     * Key is the ResourceLocation string (e.g., "minecraft:stone")
+     */
+    private static Map<String, AspectList> objectTags = new HashMap<>();
+    
+    /**
+     * Registry of aspects for entities
+     * Key is the entity type ResourceLocation string
+     */
+    private static Map<String, AspectList> entityTags = new HashMap<>();
+    
+    /**
+     * Get the aspects associated with an ItemStack
+     * @param stack the item to query
+     * @return the aspects for this item, or null if none
+     */
+    public static AspectList getObjectAspects(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return null;
+        }
+        
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        if (itemId == null) {
+            return null;
+        }
+        
+        // Check for specific item with NBT/damage
+        // For now, just use the base item
+        String key = itemId.toString();
+        
+        return objectTags.get(key);
+    }
+    
+    /**
+     * Register aspects for an item
+     * @param stack the item to register
+     * @param aspects the aspects to associate
+     */
+    public static void registerObjectTag(ItemStack stack, AspectList aspects) {
+        if (stack == null || stack.isEmpty() || aspects == null) {
+            return;
+        }
+        
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        if (itemId != null) {
+            objectTags.put(itemId.toString(), aspects);
+        }
+    }
+    
+    /**
+     * Register aspects for an item by ResourceLocation
+     * @param itemId the item's resource location
+     * @param aspects the aspects to associate
+     */
+    public static void registerObjectTag(ResourceLocation itemId, AspectList aspects) {
+        if (itemId != null && aspects != null) {
+            objectTags.put(itemId.toString(), aspects);
+        }
+    }
+    
+    /**
+     * Register aspects for an entity type
+     * @param entityId the entity type's resource location
+     * @param aspects the aspects to associate
+     */
+    public static void registerEntityTag(ResourceLocation entityId, AspectList aspects) {
+        if (entityId != null && aspects != null) {
+            entityTags.put(entityId.toString(), aspects);
+        }
+    }
+    
+    /**
+     * Get the aspects associated with an entity type
+     * @param entityId the entity type resource location
+     * @return the aspects for this entity, or null if none
+     */
+    public static AspectList getEntityAspects(ResourceLocation entityId) {
+        if (entityId == null) {
+            return null;
+        }
+        return entityTags.get(entityId.toString());
+    }
+    
+    /**
+     * Combine two primal aspects to get a compound aspect
+     * @param aspect1 first aspect
+     * @param aspect2 second aspect
+     * @return the resulting compound aspect, or null if combination doesn't exist
+     */
+    public static Aspect getCombinationResult(Aspect aspect1, Aspect aspect2) {
+        if (aspect1 == null || aspect2 == null) {
+            return null;
+        }
+        
+        // Check both orderings
+        int hash1 = (aspect1.getTag() + aspect2.getTag()).hashCode();
+        int hash2 = (aspect2.getTag() + aspect1.getTag()).hashCode();
+        
+        Aspect result = Aspect.mixList.get(hash1);
+        if (result == null) {
+            result = Aspect.mixList.get(hash2);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Check if two aspects can be combined
+     * @param aspect1 first aspect
+     * @param aspect2 second aspect
+     * @return true if these aspects can form a compound
+     */
+    public static boolean canCombine(Aspect aspect1, Aspect aspect2) {
+        return getCombinationResult(aspect1, aspect2) != null;
+    }
+    
+    /**
+     * Clear all registered aspect tags
+     * Used for reloading
+     */
+    public static void clearTags() {
+        objectTags.clear();
+        entityTags.clear();
+    }
+    
+    /**
+     * Get the number of registered object tags
+     */
+    public static int getObjectTagCount() {
+        return objectTags.size();
+    }
+    
+    /**
+     * Get the number of registered entity tags
+     */
+    public static int getEntityTagCount() {
+        return entityTags.size();
+    }
 }

@@ -1,99 +1,136 @@
 package thaumcraft.api.aura;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import thaumcraft.api.ThaumcraftApi;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import thaumcraft.common.world.aura.AuraHandler;
 
+/**
+ * Public API for interacting with the Thaumcraft aura system.
+ * Use these methods to query and modify vis/flux in the aura.
+ */
 public class AuraHelper {
-	
-	
-	/**
-	 * Consume vis from the aura at the given location 
-	 * @param world
-	 * @param pos
-	 * @param amount
-	 * @param simulate
-	 * @return how much was actually drained
-	 */
-	public static float drainVis(World world, BlockPos pos, float amount, boolean simulate) {
-		return ThaumcraftApi.internalMethods.drainVis(world,pos, amount, simulate);
-	}
-	
-	/**
-	 * Consume flux from the aura at the given location
-	 * Added for completeness, but should really not be used. Add instability instead.
-	 * @param world
-	 * @param pos
-	 * @param amount
-	 * @param simulate
-	 * @return how much was actually drained
-	 */
-	public static float drainFlux(World world, BlockPos pos, float amount, boolean simulate) {
-		return ThaumcraftApi.internalMethods.drainFlux(world,pos, amount,simulate);
-	}
-		
-	/**
-	 * Adds vis to the aura at the given location. 
-	 *  
-	 * @param world
-	 * @param pos
-	 * @param amount
-	 */
-	public static void addVis(World world, BlockPos pos, float amount) {
-		ThaumcraftApi.internalMethods.addVis(world,pos, amount);
-	}
-	
-	/**
-	 * Get how much vis is in the aura at the given location.
-	 * @param world
-	 * @param pos
-	 * @return
-	 */
-	public static float getVis(World world, BlockPos pos) {
-		return ThaumcraftApi.internalMethods.getVis(world,pos);
-	}
-	
-	/**
-	 * Adds flux to the aura at the specified block position.
-	 * @param world
-	 * @param pos
-	 * @param amount how much stability to remove
-	 * @param showEffect if set to true, a flux smoke effect and sound will also be displayed. Use in moderation.
-	 */
-	public static void polluteAura(World world, BlockPos pos, float amount, boolean showEffect) {
-		ThaumcraftApi.internalMethods.addFlux(world,pos,amount,showEffect);
-	}
-	
-	/**
-	 * Get how much flux is in the aura at the given location.
-	 * @param world
-	 * @param pos
-	 * @return
-	 */
-	public static float getFlux(World world, BlockPos pos) {
-		return ThaumcraftApi.internalMethods.getFlux(world,pos);
-	}
-	
-	/**
-	 * Gets the general aura baseline at the given location
-	 * @param world
-	 * @param pos
-	 * @return
-	 */
-	public static int getAuraBase(World world, BlockPos pos) {
-		return ThaumcraftApi.internalMethods.getAuraBase(world,pos);
-	}
-	
-	/**
-	 * Gets if the local aura for the given aspect is below 10% and that the player has the node preserver research.
-	 * If the passed in player is null it will ignore the need for the research to be completed and just assume it is.
-	 * @param world
-	 * @param player
-	 * @param pos
-	 * @return
-	 */
-	public static boolean shouldPreserveAura(World world, EntityPlayer player, BlockPos pos) {
-		return ThaumcraftApi.internalMethods.shouldPreserveAura(world,player,pos);
-	}
+
+    /**
+     * Consume vis from the aura at the given location.
+     *
+     * @param level the world
+     * @param pos the position to drain from
+     * @param amount the amount to drain
+     * @param simulate if true, only simulates the drain without actually removing vis
+     * @return how much was actually drained
+     */
+    public static float drainVis(Level level, BlockPos pos, float amount, boolean simulate) {
+        return AuraHandler.drainVis(level, pos, amount, simulate);
+    }
+
+    /**
+     * Consume flux from the aura at the given location.
+     * Added for completeness, but should really not be used. Add instability instead.
+     *
+     * @param level the world
+     * @param pos the position to drain from
+     * @param amount the amount to drain
+     * @param simulate if true, only simulates the drain without actually removing flux
+     * @return how much was actually drained
+     */
+    public static float drainFlux(Level level, BlockPos pos, float amount, boolean simulate) {
+        return AuraHandler.drainFlux(level, pos, amount, simulate);
+    }
+
+    /**
+     * Adds vis to the aura at the given location.
+     *
+     * @param level the world
+     * @param pos the position to add vis at
+     * @param amount the amount to add
+     */
+    public static void addVis(Level level, BlockPos pos, float amount) {
+        AuraHandler.addVis(level, pos, amount);
+    }
+
+    /**
+     * Get how much vis is in the aura at the given location.
+     *
+     * @param level the world
+     * @param pos the position to check
+     * @return the current vis amount
+     */
+    public static float getVis(Level level, BlockPos pos) {
+        return AuraHandler.getVis(level, pos);
+    }
+
+    /**
+     * Adds flux to the aura at the specified block position.
+     * This pollutes the aura and can cause flux rifts if too much accumulates.
+     *
+     * @param level the world
+     * @param pos the position to pollute
+     * @param amount how much flux to add
+     * @param showEffect if set to true, a flux smoke effect and sound will also be displayed
+     */
+    public static void polluteAura(Level level, BlockPos pos, float amount, boolean showEffect) {
+        AuraHandler.addFlux(level, pos, amount);
+        // TODO: Add particle and sound effects when showEffect is true
+    }
+
+    /**
+     * Get how much flux is in the aura at the given location.
+     *
+     * @param level the world
+     * @param pos the position to check
+     * @return the current flux amount
+     */
+    public static float getFlux(Level level, BlockPos pos) {
+        return AuraHandler.getFlux(level, pos);
+    }
+
+    /**
+     * Gets the general aura baseline at the given location.
+     * This is the maximum natural vis level for the chunk.
+     *
+     * @param level the world
+     * @param pos the position to check
+     * @return the base aura level
+     */
+    public static int getAuraBase(Level level, BlockPos pos) {
+        return AuraHandler.getAuraBase(level, pos);
+    }
+
+    /**
+     * Gets if the local aura is below 10% and that the player has the node preserver research.
+     * If the passed in player is null it will ignore the need for the research to be completed
+     * and just assume it is.
+     *
+     * @param level the world
+     * @param player the player to check research for (can be null)
+     * @param pos the position to check
+     * @return true if aura should be preserved
+     */
+    public static boolean shouldPreserveAura(Level level, Player player, BlockPos pos) {
+        return AuraHandler.shouldPreserveAura(level, player, pos);
+    }
+
+    /**
+     * Gets the total aura (vis + flux) at the given location.
+     *
+     * @param level the world
+     * @param pos the position to check
+     * @return the total aura amount
+     */
+    public static float getTotalAura(Level level, BlockPos pos) {
+        return AuraHandler.getTotalAura(level, pos);
+    }
+
+    /**
+     * Gets the flux saturation ratio at the given location.
+     * This is flux divided by the base aura level.
+     *
+     * @param level the world
+     * @param pos the position to check
+     * @return the flux saturation ratio (0.0 to potentially > 1.0)
+     */
+    public static float getFluxSaturation(Level level, BlockPos pos) {
+        return AuraHandler.getFluxSaturation(level, pos);
+    }
 }

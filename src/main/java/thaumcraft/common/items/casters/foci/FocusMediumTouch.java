@@ -1,108 +1,180 @@
 package thaumcraft.common.items.casters.foci;
-import java.util.ArrayList;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraftforge.fml.common.network.NetworkRegistry;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.aspects.Aspect;
-import thaumcraft.api.casters.FocusEffect;
-import thaumcraft.api.casters.FocusMedium;
-import thaumcraft.api.casters.FocusNode;
+import thaumcraft.api.casters.FocusMediumRoot;
 import thaumcraft.api.casters.Trajectory;
-import thaumcraft.codechicken.lib.raytracer.RayTracer;
-import thaumcraft.common.lib.network.PacketHandler;
-import thaumcraft.common.lib.network.fx.PacketFXFocusEffect;
-import thaumcraft.common.lib.utils.EntityUtils;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
 
-public class FocusMediumTouch extends FocusMedium
-{
+/**
+ * Touch Medium - Basic delivery that hits what the player is looking at.
+ * Range is limited to player's reach distance.
+ */
+public class FocusMediumTouch extends FocusMediumRoot {
+
     @Override
     public String getResearch() {
         return "BASEAUROMANCY";
     }
-    
+
     @Override
     public String getKey() {
         return "thaumcraft.TOUCH";
     }
-    
+
     @Override
     public int getComplexity() {
         return 2;
     }
-    
+
     @Override
     public EnumSupplyType[] willSupply() {
         return new EnumSupplyType[] { EnumSupplyType.TRAJECTORY, EnumSupplyType.TARGET };
     }
-    
+
     @Override
     public Aspect getAspect() {
         return Aspect.AVERSION;
     }
-    
+
     @Override
     public Trajectory[] supplyTrajectories() {
-        if (getParent() == null) {
+        if (getPackage() == null || getPackage().world == null) {
             return new Trajectory[0];
         }
-        ArrayList<Trajectory> trajectories = new ArrayList<Trajectory>();
-        double range = (this instanceof FocusMediumBolt) ? 16.0 : RayTracer.getBlockReachDistance((EntityPlayer) getPackage().getCaster());
-        for (Trajectory sT : getParent().supplyTrajectories()) {
-            Vec3d end = sT.direction.normalize();
-            RayTraceResult ray = EntityUtils.getPointedEntityRay(getPackage().world, getPackage().getCaster(), sT.source, end, 0.25, range, 0.25f, false);
-            if (ray == null) {
-                end = end.scale(range);
-                end = end.add(sT.source);
-                ray = getPackage().world.rayTraceBlocks(sT.source, end);
-                if (ray != null) {
-                    end = ray.hitVec;
+
+        Entity caster = getCaster();
+        if (caster == null) {
+            return new Trajectory[0];
+        }
+
+        double range = getRange(caster);
+        Vec3 eyePos = caster.getEyePosition();
+        Vec3 lookVec = caster.getLookAngle();
+        Vec3 endPos = eyePos.add(lookVec.scale(range));
+
+        // Try to hit an entity first
+        HitResult hit = rayTraceEntities(caster, eyePos, endPos, range);
+        
+        if (hit == null || hit.getType() == HitResult.Type.MISS) {
+            // Fall back to block raycast
+            hit = getPackage().world.clip(new ClipContext(
+                    eyePos, endPos,
+                    ClipContext.Block.OUTLINE,
+                    ClipContext.Fluid.NONE,
+                    caster));
+        }
+
+        Vec3 hitPos = (hit != null) ? hit.getLocation() : endPos;
+        
+        return new Trajectory[] { new Trajectory(hitPos, lookVec.normalize()) };
+    }
+
+    @Override
+    public HitResult[] supplyTargets() {
+        if (getPackage() == null || getPackage().world == null) {
+            return new HitResult[0];
+        }
+
+        Entity caster = getCaster();
+        if (caster == null) {
+            return new HitResult[0];
+        }
+
+        double range = getRange(caster);
+        Vec3 eyePos = caster.getEyePosition();
+        Vec3 lookVec = caster.getLookAngle();
+        Vec3 endPos = eyePos.add(lookVec.scale(range));
+
+        // Try to hit an entity first
+        HitResult hit = rayTraceEntities(caster, eyePos, endPos, range);
+        
+        if (hit == null || hit.getType() == HitResult.Type.MISS) {
+            // Fall back to block raycast
+            hit = getPackage().world.clip(new ClipContext(
+                    eyePos, endPos,
+                    ClipContext.Block.OUTLINE,
+                    ClipContext.Fluid.NONE,
+                    caster));
+        }
+
+        if (hit != null && hit.getType() != HitResult.Type.MISS) {
+            return new HitResult[] { hit };
+        }
+        
+        return new HitResult[0];
+    }
+
+    protected double getRange(Entity caster) {
+        if (caster instanceof Player player) {
+            // Use player's reach distance (default 4.5 in survival, 5 in creative)
+            return player.getAbilities().instabuild ? 5.0 : 4.5;
+        }
+        return 4.5;
+    }
+
+    protected Entity getCaster() {
+        if (getPackage() == null || getPackage().getCasterUUID() == null) {
+            return null;
+        }
+        // Find entity by UUID
+        if (getPackage().world != null) {
+            for (Player player : getPackage().world.players()) {
+                if (player.getUUID().equals(getPackage().getCasterUUID())) {
+                    return player;
                 }
             }
-            else if (ray.entityHit != null) {
-                end = end.scale(sT.source.distanceTo(ray.entityHit.getPositionVector()));
-                end = end.add(sT.source);
-            }
-            trajectories.add(new Trajectory(end, sT.direction.normalize()));
         }
-        return trajectories.toArray(new Trajectory[0]);
+        return null;
     }
-    
-    @Override
-    public RayTraceResult[] supplyTargets() {
-        if (getParent() == null || !(getPackage().getCaster() instanceof EntityPlayer)) {
-            return new RayTraceResult[0];
-        }
-        ArrayList<RayTraceResult> targets = new ArrayList<RayTraceResult>();
-        double range = (this instanceof FocusMediumBolt) ? 16.0 : RayTracer.getBlockReachDistance((EntityPlayer) getPackage().getCaster());
-        for (Trajectory sT : getParent().supplyTrajectories()) {
-            Vec3d end = sT.direction.normalize();
-            RayTraceResult ray = EntityUtils.getPointedEntityRay(getPackage().world, getPackage().getCaster(), sT.source, end, 0.25, range, 0.25f, false);
-            if (ray == null) {
-                end = end.scale(range);
-                end = end.add(sT.source);
-                ray = getPackage().world.rayTraceBlocks(sT.source, end);
+
+    /**
+     * Raytrace to find entities along the path.
+     */
+    protected HitResult rayTraceEntities(Entity caster, Vec3 start, Vec3 end, double range) {
+        AABB searchBox = caster.getBoundingBox().expandTowards(end.subtract(start)).inflate(1.0);
+        
+        Predicate<Entity> filter = e -> !e.isSpectator() && e.isPickable() && e != caster;
+        
+        double closestDist = range;
+        Entity closestEntity = null;
+        Vec3 closestHit = null;
+
+        for (Entity entity : getPackage().world.getEntities(caster, searchBox, filter)) {
+            AABB entityBox = entity.getBoundingBox().inflate(0.3);
+            Optional<Vec3> hitOpt = entityBox.clip(start, end);
+            
+            if (hitOpt.isPresent()) {
+                double dist = start.distanceTo(hitOpt.get());
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestEntity = entity;
+                    closestHit = hitOpt.get();
+                }
             }
-            if (ray != null) {
-                targets.add(ray);
-            }
         }
-        return targets.toArray(new RayTraceResult[0]);
+
+        if (closestEntity != null) {
+            return new EntityHitResult(closestEntity, closestHit);
+        }
+        
+        return null;
     }
-    
+
     @Override
     public boolean execute(Trajectory trajectory) {
-        FocusEffect[] fe = getPackage().getFocusEffects();
-        if (fe != null && fe.length > 0) {
-            String[] effects = new String[fe.length];
-            for (int a = 0; a < fe.length; ++a) {
-                effects[a] = fe[a].getKey();
-            }
-            PacketHandler.INSTANCE.sendToAllAround(new PacketFXFocusEffect((float)trajectory.source.x, (float)trajectory.source.y, (float)trajectory.source.z, (float)trajectory.direction.x / 2.0f, (float)trajectory.direction.y / 2.0f, (float)trajectory.direction.z / 2.0f, effects), new NetworkRegistry.TargetPoint(getPackage().world.provider.getDimension(), (float)trajectory.source.x, (float)trajectory.source.y, (float)trajectory.source.z, 64.0));
-        }
+        // Touch medium doesn't need additional execution - targets are supplied directly
+        // TODO: Send particle effect packets
         return true;
     }
 }

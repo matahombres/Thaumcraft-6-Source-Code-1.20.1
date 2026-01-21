@@ -1,65 +1,54 @@
 package thaumcraft.common.items.armor;
-import net.minecraft.client.renderer.ItemMeshDefinition;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.entity.Entity;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemArmor;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.IThaumcraftItems;
 
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import thaumcraft.api.ThaumcraftMaterials;
+import thaumcraft.init.ModItems;
 
-public class ItemThaumiumArmor extends ItemArmor implements IThaumcraftItems
-{
-    public ItemThaumiumArmor(String name, ItemArmor.ArmorMaterial enumarmormaterial, int j, EntityEquipmentSlot k) {
-        super(enumarmormaterial, j, k);
-        setRegistryName(name);
-        setUnlocalizedName(name);
-        ConfigItems.ITEM_VARIANT_HOLDERS.add(this);
-        setCreativeTab(ConfigItems.TABTC);
+import javax.annotation.Nullable;
+
+/**
+ * Thaumium Armor - Balanced magical armor, better than iron.
+ */
+public class ItemThaumiumArmor extends ArmorItem {
+    
+    public ItemThaumiumArmor(Type type) {
+        super(ThaumcraftMaterials.ARMORMAT_THAUMIUM, type, 
+                new Item.Properties());
     }
     
-    public Item getItem() {
-        return this;
+    // Factory methods for different armor pieces
+    public static ItemThaumiumArmor createHelmet() {
+        return new ItemThaumiumArmor(Type.HELMET);
     }
     
-    public String[] getVariantNames() {
-        return new String[] { "normal" };
+    public static ItemThaumiumArmor createChestplate() {
+        return new ItemThaumiumArmor(Type.CHESTPLATE);
     }
     
-    public int[] getVariantMeta() {
-        return new int[] { 0 };
+    public static ItemThaumiumArmor createLeggings() {
+        return new ItemThaumiumArmor(Type.LEGGINGS);
     }
     
-    @SideOnly(Side.CLIENT)
-    public ItemMeshDefinition getCustomMesh() {
-        return null;
+    public static ItemThaumiumArmor createBoots() {
+        return new ItemThaumiumArmor(Type.BOOTS);
     }
     
-    public ModelResourceLocation getCustomModelResourceLocation(String variant) {
-        return new ModelResourceLocation("thaumcraft:" + variant);
+    @Override
+    public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+        return repair.is(ModItems.THAUMIUM_INGOT.get()) || super.isValidRepairItem(toRepair, repair);
     }
     
-    public String getArmorTexture(ItemStack stack, Entity entity, EntityEquipmentSlot slot, String type) {
-        if (stack.getItem() == ItemsTC.thaumiumHelm || stack.getItem() == ItemsTC.thaumiumChest || stack.getItem() == ItemsTC.thaumiumBoots) {
-            return "thaumcraft:textures/entity/armor/thaumium_1.png";
-        }
-        if (stack.getItem() == ItemsTC.thaumiumLegs) {
+    @Nullable
+    @Override
+    public String getArmorTexture(ItemStack stack, Entity entity, EquipmentSlot slot, String type) {
+        // Use layer 1 for helmet/chest/boots, layer 2 for legs
+        if (slot == EquipmentSlot.LEGS) {
             return "thaumcraft:textures/entity/armor/thaumium_2.png";
         }
         return "thaumcraft:textures/entity/armor/thaumium_1.png";
-    }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.UNCOMMON;
-    }
-    
-    public boolean getIsRepairable(ItemStack stack1, ItemStack stack2) {
-        return stack2.isItemEqual(new ItemStack(ItemsTC.ingots, 1, 0)) || super.getIsRepairable(stack1, stack2);
     }
 }

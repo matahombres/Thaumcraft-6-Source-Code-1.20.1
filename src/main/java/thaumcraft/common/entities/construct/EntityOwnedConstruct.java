@@ -1,207 +1,271 @@
 package thaumcraft.common.entities.construct;
-import com.google.common.base.Optional;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.OwnableEntity;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.scores.Team;
+
+import javax.annotation.Nullable;
+import java.util.Optional;
 import java.util.UUID;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.IEntityOwnable;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.ItemNameTag;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.server.management.PreYggdrasilConverter;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.World;
-import thaumcraft.common.lib.SoundsTC;
 
-
-public class EntityOwnedConstruct extends EntityCreature implements IEntityOwnable
-{
-    protected static DataParameter<Byte> TAMED;
-    protected static DataParameter<Optional<UUID>> OWNER_UNIQUE_ID;
-    boolean validSpawn;
+/**
+ * EntityOwnedConstruct - Base class for player-owned construct entities.
+ * Constructs are magical automatons that serve their owner.
+ * Features:
+ * - Owner tracking via UUID
+ * - Team membership with owner
+ * - Valid spawn check (must be spawned properly)
+ * - Won't attack owner or teammates
+ * - Underwater breathing
+ */
+public abstract class EntityOwnedConstruct extends PathfinderMob implements OwnableEntity {
     
-    public EntityOwnedConstruct(World worldIn) {
-        super(worldIn);
-        validSpawn = false;
+    private static final EntityDataAccessor<Byte> DATA_FLAGS = 
+            SynchedEntityData.defineId(EntityOwnedConstruct.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Optional<UUID>> DATA_OWNER_UUID = 
+            SynchedEntityData.defineId(EntityOwnedConstruct.class, EntityDataSerializers.OPTIONAL_UUID);
+    
+    private static final byte FLAG_OWNED = 0x04;
+    
+    private boolean validSpawn = false;
+    
+    protected EntityOwnedConstruct(EntityType<? extends EntityOwnedConstruct> type, Level level) {
+        super(type, level);
     }
     
-    protected void entityInit() {
-        super.entityInit();
-        getDataManager().register((DataParameter)EntityOwnedConstruct.TAMED, 0);
-        getDataManager().register((DataParameter)EntityOwnedConstruct.OWNER_UNIQUE_ID, Optional.absent());
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_FLAGS, (byte) 0);
+        this.entityData.define(DATA_OWNER_UUID, Optional.empty());
     }
+    
+    public static AttributeSupplier.Builder createAttributes() {
+        return PathfinderMob.createMobAttributes()
+                .add(Attributes.MAX_HEALTH, 20.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.25)
+                .add(Attributes.FOLLOW_RANGE, 16.0);
+    }
+    
+    // ==================== Owner System ====================
     
     public boolean isOwned() {
-        return ((byte) getDataManager().get((DataParameter)EntityOwnedConstruct.TAMED) & 0x4) != 0x0;
+        return (this.entityData.get(DATA_FLAGS) & FLAG_OWNED) != 0;
     }
     
-    public void setOwned(boolean tamed) {
-        byte b0 = (byte) getDataManager().get((DataParameter)EntityOwnedConstruct.TAMED);
-        if (tamed) {
-            getDataManager().set(EntityOwnedConstruct.TAMED, (byte)(b0 | 0x4));
-        }
-        else {
-            getDataManager().set(EntityOwnedConstruct.TAMED, (byte)(b0 & 0xFFFFFFFB));
-        }
-    }
-    
-    public UUID getOwnerId() {
-        return (UUID)((Optional) getDataManager().get((DataParameter)EntityOwnedConstruct.OWNER_UNIQUE_ID)).orNull();
-    }
-    
-    public void setOwnerId(UUID p_184754_1_) {
-        getDataManager().set(EntityOwnedConstruct.OWNER_UNIQUE_ID, Optional.fromNullable(p_184754_1_));
-    }
-    
-    protected int decreaseAirSupply(int air) {
-        return air;
-    }
-    
-    public boolean canBreatheUnderwater() {
-        return true;
-    }
-    
-    protected SoundEvent getAmbientSound() {
-        return SoundsTC.clack;
-    }
-    
-    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-        return SoundsTC.clack;
-    }
-    
-    protected SoundEvent getDeathSound() {
-        return SoundsTC.tool;
-    }
-    
-    public int getTalkInterval() {
-        return 240;
-    }
-    
-    protected boolean canDespawn() {
-        return false;
-    }
-    
-    public void onUpdate() {
-        super.onUpdate();
-        if (getAttackTarget() != null && isOnSameTeam(getAttackTarget())) {
-            setAttackTarget(null);
-        }
-        if (!world.isRemote && !validSpawn) {
-            setDead();
+    public void setOwned(boolean owned) {
+        byte flags = this.entityData.get(DATA_FLAGS);
+        if (owned) {
+            this.entityData.set(DATA_FLAGS, (byte)(flags | FLAG_OWNED));
+        } else {
+            this.entityData.set(DATA_FLAGS, (byte)(flags & ~FLAG_OWNED));
         }
     }
     
-    public void setValidSpawn() {
-        validSpawn = true;
+    @Nullable
+    @Override
+    public UUID getOwnerUUID() {
+        return this.entityData.get(DATA_OWNER_UUID).orElse(null);
     }
     
-    public void writeEntityToNBT(NBTTagCompound tagCompound) {
-        super.writeEntityToNBT(tagCompound);
-        tagCompound.setBoolean("v", validSpawn);
-        if (getOwnerId() == null) {
-            tagCompound.setString("OwnerUUID", "");
-        }
-        else {
-            tagCompound.setString("OwnerUUID", getOwnerId().toString());
-        }
+    public void setOwnerUUID(@Nullable UUID uuid) {
+        this.entityData.set(DATA_OWNER_UUID, Optional.ofNullable(uuid));
     }
     
-    public void readEntityFromNBT(NBTTagCompound tagCompound) {
-        super.readEntityFromNBT(tagCompound);
-        validSpawn = tagCompound.getBoolean("v");
-        String s = "";
-        if (tagCompound.hasKey("OwnerUUID", 8)) {
-            s = tagCompound.getString("OwnerUUID");
-        }
-        else {
-            String s2 = tagCompound.getString("Owner");
-            s = PreYggdrasilConverter.convertMobOwnerIfNeeded(getServer(), s2);
-        }
-        if (!s.isEmpty()) {
-            try {
-                setOwnerId(UUID.fromString(s));
-                setOwned(true);
-            }
-            catch (Throwable var4) {
-                setOwned(false);
-            }
-        }
-    }
-    
-    public EntityLivingBase getOwnerEntity() {
+    @Nullable
+    @Override
+    public LivingEntity getOwner() {
         try {
-            UUID uuid = getOwnerId();
-            return (uuid == null) ? null : world.getPlayerEntityByUUID(uuid);
-        }
-        catch (IllegalArgumentException var2) {
+            UUID uuid = getOwnerUUID();
+            return uuid == null ? null : level().getPlayerByUUID(uuid);
+        } catch (IllegalArgumentException e) {
             return null;
         }
     }
     
-    public boolean isOwner(EntityLivingBase entityIn) {
-        return entityIn == getOwnerEntity();
+    public boolean isOwner(LivingEntity entity) {
+        return entity == getOwner();
     }
     
+    // ==================== Team System ====================
+    
+    @Nullable
+    @Override
     public Team getTeam() {
         if (isOwned()) {
-            EntityLivingBase entitylivingbase = getOwnerEntity();
-            if (entitylivingbase != null) {
-                return entitylivingbase.getTeam();
+            LivingEntity owner = getOwner();
+            if (owner != null) {
+                return owner.getTeam();
             }
         }
         return super.getTeam();
     }
     
-    public boolean isOnSameTeam(Entity otherEntity) {
+    @Override
+    public boolean isAlliedTo(Entity other) {
         if (isOwned()) {
-            EntityLivingBase entitylivingbase1 = getOwnerEntity();
-            if (otherEntity == entitylivingbase1) {
+            LivingEntity owner = getOwner();
+            if (other == owner) {
                 return true;
             }
-            if (entitylivingbase1 != null) {
-                return entitylivingbase1.isOnSameTeam(otherEntity);
+            if (owner != null) {
+                return owner.isAlliedTo(other);
             }
         }
-        return super.isOnSameTeam(otherEntity);
+        return super.isAlliedTo(other);
     }
     
-    public void onDeath(DamageSource cause) {
-        if (!world.isRemote && world.getGameRules().getBoolean("showDeathMessages") && hasCustomName() && getOwnerEntity() instanceof EntityPlayerMP) {
-            getOwnerEntity().sendMessage(getCombatTracker().getDeathMessage());
-        }
-        super.onDeath(cause);
+    // ==================== Valid Spawn ====================
+    
+    public void setValidSpawn() {
+        this.validSpawn = true;
     }
     
-    public Entity getOwner() {
-        return getOwnerEntity();
+    public boolean hasValidSpawn() {
+        return this.validSpawn;
     }
     
-    protected boolean processInteract(EntityPlayer player, EnumHand hand) {
-        if (isDead) {
-            return false;
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Clear attack target if it's a teammate
+        if (getTarget() != null && isAlliedTo(getTarget())) {
+            setTarget(null);
         }
-        if (player.isSneaking() || (player.getHeldItemMainhand() != null && player.getHeldItemMainhand().getItem() instanceof ItemNameTag)) {
-            return false;
+        
+        // Remove if not spawned properly
+        if (!level().isClientSide && !validSpawn) {
+            discard();
         }
-        if (!world.isRemote && !isOwner(player)) {
-            player.sendStatusMessage(new TextComponentTranslation("§5§o" + I18n.translateToLocal("tc.notowned")), true);
-            return true;
-        }
-        return super.processInteract(player, hand);
     }
     
-    static {
-        TAMED = EntityDataManager.createKey(EntityOwnedConstruct.class, DataSerializers.BYTE);
-        OWNER_UNIQUE_ID = EntityDataManager.createKey(EntityOwnedConstruct.class, DataSerializers.OPTIONAL_UNIQUE_ID);
+    // ==================== Immunities ====================
+    
+    @Override
+    protected int decreaseAirSupply(int air) {
+        return air; // Doesn't drown
+    }
+    
+    @Override
+    public boolean canBreatheUnderwater() {
+        return true;
+    }
+    
+    @Override
+    public boolean removeWhenFarAway(double distance) {
+        return false; // Never despawn
+    }
+    
+    // ==================== Sounds ====================
+    
+    @Override
+    protected SoundEvent getAmbientSound() {
+        // TODO: Return SoundsTC.clack when implemented
+        return SoundEvents.IRON_GOLEM_STEP;
+    }
+    
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        // TODO: Return SoundsTC.clack when implemented
+        return SoundEvents.IRON_GOLEM_HURT;
+    }
+    
+    @Override
+    protected SoundEvent getDeathSound() {
+        // TODO: Return SoundsTC.tool when implemented
+        return SoundEvents.IRON_GOLEM_DEATH;
+    }
+    
+    @Override
+    public int getAmbientSoundInterval() {
+        return 240;
+    }
+    
+    // ==================== Interaction ====================
+    
+    @Override
+    protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+        if (isRemoved()) {
+            return InteractionResult.PASS;
+        }
+        
+        // Don't interact if sneaking or using name tag
+        if (player.isShiftKeyDown()) {
+            return InteractionResult.PASS;
+        }
+        
+        // Only owner can interact
+        if (!level().isClientSide && !isOwner(player)) {
+            player.displayClientMessage(Component.translatable("tc.notowned"), true);
+            return InteractionResult.SUCCESS;
+        }
+        
+        return super.mobInteract(player, hand);
+    }
+    
+    // ==================== Death ====================
+    
+    @Override
+    public void die(DamageSource source) {
+        // Send death message to owner if named
+        if (!level().isClientSide && level().getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_SHOWDEATHMESSAGES) 
+                && hasCustomName() && getOwner() instanceof ServerPlayer serverPlayer) {
+            serverPlayer.sendSystemMessage(getCombatTracker().getDeathMessage());
+        }
+        super.die(source);
+    }
+    
+    // ==================== NBT ====================
+    
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("ValidSpawn", validSpawn);
+        
+        UUID uuid = getOwnerUUID();
+        if (uuid != null) {
+            tag.putUUID("Owner", uuid);
+        }
+    }
+    
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        validSpawn = tag.getBoolean("ValidSpawn");
+        
+        if (tag.hasUUID("Owner")) {
+            setOwnerUUID(tag.getUUID("Owner"));
+            setOwned(true);
+        } else if (tag.contains("OwnerUUID", 8)) {
+            // Legacy support
+            String uuidStr = tag.getString("OwnerUUID");
+            if (!uuidStr.isEmpty()) {
+                try {
+                    setOwnerUUID(UUID.fromString(uuidStr));
+                    setOwned(true);
+                } catch (Throwable e) {
+                    setOwned(false);
+                }
+            }
+        }
     }
 }

@@ -1,129 +1,124 @@
 package thaumcraft.common.tiles.essentia;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.world.World;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
 import thaumcraft.api.aspects.Aspect;
-import thaumcraft.codechicken.lib.raytracer.RayTracer;
-import thaumcraft.common.lib.SoundsTC;
+import thaumcraft.init.ModBlockEntities;
 
+/**
+ * Valve tube - can be toggled open/closed with redstone.
+ * When closed, blocks all essentia flow.
+ */
+public class TileTubeValve extends TileTube {
 
-public class TileTubeValve extends TileTube
-{
-    public boolean allowFlow;
-    boolean wasPoweredLastTick;
-    public float rotation;
+    public boolean allowFlow = true;
+    private boolean wasPoweredLastTick = false;
     
-    public TileTubeValve() {
-        allowFlow = true;
-        wasPoweredLastTick = false;
-        rotation = 0.0f;
+    // Client animation
+    public float rotation = 0.0f;
+
+    public TileTubeValve(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
-    
-    @Override
-    public void update() {
-        if (!world.isRemote && count % 5 == 0) {
-            boolean gettingPower = gettingPower();
-            if (wasPoweredLastTick && !gettingPower && !allowFlow) {
-                allowFlow = true;
-                world.playSound(null, pos, SoundsTC.squeek, SoundCategory.BLOCKS, 0.7f, 0.9f + world.rand.nextFloat() * 0.2f);
-                syncTile(true);
-                markDirty();
-            }
-            if (!wasPoweredLastTick && gettingPower && allowFlow) {
-                allowFlow = false;
-                world.playSound(null, pos, SoundsTC.squeek, SoundCategory.BLOCKS, 0.7f, 0.9f + world.rand.nextFloat() * 0.2f);
-                syncTile(true);
-                markDirty();
-            }
-            wasPoweredLastTick = gettingPower;
-        }
-        if (world.isRemote) {
-            if (!allowFlow && rotation < 360.0f) {
-                rotation += 20.0f;
-            }
-            else if (allowFlow && rotation > 0.0f) {
-                rotation -= 20.0f;
-            }
-        }
-        super.update();
+
+    public TileTubeValve(BlockPos pos, BlockState state) {
+        this(ModBlockEntities.TUBE_VALVE.get(), pos, state);
     }
-    
+
+    // ==================== NBT ====================
+
     @Override
-    public boolean onCasterRightClick(World world, ItemStack wandstack, EntityPlayer player, BlockPos bp, EnumFacing side, EnumHand hand) {
-        RayTraceResult hit = RayTracer.retraceBlock(world, player, pos);
-        if (hit == null) {
-            return false;
-        }
-        if (hit.subHit >= 0 && hit.subHit < 6) {
-            player.world.playSound(pos.getX(), pos.getY(), pos.getZ(), SoundsTC.tool, SoundCategory.BLOCKS, 0.5f, 0.9f + player.world.rand.nextFloat() * 0.2f, false);
-            player.swingArm(hand);
-            markDirty();
-            syncTile(true);
-            openSides[hit.subHit] = !openSides[hit.subHit];
-            EnumFacing dir = EnumFacing.VALUES[hit.subHit];
-            TileEntity tile = world.getTileEntity(pos.offset(dir));
-            if (tile != null && tile instanceof TileTube) {
-                ((TileTube)tile).openSides[dir.getOpposite().ordinal()] = openSides[hit.subHit];
-                syncTile(true);
-                tile.markDirty();
+    protected void writeSyncNBT(CompoundTag tag) {
+        super.writeSyncNBT(tag);
+        tag.putBoolean("Flow", allowFlow);
+        tag.putBoolean("HadPower", wasPoweredLastTick);
+    }
+
+    @Override
+    protected void readSyncNBT(CompoundTag tag) {
+        super.readSyncNBT(tag);
+        allowFlow = tag.getBoolean("Flow");
+        wasPoweredLastTick = tag.getBoolean("HadPower");
+    }
+
+    // ==================== Tick ====================
+
+    public static void serverTickValve(Level level, BlockPos pos, BlockState state, TileTubeValve tile) {
+        // Check redstone every 5 ticks
+        if (level.getGameTime() % 5 == 0) {
+            boolean gettingPower = tile.gettingPower();
+            
+            // Rising edge - close valve
+            if (!tile.wasPoweredLastTick && gettingPower && tile.allowFlow) {
+                tile.allowFlow = false;
+                level.playSound(null, pos, SoundEvents.WOODEN_TRAPDOOR_CLOSE, SoundSource.BLOCKS,
+                        0.7f, 0.9f + level.random.nextFloat() * 0.2f);
+                tile.markDirtyAndSync();
             }
-            return true;
-        }
-        if (hit.subHit == 6) {
-            player.world.playSound(pos.getX(), pos.getY(), pos.getZ(), SoundsTC.tool, SoundCategory.BLOCKS, 0.5f, 0.9f + player.world.rand.nextFloat() * 0.2f, false);
-            player.swingArm(hand);
-            int a = facing.ordinal();
-            markDirty();
-            while (++a < 20) {
-                if (!canConnectSide(EnumFacing.VALUES[a % 6])) {
-                    a %= 6;
-                    facing = EnumFacing.VALUES[a];
-                    syncTile(true);
-                    markDirty();
-                    break;
-                }
+            
+            // Falling edge - open valve
+            if (tile.wasPoweredLastTick && !gettingPower && !tile.allowFlow) {
+                tile.allowFlow = true;
+                level.playSound(null, pos, SoundEvents.WOODEN_TRAPDOOR_OPEN, SoundSource.BLOCKS,
+                        0.7f, 0.9f + level.random.nextFloat() * 0.2f);
+                tile.markDirtyAndSync();
             }
-            return true;
+            
+            tile.wasPoweredLastTick = gettingPower;
         }
-        return false;
+
+        // Call parent tick for essentia transport
+        TileTube.serverTick(level, pos, state, tile);
     }
-    
-    @Override
-    public void readSyncNBT(NBTTagCompound nbttagcompound) {
-        super.readSyncNBT(nbttagcompound);
-        allowFlow = nbttagcompound.getBoolean("flow");
-        wasPoweredLastTick = nbttagcompound.getBoolean("hadpower");
+
+    public static void clientTickValve(Level level, BlockPos pos, BlockState state, TileTubeValve tile) {
+        // Animate rotation
+        if (!tile.allowFlow && tile.rotation < 360.0f) {
+            tile.rotation += 20.0f;
+        } else if (tile.allowFlow && tile.rotation > 0.0f) {
+            tile.rotation -= 20.0f;
+        }
+
+        // Call parent tick
+        TileTube.clientTick(level, pos, state, tile);
     }
-    
-    @Override
-    public NBTTagCompound writeSyncNBT(NBTTagCompound nbttagcompound) {
-        nbttagcompound = super.writeSyncNBT(nbttagcompound);
-        nbttagcompound.setBoolean("flow", allowFlow);
-        nbttagcompound.setBoolean("hadpower", wasPoweredLastTick);
-        return nbttagcompound;
+
+    // ==================== Redstone ====================
+
+    public boolean gettingPower() {
+        return level != null && level.hasNeighborSignal(worldPosition);
     }
-    
+
+    // ==================== Connection Override ====================
+
     @Override
-    public boolean isConnectable(EnumFacing face) {
+    public boolean isConnectable(Direction face) {
+        // Valve facing direction is not connectable
         return face != facing && super.isConnectable(face);
     }
-    
+
     @Override
     public void setSuction(Aspect aspect, int amount) {
+        // Only propagate suction when valve is open
         if (allowFlow) {
             super.setSuction(aspect, amount);
         }
     }
-    
-    @Override
-    public boolean gettingPower() {
-        return world.isBlockIndirectlyGettingPowered(pos) > 0;
+
+    // ==================== Getters ====================
+
+    public boolean isOpen() {
+        return allowFlow;
+    }
+
+    public void setOpen(boolean open) {
+        this.allowFlow = open;
+        markDirtyAndSync();
     }
 }

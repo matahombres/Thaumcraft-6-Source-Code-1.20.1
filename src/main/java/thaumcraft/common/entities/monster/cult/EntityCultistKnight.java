@@ -1,87 +1,105 @@
 package thaumcraft.common.entities.monster.cult;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.EntityAIAttackMelee;
-import net.minecraft.entity.ai.EntityAIBase;
-import net.minecraft.entity.ai.EntityAILookIdle;
-import net.minecraft.entity.ai.EntityAIMoveTowardsRestriction;
-import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
-import net.minecraft.entity.ai.EntityAIOpenDoor;
-import net.minecraft.entity.ai.EntityAIRestrictOpenDoor;
-import net.minecraft.entity.ai.EntityAISwimming;
-import net.minecraft.entity.ai.EntityAIWander;
-import net.minecraft.entity.ai.EntityAIWatchClosest;
-import net.minecraft.entity.monster.AbstractIllager;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Items;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.ItemStack;
+
 import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.EnumDifficulty;
-import net.minecraft.world.World;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.common.entities.ai.combat.AICultistHurtByTarget;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.MoveTowardsRestrictionGoal;
+import net.minecraft.world.entity.ai.goal.OpenDoorGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.level.Level;
 import thaumcraft.common.entities.monster.EntityEldritchGuardian;
+import thaumcraft.init.ModEntities;
 
-
-public class EntityCultistKnight extends EntityCultist
-{
-    public EntityCultistKnight(World p_i1745_1_) {
-        super(p_i1745_1_);
+/**
+ * EntityCultistKnight - A heavily armored melee fighter of the Crimson Cult.
+ * Wears crimson plate armor and carries a sword.
+ */
+public class EntityCultistKnight extends EntityCultist {
+    
+    public EntityCultistKnight(EntityType<? extends EntityCultistKnight> type, Level level) {
+        super(type, level);
     }
     
-    protected void initEntityAI() {
-        tasks.addTask(0, new EntityAISwimming(this));
-        tasks.addTask(3, new EntityAIAttackMelee(this, 1.0, false));
-        tasks.addTask(4, new EntityAIRestrictOpenDoor(this));
-        tasks.addTask(5, new EntityAIOpenDoor(this, true));
-        tasks.addTask(6, new EntityAIMoveTowardsRestriction(this, 0.8));
-        tasks.addTask(7, new EntityAIWander(this, 0.8));
-        tasks.addTask(8, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0f));
-        tasks.addTask(8, new EntityAILookIdle(this));
-        targetTasks.addTask(1, new AICultistHurtByTarget(this, true));
-        targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityPlayer.class, true));
-        targetTasks.addTask(3, new EntityAINearestAttackableTarget(this, EntityEldritchGuardian.class, true));
-        targetTasks.addTask(4, new EntityAINearestAttackableTarget(this, AbstractIllager.class, true));
+    public EntityCultistKnight(Level level) {
+        this(ModEntities.CULTIST_KNIGHT.get(), level);
     }
     
     @Override
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(30.0);
+    protected void registerGoals() {
+        this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.0, false));
+        this.goalSelector.addGoal(4, new OpenDoorGoal(this, true));
+        this.goalSelector.addGoal(6, new MoveTowardsRestrictionGoal(this, 0.8));
+        this.goalSelector.addGoal(7, new WaterAvoidingRandomStrollGoal(this, 0.8));
+        this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
+        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+        
+        this.targetSelector.addGoal(1, new HurtByTargetGoal(this, EntityCultist.class));
+        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
+        this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, EntityEldritchGuardian.class, true));
+    }
+    
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.FOLLOW_RANGE, 32.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.3)
+                .add(Attributes.ATTACK_DAMAGE, 5.0)
+                .add(Attributes.MAX_HEALTH, 30.0)
+                .add(Attributes.ARMOR, 8.0);
     }
     
     @Override
-    protected void setLoot(DifficultyInstance diff) {
-        setItemStackToSlot(EntityEquipmentSlot.HEAD, new ItemStack(ItemsTC.crimsonPlateHelm));
-        setItemStackToSlot(EntityEquipmentSlot.CHEST, new ItemStack(ItemsTC.crimsonPlateChest));
-        setItemStackToSlot(EntityEquipmentSlot.LEGS, new ItemStack(ItemsTC.crimsonPlateLegs));
-        setItemStackToSlot(EntityEquipmentSlot.FEET, new ItemStack(ItemsTC.crimsonBoots));
-        if (rand.nextFloat() < ((world.getDifficulty() == EnumDifficulty.HARD) ? 0.05f : 0.01f)) {
-            int i = rand.nextInt(5);
-            if (i == 0) {
-                setHeldItem(getActiveHand(), new ItemStack(ItemsTC.voidSword));
-                setItemStackToSlot(EntityEquipmentSlot.HEAD, new ItemStack(ItemsTC.crimsonRobeHelm));
+    protected void setLoot(DifficultyInstance difficulty) {
+        // TODO: Use actual crimson plate armor when implemented
+        // setItemSlot(EquipmentSlot.HEAD, new ItemStack(ModItems.CRIMSON_PLATE_HELM.get()));
+        // setItemSlot(EquipmentSlot.CHEST, new ItemStack(ModItems.CRIMSON_PLATE_CHEST.get()));
+        // setItemSlot(EquipmentSlot.LEGS, new ItemStack(ModItems.CRIMSON_PLATE_LEGS.get()));
+        // setItemSlot(EquipmentSlot.FEET, new ItemStack(ModItems.CRIMSON_BOOTS.get()));
+        
+        // Use iron armor as placeholder
+        setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
+        setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.IRON_CHESTPLATE));
+        setItemSlot(EquipmentSlot.LEGS, new ItemStack(Items.IRON_LEGGINGS));
+        setItemSlot(EquipmentSlot.FEET, new ItemStack(Items.IRON_BOOTS));
+        
+        // Chance for special sword on hard difficulty
+        float swordChance = (level().getDifficulty() == Difficulty.HARD) ? 0.05f : 0.01f;
+        if (random.nextFloat() < swordChance) {
+            int roll = random.nextInt(5);
+            if (roll == 0) {
+                // TODO: Use void sword when implemented
+                // setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(ModItems.VOID_SWORD.get()));
+                setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.NETHERITE_SWORD));
+            } else {
+                // TODO: Use thaumium sword when implemented
+                // setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(ModItems.THAUMIUM_SWORD.get()));
+                setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_SWORD));
             }
-            else {
-                setHeldItem(getActiveHand(), new ItemStack(ItemsTC.thaumiumSword));
-                if (rand.nextBoolean()) {
-                    setItemStackToSlot(EntityEquipmentSlot.HEAD, ItemStack.EMPTY);
-                }
-            }
-        }
-        else {
-            setHeldItem(getActiveHand(), new ItemStack(Items.IRON_SWORD));
+        } else {
+            setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SWORD));
         }
     }
     
     @Override
-    protected void setEnchantmentBasedOnDifficulty(DifficultyInstance diff) {
-        float f = diff.getClampedAdditionalDifficulty();
-        if (getHeldItemMainhand() != null && !getHeldItemMainhand().isEmpty() && rand.nextFloat() < 0.25f * f) {
-            EnchantmentHelper.addRandomEnchantment(rand, getHeldItemMainhand(), (int)(5.0f + f * rand.nextInt(18)), false);
+    protected void setEnchantmentBasedOnDifficulty(DifficultyInstance difficulty) {
+        float f = difficulty.getSpecialMultiplier();
+        ItemStack weapon = getMainHandItem();
+        if (!weapon.isEmpty() && random.nextFloat() < 0.25f * f) {
+            EnchantmentHelper.enchantItem(random, weapon, (int)(5.0f + f * random.nextInt(18)), false);
         }
     }
 }

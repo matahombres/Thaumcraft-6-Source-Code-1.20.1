@@ -1,189 +1,269 @@
 package thaumcraft.common.world.aura;
-import java.util.Random;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.chunk.LevelChunk;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import thaumcraft.common.lib.capabilities.ThaumcraftCapabilities;
+import thaumcraft.common.lib.utils.PosXY;
+
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.Biome;
-import net.minecraft.world.chunk.Chunk;
-import thaumcraft.Thaumcraft;
-import thaumcraft.api.capabilities.ThaumcraftCapabilities;
-import thaumcraft.common.lib.utils.PosXY;
-import thaumcraft.common.world.biomes.BiomeHandler;
 
+/**
+ * Central handler for all aura-related operations.
+ * Manages aura data for all dimensions and provides methods for querying and modifying vis/flux.
+ */
+public class AuraHandler {
 
-public class AuraHandler
-{
-    public static int AURA_CEILING = 500;
-    static ConcurrentHashMap<Integer, AuraWorld> auras;
-    public static ConcurrentHashMap<Integer, CopyOnWriteArrayList<ChunkPos>> dirtyChunks;
-    public static ConcurrentHashMap<Integer, BlockPos> riftTrigger;
-    
-    public static AuraWorld getAuraWorld(int dim) {
-        return AuraHandler.auras.get(dim);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuraHandler.class);
+
+    /** Maximum base aura value for a chunk */
+    public static final int AURA_CEILING = 500;
+
+    /** Aura data storage per dimension */
+    private static final ConcurrentHashMap<ResourceKey<Level>, AuraWorld> auras = new ConcurrentHashMap<>();
+
+    /** Chunks that have been modified and need syncing */
+    public static final ConcurrentHashMap<ResourceKey<Level>, CopyOnWriteArrayList<ChunkPos>> dirtyChunks = new ConcurrentHashMap<>();
+
+    /** Positions where flux rifts should be triggered */
+    public static final ConcurrentHashMap<ResourceKey<Level>, BlockPos> riftTrigger = new ConcurrentHashMap<>();
+
+    // ==================== World Management ====================
+
+    public static AuraWorld getAuraWorld(ResourceKey<Level> dimension) {
+        return auras.get(dimension);
     }
-    
-    public static AuraChunk getAuraChunk(int dim, int x, int y) {
-        if (AuraHandler.auras.containsKey(dim)) {
-            return AuraHandler.auras.get(dim).getAuraChunkAt(x, y);
+
+    public static AuraChunk getAuraChunk(ResourceKey<Level> dimension, int x, int z) {
+        AuraWorld world = auras.get(dimension);
+        if (world == null) {
+            addAuraWorld(dimension);
+            world = auras.get(dimension);
         }
-        addAuraWorld(dim);
-        if (AuraHandler.auras.containsKey(dim)) {
-            return AuraHandler.auras.get(dim).getAuraChunkAt(x, y);
-        }
-        return null;
+        return world != null ? world.getAuraChunkAt(x, z) : null;
     }
-    
-    public static void addAuraWorld(int dim) {
-        if (!AuraHandler.auras.containsKey(dim)) {
-            AuraHandler.auras.put(dim, new AuraWorld(dim));
-            Thaumcraft.log.info("Creating aura cache for world " + dim);
+
+    public static void addAuraWorld(ResourceKey<Level> dimension) {
+        if (!auras.containsKey(dimension)) {
+            auras.put(dimension, new AuraWorld(dimension));
+            LOGGER.info("Creating aura cache for dimension {}", dimension.location());
         }
     }
-    
-    public static void removeAuraWorld(int dim) {
-        AuraHandler.auras.remove(dim);
-        Thaumcraft.log.info("Removing aura cache for world " + dim);
+
+    public static void removeAuraWorld(ResourceKey<Level> dimension) {
+        auras.remove(dimension);
+        LOGGER.info("Removing aura cache for dimension {}", dimension.location());
     }
-    
-    public static void addAuraChunk(int dim, Chunk chunk, short base, float vis, float flux) {
-        AuraWorld aw = AuraHandler.auras.get(dim);
-        if (aw == null) {
-            aw = new AuraWorld(dim);
-        }
-        aw.getAuraChunks().put(new PosXY(chunk.x, chunk.z), new AuraChunk(chunk, base, vis, flux));
-        AuraHandler.auras.put(dim, aw);
+
+    public static void addAuraChunk(ResourceKey<Level> dimension, LevelChunk chunk, short base, float vis, float flux) {
+        AuraWorld aw = auras.computeIfAbsent(dimension, AuraWorld::new);
+        aw.setAuraChunk(new PosXY(chunk.getPos().x, chunk.getPos().z), new AuraChunk(chunk, base, vis, flux));
     }
-    
-    public static void removeAuraChunk(int dim, int x, int y) {
-        AuraWorld aw = AuraHandler.auras.get(dim);
+
+    public static void removeAuraChunk(ResourceKey<Level> dimension, int x, int z) {
+        AuraWorld aw = auras.get(dimension);
         if (aw != null) {
-            aw.getAuraChunks().remove(new PosXY(x, y));
+            aw.removeAuraChunk(x, z);
         }
     }
-    
-    public static float getTotalAura(World world, BlockPos pos) {
-        AuraChunk ac = getAuraChunk(world.provider.getDimension(), pos.getX() >> 4, pos.getZ() >> 4);
-        return (ac != null) ? (ac.getVis() + ac.getFlux()) : 0.0f;
+
+    // ==================== Aura Queries ====================
+
+    /**
+     * Gets the total aura (vis + flux) at the given position.
+     */
+    public static float getTotalAura(Level level, BlockPos pos) {
+        AuraChunk ac = getAuraChunk(level.dimension(), pos.getX() >> 4, pos.getZ() >> 4);
+        return ac != null ? (ac.getVis() + ac.getFlux()) : 0.0f;
     }
-    
-    public static float getFluxSaturation(World world, BlockPos pos) {
-        AuraChunk ac = getAuraChunk(world.provider.getDimension(), pos.getX() >> 4, pos.getZ() >> 4);
-        return (ac != null) ? (ac.getFlux() / ac.getBase()) : 0.0f;
-    }
-    
-    public static float getVis(World world, BlockPos pos) {
-        AuraChunk ac = getAuraChunk(world.provider.getDimension(), pos.getX() >> 4, pos.getZ() >> 4);
-        return (ac != null) ? ac.getVis() : 0.0f;
-    }
-    
-    public static float getFlux(World world, BlockPos pos) {
-        AuraChunk ac = getAuraChunk(world.provider.getDimension(), pos.getX() >> 4, pos.getZ() >> 4);
-        return (ac != null) ? ac.getFlux() : 0.0f;
-    }
-    
-    public static int getAuraBase(World world, BlockPos pos) {
-        AuraChunk ac = getAuraChunk(world.provider.getDimension(), pos.getX() >> 4, pos.getZ() >> 4);
-        return (ac != null) ? ac.getBase() : 0;
-    }
-    
-    public static boolean shouldPreserveAura(World world, EntityPlayer player, BlockPos pos) {
-        return (player == null || ThaumcraftCapabilities.getKnowledge(player).isResearchComplete("AURAPRESERVE")) && getVis(world, pos) / getAuraBase(world, pos) < 0.1;
-    }
-    
-    public static void addVis(World world, BlockPos pos, float amount) {
-        if (amount < 0.0f) {
-            return;
+
+    /**
+     * Gets the flux saturation ratio (flux / base) at the given position.
+     */
+    public static float getFluxSaturation(Level level, BlockPos pos) {
+        AuraChunk ac = getAuraChunk(level.dimension(), pos.getX() >> 4, pos.getZ() >> 4);
+        if (ac != null && ac.getBase() > 0) {
+            return ac.getFlux() / ac.getBase();
         }
+        return 0.0f;
+    }
+
+    /**
+     * Gets the current vis at the given position.
+     */
+    public static float getVis(Level level, BlockPos pos) {
+        AuraChunk ac = getAuraChunk(level.dimension(), pos.getX() >> 4, pos.getZ() >> 4);
+        return ac != null ? ac.getVis() : 0.0f;
+    }
+
+    /**
+     * Gets the current flux at the given position.
+     */
+    public static float getFlux(Level level, BlockPos pos) {
+        AuraChunk ac = getAuraChunk(level.dimension(), pos.getX() >> 4, pos.getZ() >> 4);
+        return ac != null ? ac.getFlux() : 0.0f;
+    }
+
+    /**
+     * Gets the base aura level at the given position.
+     */
+    public static int getAuraBase(Level level, BlockPos pos) {
+        AuraChunk ac = getAuraChunk(level.dimension(), pos.getX() >> 4, pos.getZ() >> 4);
+        return ac != null ? ac.getBase() : 0;
+    }
+
+    /**
+     * Checks if aura should be preserved (below 10% and player has research).
+     * If player is null, assumes research is complete.
+     */
+    public static boolean shouldPreserveAura(Level level, Player player, BlockPos pos) {
+        int base = getAuraBase(level, pos);
+        if (base <= 0) return false;
+        
+        float visRatio = getVis(level, pos) / base;
+        if (visRatio >= 0.1f) return false;
+        
+        if (player == null) return true;
+        
+        return ThaumcraftCapabilities.isResearchComplete(player, "AURAPRESERVE");
+    }
+
+    // ==================== Aura Modification ====================
+
+    /**
+     * Adds vis to the aura at the given position.
+     */
+    public static void addVis(Level level, BlockPos pos, float amount) {
+        if (amount <= 0.0f) return;
         try {
-            AuraChunk ac = getAuraChunk(world.provider.getDimension(), pos.getX() >> 4, pos.getZ() >> 4);
+            AuraChunk ac = getAuraChunk(level.dimension(), pos.getX() >> 4, pos.getZ() >> 4);
             modifyVisInChunk(ac, amount, true);
-        }
-        catch (Exception ex) {}
+        } catch (Exception ignored) {}
     }
-    
-    public static void addFlux(World world, BlockPos pos, float amount) {
-        if (amount < 0.0f) {
-            return;
-        }
+
+    /**
+     * Adds flux to the aura at the given position.
+     */
+    public static void addFlux(Level level, BlockPos pos, float amount) {
+        if (amount <= 0.0f) return;
         try {
-            AuraChunk ac = getAuraChunk(world.provider.getDimension(), pos.getX() >> 4, pos.getZ() >> 4);
+            AuraChunk ac = getAuraChunk(level.dimension(), pos.getX() >> 4, pos.getZ() >> 4);
             modifyFluxInChunk(ac, amount, true);
-        }
-        catch (Exception ex) {}
+        } catch (Exception ignored) {}
     }
-    
-    public static float drainVis(World world, BlockPos pos, float amount, boolean simulate) {
-        boolean didit = false;
+
+    /**
+     * Drains vis from the aura at the given position.
+     * @return how much was actually drained
+     */
+    public static float drainVis(Level level, BlockPos pos, float amount, boolean simulate) {
         try {
-            AuraChunk ac = getAuraChunk(world.provider.getDimension(), pos.getX() >> 4, pos.getZ() >> 4);
-            if (amount > ac.getVis()) {
-                amount = ac.getVis();
+            AuraChunk ac = getAuraChunk(level.dimension(), pos.getX() >> 4, pos.getZ() >> 4);
+            if (ac == null) return 0.0f;
+            
+            float available = ac.getVis();
+            if (amount > available) {
+                amount = available;
             }
-            didit = modifyVisInChunk(ac, -amount, !simulate);
-        }
-        catch (Exception ex) {}
-        return didit ? amount : 0.0f;
+            
+            if (modifyVisInChunk(ac, -amount, !simulate)) {
+                return amount;
+            }
+        } catch (Exception ignored) {}
+        return 0.0f;
     }
-    
-    public static float drainFlux(World world, BlockPos pos, float amount, boolean simulate) {
-        boolean didit = false;
+
+    /**
+     * Drains flux from the aura at the given position.
+     * @return how much was actually drained
+     */
+    public static float drainFlux(Level level, BlockPos pos, float amount, boolean simulate) {
         try {
-            AuraChunk ac = getAuraChunk(world.provider.getDimension(), pos.getX() >> 4, pos.getZ() >> 4);
-            if (amount > ac.getFlux()) {
-                amount = ac.getFlux();
+            AuraChunk ac = getAuraChunk(level.dimension(), pos.getX() >> 4, pos.getZ() >> 4);
+            if (ac == null) return 0.0f;
+            
+            float available = ac.getFlux();
+            if (amount > available) {
+                amount = available;
             }
-            didit = modifyFluxInChunk(ac, -amount, !simulate);
-        }
-        catch (Exception ex) {}
-        return didit ? amount : 0.0f;
-    }
-    
-    public static boolean modifyVisInChunk(AuraChunk ac, float amount, boolean doit) {
-        if (ac != null) {
-            if (doit) {
-                ac.setVis(Math.max(0.0f, ac.getVis() + amount));
+            
+            if (modifyFluxInChunk(ac, -amount, !simulate)) {
+                return amount;
             }
-            return true;
-        }
-        return false;
+        } catch (Exception ignored) {}
+        return 0.0f;
     }
-    
-    private static boolean modifyFluxInChunk(AuraChunk ac, float amount, boolean doit) {
-        if (ac != null) {
-            if (doit) {
-                ac.setFlux(Math.max(0.0f, ac.getFlux() + amount));
-            }
-            return true;
+
+    /**
+     * Modifies vis in a chunk.
+     * @return true if the chunk was valid and modification was possible
+     */
+    public static boolean modifyVisInChunk(AuraChunk ac, float amount, boolean apply) {
+        if (ac == null) return false;
+        if (apply) {
+            ac.setVis(Math.max(0.0f, ac.getVis() + amount));
         }
-        return false;
+        return true;
     }
-    
-    public static void generateAura(Chunk chunk, Random rand) {
-        Biome bgb = chunk.getWorld().getBiome(new BlockPos(chunk.x * 16 + 8, 50, chunk.z * 16 + 8));
-        if (BiomeHandler.getBiomeBlacklist(Biome.getIdForBiome(bgb)) != -1) {
-            return;
+
+    /**
+     * Modifies flux in a chunk.
+     * @return true if the chunk was valid and modification was possible
+     */
+    private static boolean modifyFluxInChunk(AuraChunk ac, float amount, boolean apply) {
+        if (ac == null) return false;
+        if (apply) {
+            ac.setFlux(Math.max(0.0f, ac.getFlux() + amount));
         }
-        float life = BiomeHandler.getBiomeAuraModifier(bgb);
-        for (int a = 0; a < 4; ++a) {
-            EnumFacing dir = EnumFacing.getHorizontal(a);
-            Biome bgb2 = chunk.getWorld().getBiome(new BlockPos((chunk.x + dir.getFrontOffsetX()) * 16 + 8, 50, (chunk.z + dir.getFrontOffsetZ()) * 16 + 8));
-            life += BiomeHandler.getBiomeAuraModifier(bgb2);
+        return true;
+    }
+
+    // ==================== World Generation ====================
+
+    /**
+     * Generates initial aura for a newly loaded chunk.
+     * Base aura is determined by the biome's aura modifier.
+     */
+    public static void generateAura(LevelChunk chunk, RandomSource rand) {
+        Level level = chunk.getLevel();
+        BlockPos center = new BlockPos(chunk.getPos().x * 16 + 8, 50, chunk.getPos().z * 16 + 8);
+        
+        // Get biome aura modifier (TODO: implement BiomeHandler)
+        float life = getBiomeAuraModifier(level, center);
+        
+        // Average with neighboring chunks
+        for (Direction dir : Direction.Plane.HORIZONTAL) {
+            BlockPos neighborPos = center.relative(dir, 16);
+            life += getBiomeAuraModifier(level, neighborPos);
         }
         life /= 5.0f;
-        float noise = (float)(1.0 + rand.nextGaussian() * 0.10000000149011612);
-        short base = (short)(life * 500.0f * noise);
-        base = (short)MathHelper.clamp(base, 0, 500);
-        addAuraChunk(chunk.getWorld().provider.getDimension(), chunk, base, base, 0.0f);
+        
+        // Add some random variation
+        float noise = (float)(1.0 + rand.nextGaussian() * 0.1);
+        short base = (short)(life * AURA_CEILING * noise);
+        base = (short) Mth.clamp(base, 0, AURA_CEILING);
+        
+        addAuraChunk(level.dimension(), chunk, base, base, 0.0f);
     }
-    
-    static {
-        AuraHandler.auras = new ConcurrentHashMap<Integer, AuraWorld>();
-        AuraHandler.dirtyChunks = new ConcurrentHashMap<Integer, CopyOnWriteArrayList<ChunkPos>>();
-        AuraHandler.riftTrigger = new ConcurrentHashMap<Integer, BlockPos>();
+
+    /**
+     * Gets the aura modifier for the biome at the given position.
+     * TODO: Implement proper biome-based modifiers
+     */
+    private static float getBiomeAuraModifier(Level level, BlockPos pos) {
+        Biome biome = level.getBiome(pos).value();
+        // Default to 1.0 (normal aura)
+        // In the future, this should check biome tags or a config map
+        return 1.0f;
     }
 }

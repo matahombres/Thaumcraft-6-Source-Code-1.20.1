@@ -1,87 +1,79 @@
 package thaumcraft.common.items.armor;
-import net.minecraft.client.renderer.ItemMeshDefinition;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemArmor;
-import net.minecraft.item.ItemStack;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.level.Level;
+import thaumcraft.api.ThaumcraftMaterials;
 import thaumcraft.api.items.IWarpingGear;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.IThaumcraftItems;
+import thaumcraft.init.ModItems;
 
+import javax.annotation.Nullable;
 
-public class ItemVoidArmor extends ItemArmor implements IWarpingGear, IThaumcraftItems
-{
-    public ItemVoidArmor(String name, ItemArmor.ArmorMaterial enumarmormaterial, int j, EntityEquipmentSlot k) {
-        super(enumarmormaterial, j, k);
-        setCreativeTab(ConfigItems.TABTC);
-        setRegistryName(name);
-        setUnlocalizedName(name);
-        ConfigItems.ITEM_VARIANT_HOLDERS.add(this);
+/**
+ * Void Metal Armor - High protection, self-repairing, but warping.
+ */
+public class ItemVoidArmor extends ArmorItem implements IWarpingGear {
+    
+    public ItemVoidArmor(Type type) {
+        super(ThaumcraftMaterials.ARMORMAT_VOID, type, 
+                new Item.Properties().rarity(Rarity.RARE));
     }
     
-    public Item getItem() {
-        return this;
+    // Factory methods for different armor pieces
+    public static ItemVoidArmor createHelmet() {
+        return new ItemVoidArmor(Type.HELMET);
     }
     
-    public String[] getVariantNames() {
-        return new String[] { "normal" };
+    public static ItemVoidArmor createChestplate() {
+        return new ItemVoidArmor(Type.CHESTPLATE);
     }
     
-    public int[] getVariantMeta() {
-        return new int[] { 0 };
+    public static ItemVoidArmor createLeggings() {
+        return new ItemVoidArmor(Type.LEGGINGS);
     }
     
-    @SideOnly(Side.CLIENT)
-    public ItemMeshDefinition getCustomMesh() {
-        return null;
+    public static ItemVoidArmor createBoots() {
+        return new ItemVoidArmor(Type.BOOTS);
     }
     
-    public ModelResourceLocation getCustomModelResourceLocation(String variant) {
-        return new ModelResourceLocation("thaumcraft:" + variant);
+    @Override
+    public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+        return repair.is(ModItems.VOID_METAL_INGOT.get()) || super.isValidRepairItem(toRepair, repair);
     }
     
-    public String getArmorTexture(ItemStack stack, Entity entity, EntityEquipmentSlot slot, String type) {
-        if (stack.getItem() == ItemsTC.voidHelm || stack.getItem() == ItemsTC.voidChest || stack.getItem() == ItemsTC.voidBoots) {
-            return "thaumcraft:textures/entity/armor/void_1.png";
+    @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
+        super.inventoryTick(stack, level, entity, slotId, isSelected);
+        // Self-repair: repair 1 durability every second (20 ticks) while worn
+        if (stack.isDamaged() && entity != null && entity.tickCount % 20 == 0 && entity instanceof LivingEntity living) {
+            // Only repair if actually worn
+            for (ItemStack armorPiece : living.getArmorSlots()) {
+                if (armorPiece == stack) {
+                    stack.setDamageValue(stack.getDamageValue() - 1);
+                    break;
+                }
+            }
         }
-        if (stack.getItem() == ItemsTC.voidLegs) {
+    }
+    
+    @Nullable
+    @Override
+    public String getArmorTexture(ItemStack stack, Entity entity, EquipmentSlot slot, String type) {
+        // Use layer 1 for helmet/chest/boots, layer 2 for legs
+        if (slot == EquipmentSlot.LEGS) {
             return "thaumcraft:textures/entity/armor/void_2.png";
         }
         return "thaumcraft:textures/entity/armor/void_1.png";
     }
     
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.UNCOMMON;
-    }
-    
-    public boolean getIsRepairable(ItemStack stack1, ItemStack stack2) {
-        return stack2.isItemEqual(new ItemStack(ItemsTC.ingots, 1, 1)) || super.getIsRepairable(stack1, stack2);
-    }
-    
-    public void onUpdate(ItemStack stack, World world, Entity entity, int p_77663_4_, boolean p_77663_5_) {
-        super.onUpdate(stack, world, entity, p_77663_4_, p_77663_5_);
-        if (!world.isRemote && stack.isItemDamaged() && entity.ticksExisted % 20 == 0 && entity instanceof EntityLivingBase) {
-            stack.damageItem(-1, (EntityLivingBase)entity);
-        }
-    }
-    
-    public void onArmorTick(World world, EntityPlayer player, ItemStack armor) {
-        super.onArmorTick(world, player, armor);
-        if (!world.isRemote && armor.getItemDamage() > 0 && player.ticksExisted % 20 == 0) {
-            armor.damageItem(-1, player);
-        }
-    }
-    
-    public int getWarp(ItemStack itemstack, EntityPlayer player) {
+    @Override
+    public int getWarp(ItemStack itemstack, Player player) {
         return 1;
     }
 }

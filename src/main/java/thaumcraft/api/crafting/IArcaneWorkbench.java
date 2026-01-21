@@ -1,12 +1,11 @@
 package thaumcraft.api.crafting;
 
+import net.minecraft.world.Container;
 
 /**
- * 
- * @author Azanor
- * This needs to be implemented by any inventory that wishes to act as an arcane workbench.
- *
+ * Interface for the arcane workbench inventory.
+ * Used as the container type for IArcaneRecipe.
  */
-public interface IArcaneWorkbench {
-
+public interface IArcaneWorkbench extends Container {
+    // Marker interface for arcane workbench containers
 }

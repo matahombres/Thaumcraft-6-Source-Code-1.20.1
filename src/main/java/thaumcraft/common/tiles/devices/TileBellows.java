@@ -1,99 +1,164 @@
 package thaumcraft.common.tiles.devices;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityFurnace;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.ITickable;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.common.lib.utils.BlockStateUtils;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.AABB;
 import thaumcraft.common.tiles.TileThaumcraft;
+import thaumcraft.init.ModBlockEntities;
 
+/**
+ * Bellows tile entity - speeds up adjacent furnaces and Thaumcraft devices.
+ * Animates on client, accelerates processing on server.
+ */
+public class TileBellows extends TileThaumcraft {
 
-public class TileBellows extends TileThaumcraft implements ITickable
-{
-    public float inflation;
-    boolean direction;
-    boolean firstrun;
-    public int delay;
+    // Animation state (client-side)
+    public float inflation = 1.0f;
+    private boolean direction = false;
+    private boolean firstRun = true;
     
-    public TileBellows() {
-        inflation = 1.0f;
-        direction = false;
-        firstrun = true;
-        delay = 0;
+    // Tick delay for acceleration
+    public int delay = 0;
+
+    public TileBellows(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
-    
-    @SideOnly(Side.CLIENT)
-    public AxisAlignedBB getRenderBoundingBox() {
-        return new AxisAlignedBB(getPos().getX() - 0.3, getPos().getY() - 0.3, getPos().getZ() - 0.3, getPos().getX() + 1.3, getPos().getY() + 1.3, getPos().getZ() + 1.3);
+
+    public TileBellows(BlockPos pos, BlockState state) {
+        this(ModBlockEntities.BELLOWS.get(), pos, state);
     }
-    
-    public void update() {
-        if (world.isRemote) {
-            if (BlockStateUtils.isEnabled(getBlockMetadata())) {
-                if (firstrun) {
-                    inflation = 0.35f + world.rand.nextFloat() * 0.55f;
-                }
-                firstrun = false;
-                if (inflation > 0.35f && !direction) {
-                    inflation -= 0.075f;
-                }
-                if (inflation <= 0.35f && !direction) {
-                    direction = true;
-                }
-                if (inflation < 1.0f && direction) {
-                    inflation += 0.025f;
-                }
-                if (inflation >= 1.0f && direction) {
-                    direction = false;
-                    world.playSound(pos.getX(), pos.getY(), pos.getZ(), SoundEvents.ENTITY_GHAST_SHOOT, SoundCategory.BLOCKS, 0.01f, 0.5f + (world.rand.nextFloat() - world.rand.nextFloat()) * 0.2f, false);
-                }
-            }
+
+    // ==================== Tick ====================
+
+    public static void clientTick(Level level, BlockPos pos, BlockState state, TileBellows tile) {
+        if (!isEnabled(state)) return;
+
+        if (tile.firstRun) {
+            tile.inflation = 0.35f + level.random.nextFloat() * 0.55f;
+            tile.firstRun = false;
         }
-        else if (BlockStateUtils.isEnabled(getBlockMetadata())) {
-            ++delay;
-            if (delay >= 2) {
-                delay = 0;
-                TileEntity tile = world.getTileEntity(pos.offset(BlockStateUtils.getFacing(getBlockMetadata())));
-                if (tile != null && tile instanceof TileEntityFurnace) {
-                    TileEntityFurnace tf = (TileEntityFurnace)tile;
-                    int ct = getCooktime(tf);
-                    if (ct > 0 && ct < 199) {
-                        setCooktime(tf, ct + 1);
-                    }
-                }
-            }
+
+        // Deflate
+        if (tile.inflation > 0.35f && !tile.direction) {
+            tile.inflation -= 0.075f;
+        }
+        if (tile.inflation <= 0.35f && !tile.direction) {
+            tile.direction = true;
+        }
+
+        // Inflate
+        if (tile.inflation < 1.0f && tile.direction) {
+            tile.inflation += 0.025f;
+        }
+        if (tile.inflation >= 1.0f && tile.direction) {
+            tile.direction = false;
+            level.playLocalSound(
+                    pos.getX(), pos.getY(), pos.getZ(),
+                    SoundEvents.GHAST_SHOOT, SoundSource.BLOCKS,
+                    0.01f, 0.5f + (level.random.nextFloat() - level.random.nextFloat()) * 0.2f,
+                    false
+            );
         }
     }
-    
-    public void setCooktime(TileEntityFurnace ent, int hit) {
-        ent.cookTime = hit;
+
+    public static void serverTick(Level level, BlockPos pos, BlockState state, TileBellows tile) {
+        if (!isEnabled(state)) return;
+
+        tile.delay++;
+        if (tile.delay >= 2) {
+            tile.delay = 0;
+            
+            Direction facing = getFacing(state);
+            if (facing != null) {
+                BlockEntity targetTile = level.getBlockEntity(pos.relative(facing));
+                
+                // Speed up vanilla furnaces
+                if (targetTile instanceof FurnaceBlockEntity furnace) {
+                    // Access furnace cook time through reflection or mixin in full implementation
+                    // For now, we note this needs AbstractFurnaceBlockEntity access
+                    // The original mod directly accessed furnace.cookTime
+                    speedUpFurnace(furnace);
+                }
+                
+                // TODO: Speed up Thaumcraft devices (smelter, etc.)
+            }
+        }
     }
-    
-    public int getCooktime(TileEntityFurnace ent) {
-        return ent.cookTime;
+
+    private static void speedUpFurnace(FurnaceBlockEntity furnace) {
+        // In 1.20.1, furnace internals are protected
+        // This would need an accessor mixin or AT to work properly
+        // For now, this is a placeholder
+        // Original code: if (cookTime > 0 && cookTime < 199) cookTime++;
     }
-    
-    public static int getBellows(World world, BlockPos pos, EnumFacing[] directions) {
+
+    // ==================== State Helpers ====================
+
+    private static boolean isEnabled(BlockState state) {
+        // Check if block has ENABLED property and is enabled
+        // Or check if block has POWERED property
+        if (state.hasProperty(BlockStateProperties.ENABLED)) {
+            return state.getValue(BlockStateProperties.ENABLED);
+        }
+        // Default to enabled if no property exists
+        return true;
+    }
+
+    private static Direction getFacing(BlockState state) {
+        if (state.hasProperty(BlockStateProperties.FACING)) {
+            return state.getValue(BlockStateProperties.FACING);
+        }
+        if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+            return state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+        }
+        return Direction.NORTH;
+    }
+
+    // ==================== Static Utility ====================
+
+    /**
+     * Count active bellows adjacent to a position in specified directions.
+     * Used by smelters and other devices to calculate speed bonuses.
+     * 
+     * @param level The world
+     * @param pos Position to check around
+     * @param directions Directions to check for bellows
+     * @return Number of active bellows found
+     */
+    public static int getBellows(Level level, BlockPos pos, Direction[] directions) {
         int bellows = 0;
-        for (EnumFacing dir : directions) {
-            TileEntity tile = world.getTileEntity(pos.offset(dir));
-            try {
-                if (tile != null && tile instanceof TileBellows && BlockStateUtils.getFacing(tile.getBlockMetadata()) == dir.getOpposite() && BlockStateUtils.isEnabled(tile.getBlockMetadata())) {
-                    ++bellows;
+        for (Direction dir : directions) {
+            BlockEntity tile = level.getBlockEntity(pos.relative(dir));
+            if (tile instanceof TileBellows) {
+                BlockState state = tile.getBlockState();
+                Direction bellowsFacing = getFacing(state);
+                // Bellows must be facing toward the device and enabled
+                if (bellowsFacing == dir.getOpposite() && isEnabled(state)) {
+                    bellows++;
                 }
             }
-            catch (Exception ex) {}
         }
         return bellows;
     }
-    
-    public boolean canRenderBreaking() {
-        return true;
+
+    // ==================== Rendering ====================
+
+    /**
+     * Custom render bounding box for rendering.
+     * Note: In 1.20.1, this is accessed via TESR if needed.
+     */
+    public AABB getCustomRenderBoundingBox() {
+        return new AABB(
+                worldPosition.getX() - 0.3, worldPosition.getY() - 0.3, worldPosition.getZ() - 0.3,
+                worldPosition.getX() + 1.3, worldPosition.getY() + 1.3, worldPosition.getZ() + 1.3
+        );
     }
 }

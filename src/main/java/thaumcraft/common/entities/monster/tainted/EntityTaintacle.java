@@ -1,180 +1,231 @@
 package thaumcraft.common.entities.monster.tainted;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.MoverType;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.EntityAIAttackMelee;
-import net.minecraft.entity.ai.EntityAIBase;
-import net.minecraft.entity.ai.EntityAIHurtByTarget;
-import net.minecraft.entity.ai.EntityAILookIdle;
-import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
-import net.minecraft.entity.ai.EntityAIWatchClosest;
-import net.minecraft.entity.monster.EntityMob;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.Item;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.EnumDifficulty;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.ThaumcraftMaterials;
-import thaumcraft.api.blocks.BlocksTC;
-import thaumcraft.api.entities.ITaintedMob;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.utils.BlockUtils;
-import thaumcraft.common.world.biomes.BiomeHandler;
 
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import thaumcraft.init.ModEntities;
 
-public class EntityTaintacle extends EntityMob implements ITaintedMob
-{
-    public float flailIntensity;
+/**
+ * EntityTaintacle - A stationary tainted tentacle that attacks nearby players.
+ * Cannot move horizontally, only faces toward targets.
+ * Spawns smaller tentacles near players at range.
+ * Takes damage when not on tainted ground.
+ */
+public class EntityTaintacle extends Monster {
     
-    public EntityTaintacle(World par1World) {
-        super(par1World);
-        flailIntensity = 1.0f;
-        setSize(0.8f, 3.0f);
-        experienceValue = 8;
+    public float flailIntensity = 1.0f;
+    
+    public EntityTaintacle(EntityType<? extends EntityTaintacle> type, Level level) {
+        super(type, level);
+        this.xpReward = 8;
     }
     
-    protected void initEntityAI() {
-        tasks.addTask(1, new EntityAIAttackMelee(this, 1.0, false));
-        tasks.addTask(2, new EntityAIWatchClosest(this, EntityPlayer.class, 6.0f));
-        tasks.addTask(3, new EntityAILookIdle(this));
-        targetTasks.addTask(0, new EntityAIHurtByTarget(this, false));
-        targetTasks.addTask(1, new EntityAINearestAttackableTarget(this, EntityPlayer.class, true));
+    public EntityTaintacle(Level level) {
+        super(ModEntities.TAINTACLE.get(), level);
+        this.xpReward = 8;
     }
     
-    public boolean canAttackClass(Class clazz) {
-        return !ITaintedMob.class.isAssignableFrom(clazz);
+    @Override
+    protected void registerGoals() {
+        this.goalSelector.addGoal(1, new MeleeAttackGoal(this, 1.0, false));
+        this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 6.0f));
+        this.goalSelector.addGoal(3, new RandomLookAroundGoal(this));
+        
+        this.targetSelector.addGoal(0, new HurtByTargetGoal(this));
+        this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, Player.class, true));
     }
     
-    public boolean isOnSameTeam(Entity otherEntity) {
-        return otherEntity instanceof ITaintedMob || super.isOnSameTeam(otherEntity);
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 50.0)
+                .add(Attributes.ATTACK_DAMAGE, 7.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.0); // Cannot move
     }
     
-    public boolean getCanSpawnHere() {
-        boolean onTaint = world.getBlockState(getPosition()).getMaterial() == ThaumcraftMaterials.MATERIAL_TAINT || world.getBlockState(getPosition().down()).getMaterial() == ThaumcraftMaterials.MATERIAL_TAINT;
-        return onTaint && world.getDifficulty() != EnumDifficulty.PEACEFUL;
+    /**
+     * Check if entity is a tainted mob.
+     */
+    public boolean isTaintedMob(Entity entity) {
+        return entity instanceof EntityTaintCrawler || 
+               entity instanceof EntityTaintSwarm ||
+               entity instanceof EntityTaintacle;
     }
     
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(50.0);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(7.0);
-        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.0);
-    }
-    
-    public void move(MoverType mt, double par1, double par3, double par5) {
-        par1 = 0.0;
-        par5 = 0.0;
-        if (par3 > 0.0) {
-            par3 = 0.0;
+    @Override
+    public boolean canAttack(LivingEntity target) {
+        if (isTaintedMob(target)) {
+            return false;
         }
-        super.move(mt, par1, par3, par5);
+        return super.canAttack(target);
     }
     
-    public void onUpdate() {
-        super.onUpdate();
-        if (!world.isRemote && ticksExisted % 20 == 0) {
-            boolean onTaint = world.getBlockState(getPosition()).getMaterial() == ThaumcraftMaterials.MATERIAL_TAINT || world.getBlockState(getPosition().down()).getMaterial() == ThaumcraftMaterials.MATERIAL_TAINT;
+    @Override
+    public boolean isAlliedTo(Entity other) {
+        if (isTaintedMob(other)) {
+            return true;
+        }
+        return super.isAlliedTo(other);
+    }
+    
+    @Override
+    public void move(MoverType type, Vec3 movement) {
+        // Only allow downward movement (falling), no horizontal movement
+        double clampedX = 0;
+        double clampedY = movement.y > 0 ? 0 : movement.y;
+        double clampedZ = 0;
+        super.move(type, new Vec3(clampedX, clampedY, clampedZ));
+    }
+    
+    @Override
+    public void tick() {
+        super.tick();
+        
+        if (!level().isClientSide && tickCount % 20 == 0) {
+            // TODO: Check if on taint material when implemented
+            // For now, tentacles don't take damage from ground
+            boolean onTaint = true; // Placeholder
+            
             if (!onTaint) {
-                damageEntity(DamageSource.STARVE, 1.0f);
+                hurt(damageSources().starve(), 1.0f);
             }
-            if (!(this instanceof EntityTaintacleSmall) && ticksExisted % 40 == 0 && getAttackTarget() != null && getDistanceSq(getAttackTarget()) > 16.0 && getDistanceSq(getAttackTarget()) < 256.0 && getEntitySenses().canSee(getAttackTarget())) {
-                spawnTentacles(getAttackTarget());
+            
+            // Spawn small tentacles near distant targets (only for large taintacles)
+            if (!(this instanceof EntityTaintacleSmall) && tickCount % 40 == 0) {
+                LivingEntity target = getTarget();
+                if (target != null) {
+                    double distSq = distanceToSqr(target);
+                    if (distSq > 16.0 && distSq < 256.0 && hasLineOfSight(target)) {
+                        spawnSmallTentacle(target);
+                    }
+                }
             }
         }
-        if (world.isRemote) {
+        
+        // Client-side effects
+        if (level().isClientSide) {
+            // Decay flail intensity
             if (flailIntensity > 1.0f) {
                 flailIntensity -= 0.01f;
             }
-            if (ticksExisted < height * 10.0f && onGround) {
-                FXDispatcher.INSTANCE.tentacleAriseFX(this);
+            
+            // Rising particles when spawning
+            if (tickCount < getBbHeight() * 10.0f && onGround()) {
+                for (int i = 0; i < 3; i++) {
+                    level().addParticle(ParticleTypes.LARGE_SMOKE,
+                            getX() + (random.nextDouble() - 0.5) * getBbWidth(),
+                            getY() + random.nextDouble() * 0.5,
+                            getZ() + (random.nextDouble() - 0.5) * getBbWidth(),
+                            0, 0.05, 0);
+                }
             }
         }
     }
     
-    protected void spawnTentacles(Entity entity) {
-        if (world.getBiome(entity.getPosition()) == BiomeHandler.ELDRITCH || world.getBlockState(entity.getPosition()).getMaterial() == ThaumcraftMaterials.MATERIAL_TAINT || world.getBlockState(entity.getPosition().down()).getMaterial() == ThaumcraftMaterials.MATERIAL_TAINT) {
-            EntityTaintacleSmall taintlet = new EntityTaintacleSmall(world);
-            taintlet.setLocationAndAngles(entity.posX + world.rand.nextFloat() - world.rand.nextFloat(), entity.posY, entity.posZ + world.rand.nextFloat() - world.rand.nextFloat(), 0.0f, 0.0f);
-            world.spawnEntity(taintlet);
-            playSound(SoundsTC.tentacle, getSoundVolume(), getSoundPitch());
-            if (world.getBiome(entity.getPosition()) == BiomeHandler.ELDRITCH && world.isAirBlock(entity.getPosition()) && BlockUtils.isAdjacentToSolidBlock(world, entity.getPosition())) {
-                world.setBlockState(entity.getPosition(), BlocksTC.taintFibre.getDefaultState());
-            }
-        }
+    /**
+     * Spawns a small tentacle near the target.
+     */
+    protected void spawnSmallTentacle(Entity target) {
+        // TODO: Check for taint biome/material when implemented
+        
+        EntityTaintacleSmall smallTentacle = new EntityTaintacleSmall(level());
+        smallTentacle.moveTo(
+                target.getX() + random.nextFloat() - random.nextFloat(),
+                target.getY(),
+                target.getZ() + random.nextFloat() - random.nextFloat(),
+                0.0f, 0.0f);
+        level().addFreshEntity(smallTentacle);
+        
+        // TODO: Play SoundsTC.tentacle when implemented
+        playSound(SoundEvents.CHORUS_FLOWER_DEATH, getSoundVolume(), getVoicePitch());
     }
     
-    public void faceEntity(Entity par1Entity, float par2) {
-        double d0 = par1Entity.posX - posX;
-        double d2 = par1Entity.posZ - posZ;
-        float f2 = (float)(Math.atan2(d2, d0) * 180.0 / 3.141592653589793) - 90.0f;
-        rotationYaw = updateRotation(rotationYaw, f2, par2);
+    /**
+     * Faces toward the given entity.
+     */
+    public void faceEntity(Entity target, float maxYawChange) {
+        double dx = target.getX() - getX();
+        double dz = target.getZ() - getZ();
+        float targetYaw = (float)(Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0f;
+        setYRot(rotlerp(getYRot(), targetYaw, maxYawChange));
     }
     
-    protected float updateRotation(float par1, float par2, float par3) {
-        float f3 = MathHelper.wrapDegrees(par2 - par1);
-        if (f3 > par3) {
-            f3 = par3;
-        }
-        if (f3 < -par3) {
-            f3 = -par3;
-        }
-        return par1 + f3;
+    private float rotlerp(float current, float target, float maxChange) {
+        float diff = Mth.wrapDegrees(target - current);
+        if (diff > maxChange) diff = maxChange;
+        if (diff < -maxChange) diff = -maxChange;
+        return current + diff;
     }
     
-    public int getTalkInterval() {
+    @Override
+    public int getAmbientSoundInterval() {
         return 200;
     }
     
+    @Override
     protected SoundEvent getAmbientSound() {
-        return SoundEvents.BLOCK_CHORUS_FLOWER_DEATH;
+        return SoundEvents.CHORUS_FLOWER_DEATH;
     }
     
-    protected float getSoundPitch() {
-        return 1.3f - height / 10.0f;
+    @Override
+    public float getVoicePitch() {
+        return 1.3f - getBbHeight() / 10.0f;
     }
     
+    @Override
     protected float getSoundVolume() {
-        return height / 8.0f;
+        return getBbHeight() / 8.0f;
     }
     
-    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-        return SoundsTC.tentacle;
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        // TODO: Return SoundsTC.tentacle when implemented
+        return SoundEvents.SLIME_HURT;
     }
     
+    @Override
     protected SoundEvent getDeathSound() {
-        return SoundsTC.tentacle;
+        return SoundEvents.SLIME_DEATH;
     }
     
-    protected Item getDropItem() {
-        return Item.getItemById(0);
-    }
-    
-    protected void dropFewItems(boolean flag, int i) {
-        entityDropItem(ConfigItems.FLUX_CRYSTAL.copy(), height / 2.0f);
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public void handleStatusUpdate(byte par1) {
-        if (par1 == 16) {
+    @Override
+    public void handleEntityEvent(byte id) {
+        if (id == 16) {
             flailIntensity = 3.0f;
-        }
-        else {
-            super.handleStatusUpdate(par1);
+        } else {
+            super.handleEntityEvent(id);
         }
     }
     
-    public boolean attackEntityAsMob(Entity p_70652_1_) {
-        world.setEntityState(this, (byte)16);
-        playSound(SoundsTC.tentacle, getSoundVolume(), getSoundPitch());
-        return super.attackEntityAsMob(p_70652_1_);
+    @Override
+    public boolean doHurtTarget(Entity target) {
+        // Trigger flail animation
+        level().broadcastEntityEvent(this, (byte)16);
+        playSound(SoundEvents.SLIME_ATTACK, getSoundVolume(), getVoicePitch());
+        return super.doHurtTarget(target);
+    }
+    
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
+        super.dropCustomDeathLoot(source, lootingLevel, wasRecentlyHit);
+        
+        // Drop flux crystal
+        // TODO: Drop ConfigItems.FLUX_CRYSTAL when implemented
     }
 }

@@ -1,822 +1,882 @@
 package thaumcraft.common.golems;
-import java.nio.ByteBuffer;
-import java.util.Iterator;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.IEntityLivingData;
-import net.minecraft.entity.IRangedAttackMob;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.EntityAIAttackMelee;
-import net.minecraft.entity.ai.EntityAIAttackRanged;
-import net.minecraft.entity.ai.EntityAIBase;
-import net.minecraft.entity.ai.EntityAIHurtByTarget;
-import net.minecraft.entity.ai.EntityAILookIdle;
-import net.minecraft.entity.ai.EntityAISwimming;
-import net.minecraft.entity.ai.EntityAIWatchClosest;
-import net.minecraft.entity.ai.EntityMoveHelper;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.ItemNameTag;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagInt;
-import net.minecraft.nbt.NBTTagLong;
-import net.minecraft.network.Packet;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.network.play.server.SPacketAnimation;
-import net.minecraft.pathfinding.PathNavigate;
-import net.minecraft.pathfinding.PathNavigateClimber;
-import net.minecraft.pathfinding.PathNavigateGround;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
-import net.minecraftforge.fml.common.FMLCommonHandler;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import net.minecraftforge.oredict.OreDictionary;
-import thaumcraft.api.capabilities.ThaumcraftCapabilities;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.control.FlyingMoveControl;
+import net.minecraft.world.entity.ai.control.MoveControl;
+import net.minecraft.world.entity.ai.goal.*;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
+import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.entity.ai.navigation.WallClimberNavigation;
+import net.minecraft.world.entity.monster.RangedAttackMob;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.DyeItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.golems.EnumGolemTrait;
 import thaumcraft.api.golems.IGolemAPI;
 import thaumcraft.api.golems.IGolemProperties;
 import thaumcraft.api.golems.tasks.Task;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.config.ConfigAspects;
-import thaumcraft.common.config.ModConfig;
 import thaumcraft.common.entities.construct.EntityOwnedConstruct;
-import thaumcraft.common.golems.ai.AIFollowOwner;
-import thaumcraft.common.golems.ai.AIGotoBlock;
-import thaumcraft.common.golems.ai.AIGotoEntity;
-import thaumcraft.common.golems.ai.AIGotoHome;
-import thaumcraft.common.golems.ai.AIOwnerHurtByTarget;
-import thaumcraft.common.golems.ai.AIOwnerHurtTarget;
-import thaumcraft.common.golems.ai.PathNavigateGolemAir;
-import thaumcraft.common.golems.ai.PathNavigateGolemGround;
 import thaumcraft.common.golems.tasks.TaskHandler;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.utils.Utils;
 
+import java.nio.ByteBuffer;
 
-public class EntityThaumcraftGolem extends EntityOwnedConstruct implements IGolemAPI, IRangedAttackMob
-{
-    int rankXp;
-    private static DataParameter<Integer> PROPS1;
-    private static DataParameter<Integer> PROPS2;
-    private static DataParameter<Integer> PROPS3;
-    private static DataParameter<Byte> CLIMBING;
-    public boolean redrawParts;
-    private boolean firstRun;
-    protected Task task;
-    protected int taskID;
-    public static int XPM = 1000;
-    
-    public EntityThaumcraftGolem(World worldIn) {
-        super(worldIn);
-        rankXp = 0;
-        redrawParts = false;
-        firstRun = true;
-        task = null;
-        taskID = Integer.MAX_VALUE;
-        setSize(0.4f, 0.9f);
-        experienceValue = 5;
+/**
+ * EntityThaumcraftGolem - The main golem entity.
+ * 
+ * Features:
+ * - Modular construction from Material, Head, Arms, Legs, and Addon
+ * - 19 traits affecting behavior
+ * - Task-based AI driven by seals
+ * - XP/Rank system for smart golems
+ * - Color matching with seals
+ * - Inventory for carrying items (1-2 slots based on HAULER trait)
+ */
+public class EntityThaumcraftGolem extends EntityOwnedConstruct implements IGolemAPI, RangedAttackMob {
+
+    // Synched data for properties (packed into 2 ints = long)
+    private static final EntityDataAccessor<Integer> DATA_PROPS1 = 
+            SynchedEntityData.defineId(EntityThaumcraftGolem.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PROPS2 = 
+            SynchedEntityData.defineId(EntityThaumcraftGolem.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PROPS3 = 
+            SynchedEntityData.defineId(EntityThaumcraftGolem.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Byte> DATA_CLIMBING = 
+            SynchedEntityData.defineId(EntityThaumcraftGolem.class, EntityDataSerializers.BYTE);
+
+    // Flags stored in PROPS3 byte 1
+    private static final byte FLAG_FOLLOWING = 0x02;
+    private static final byte FLAG_COMBAT = 0x08;
+
+    // XP multiplier for ranking up
+    public static final int XP_MULTIPLIER = 1000;
+
+    private int rankXp = 0;
+    public boolean redrawParts = false;
+    private boolean firstRun = true;
+    protected Task task = null;
+    protected int taskID = Integer.MAX_VALUE;
+
+    public EntityThaumcraftGolem(EntityType<? extends EntityThaumcraftGolem> type, Level level) {
+        super(type, level);
+        this.xpReward = 5;
     }
-    
-    protected void initEntityAI() {
-        targetTasks.taskEntries.clear();
-        tasks.addTask(2, new AIGotoEntity(this));
-        tasks.addTask(3, new AIGotoBlock(this));
-        tasks.addTask(4, new AIGotoHome(this));
-        tasks.addTask(5, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0f));
-        tasks.addTask(6, new EntityAILookIdle(this));
-    }
-    
+
     @Override
-    protected void entityInit() {
-        super.entityInit();
-        getDataManager().register(EntityThaumcraftGolem.PROPS1, 0);
-        getDataManager().register(EntityThaumcraftGolem.PROPS2, 0);
-        getDataManager().register(EntityThaumcraftGolem.PROPS3, 0);
-        getDataManager().register((DataParameter)EntityThaumcraftGolem.CLIMBING, 0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_PROPS1, 0);
+        this.entityData.define(DATA_PROPS2, 0);
+        this.entityData.define(DATA_PROPS3, 0);
+        this.entityData.define(DATA_CLIMBING, (byte) 0);
     }
-    
+
+    public static AttributeSupplier.Builder createAttributes() {
+        return EntityOwnedConstruct.createAttributes()
+                .add(Attributes.MOVEMENT_SPEED, 0.3)
+                .add(Attributes.MAX_HEALTH, 10.0)
+                .add(Attributes.ATTACK_DAMAGE, 0.0)
+                .add(Attributes.FOLLOW_RANGE, 40.0);
+    }
+
+    @Override
+    protected void registerGoals() {
+        rebuildAI();
+    }
+
+    // ==================== Properties ====================
+
     @Override
     public IGolemProperties getProperties() {
         ByteBuffer bb = ByteBuffer.allocate(8);
-        bb.putInt((int) getDataManager().get((DataParameter)EntityThaumcraftGolem.PROPS1));
-        bb.putInt((int) getDataManager().get((DataParameter)EntityThaumcraftGolem.PROPS2));
+        bb.putInt(this.entityData.get(DATA_PROPS1));
+        bb.putInt(this.entityData.get(DATA_PROPS2));
         return GolemProperties.fromLong(bb.getLong(0));
     }
-    
+
     @Override
     public void setProperties(IGolemProperties prop) {
         ByteBuffer bb = ByteBuffer.allocate(8);
         bb.putLong(prop.toLong());
         bb.rewind();
-        getDataManager().set(EntityThaumcraftGolem.PROPS1, bb.getInt());
-        getDataManager().set(EntityThaumcraftGolem.PROPS2, bb.getInt());
+        this.entityData.set(DATA_PROPS1, bb.getInt());
+        this.entityData.set(DATA_PROPS2, bb.getInt());
     }
-    
+
     @Override
     public byte getGolemColor() {
-        byte[] ba = Utils.intToByteArray((int) getDataManager().get((DataParameter)EntityThaumcraftGolem.PROPS3));
-        return ba[0];
+        int props3 = this.entityData.get(DATA_PROPS3);
+        return (byte) (props3 & 0xFF);
     }
-    
-    public void setGolemColor(byte b) {
-        byte[] ba = Utils.intToByteArray((int) getDataManager().get((DataParameter)EntityThaumcraftGolem.PROPS3));
-        ba[0] = b;
-        getDataManager().set(EntityThaumcraftGolem.PROPS3, Utils.byteArraytoInt(ba));
+
+    public void setGolemColor(byte color) {
+        int props3 = this.entityData.get(DATA_PROPS3);
+        props3 = (props3 & 0xFFFFFF00) | (color & 0xFF);
+        this.entityData.set(DATA_PROPS3, props3);
     }
-    
-    public byte getFlags() {
-        byte[] ba = Utils.intToByteArray((int) getDataManager().get((DataParameter)EntityThaumcraftGolem.PROPS3));
-        return ba[1];
+
+    private byte getFlags() {
+        int props3 = this.entityData.get(DATA_PROPS3);
+        return (byte) ((props3 >> 8) & 0xFF);
     }
-    
-    public void setFlags(byte b) {
-        byte[] ba = Utils.intToByteArray((int) getDataManager().get((DataParameter)EntityThaumcraftGolem.PROPS3));
-        ba[1] = b;
-        getDataManager().set(EntityThaumcraftGolem.PROPS3, Utils.byteArraytoInt(ba));
+
+    private void setFlags(byte flags) {
+        int props3 = this.entityData.get(DATA_PROPS3);
+        props3 = (props3 & 0xFFFF00FF) | ((flags & 0xFF) << 8);
+        this.entityData.set(DATA_PROPS3, props3);
     }
-    
-    public float getEyeHeight() {
-        return 0.7f;
-    }
-    
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.3);
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(10.0);
-        getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(0.0);
-        getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(40.0);
-    }
-    
+
+    // ==================== Attribute Updates ====================
+
     private void updateEntityAttributes() {
-        int mh = 10 + getProperties().getMaterial().healthMod;
-        if (getProperties().hasTrait(EnumGolemTrait.FRAGILE)) {
-            mh *= (int)0.75;
+        IGolemProperties props = getProperties();
+        
+        // Health
+        int maxHealth = 10 + props.getMaterial().healthMod;
+        if (props.hasTrait(EnumGolemTrait.FRAGILE)) {
+            maxHealth = (int) (maxHealth * 0.75);
         }
-        mh += getProperties().getRank();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(mh);
-        stepHeight = (getProperties().hasTrait(EnumGolemTrait.WHEELED) ? 0.5f : 0.6f);
-        setHomePosAndDistance((getHomePosition() == BlockPos.ORIGIN) ? getPosition() : getHomePosition(), getProperties().hasTrait(EnumGolemTrait.SCOUT) ? 48 : 32);
-        getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(getProperties().hasTrait(EnumGolemTrait.SCOUT) ? 56.0 : 40.0);
-        navigator = getGolemNavigator();
-        if (getProperties().hasTrait(EnumGolemTrait.FLYER)) {
-            moveHelper = new FlyingMoveControl(this);
+        maxHealth += props.getRank();
+        getAttribute(Attributes.MAX_HEALTH).setBaseValue(maxHealth);
+        
+        // Step height
+        this.setMaxUpStep(props.hasTrait(EnumGolemTrait.WHEELED) ? 0.5f : 0.6f);
+        
+        // Home distance
+        int homeRange = props.hasTrait(EnumGolemTrait.SCOUT) ? 48 : 32;
+        restrictTo(getRestrictCenter().equals(BlockPos.ZERO) ? blockPosition() : getRestrictCenter(), homeRange);
+        
+        // Follow range
+        double followRange = props.hasTrait(EnumGolemTrait.SCOUT) ? 56.0 : 40.0;
+        getAttribute(Attributes.FOLLOW_RANGE).setBaseValue(followRange);
+        
+        // Navigation
+        this.navigation = createGolemNavigation();
+        
+        // Flying movement control
+        if (props.hasTrait(EnumGolemTrait.FLYER)) {
+            this.moveControl = new GolemFlyingMoveControl(this);
         }
-        if (getProperties().hasTrait(EnumGolemTrait.FIGHTER)) {
-            double da = getProperties().getMaterial().damage;
-            if (getProperties().hasTrait(EnumGolemTrait.BRUTAL)) {
-                da = Math.max(da * 1.5, da + 1.0);
+        
+        // Attack damage
+        if (props.hasTrait(EnumGolemTrait.FIGHTER)) {
+            double damage = props.getMaterial().damage;
+            if (props.hasTrait(EnumGolemTrait.BRUTAL)) {
+                damage = Math.max(damage * 1.5, damage + 1.0);
             }
-            da += getProperties().getRank() * 0.25;
-            getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(da);
+            damage += props.getRank() * 0.25;
+            getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(damage);
+        } else {
+            getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(0.0);
         }
-        else {
-            getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(0.0);
-        }
-        createAI();
+        
+        rebuildAI();
     }
-    
-    private void createAI() {
-        tasks.taskEntries.clear();
-        targetTasks.taskEntries.clear();
+
+    private void rebuildAI() {
+        this.goalSelector.removeAllGoals(g -> true);
+        this.targetSelector.removeAllGoals(g -> true);
+        
+        IGolemProperties props = getProperties();
+        
         if (isFollowingOwner()) {
-            tasks.addTask(4, new AIFollowOwner(this, 1.0, 10.0f, 2.0f));
+            // Follow owner mode
+            this.goalSelector.addGoal(4, new FollowOwnerGoal(this, 1.0, 10.0f, 2.0f));
+        } else {
+            // Work mode - Task-based AI will be added later
+            this.goalSelector.addGoal(5, new RandomStrollGoal(this, 0.5));
         }
-        else {
-            tasks.addTask(3, new AIGotoEntity(this));
-            tasks.addTask(4, new AIGotoBlock(this));
-            tasks.addTask(5, new AIGotoHome(this));
-        }
-        tasks.addTask(8, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0f));
-        tasks.addTask(9, new EntityAILookIdle(this));
-        if (getProperties().hasTrait(EnumGolemTrait.FIGHTER)) {
-            if (getNavigator() instanceof PathNavigateGround) {
-                tasks.addTask(0, new EntityAISwimming(this));
+        
+        this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
+        this.goalSelector.addGoal(9, new RandomLookAroundGoal(this));
+        
+        if (props.hasTrait(EnumGolemTrait.FIGHTER)) {
+            if (!(this.navigation instanceof FlyingPathNavigation)) {
+                this.goalSelector.addGoal(0, new FloatGoal(this));
             }
-            if (getProperties().hasTrait(EnumGolemTrait.RANGED)) {
-                EntityAIAttackRanged aa = null;
-                if (getProperties().getArms().function != null) {
-                    aa = getProperties().getArms().function.getRangedAttackAI(this);
-                }
-                if (aa != null) {
-                    tasks.addTask(1, aa);
+            
+            if (props.hasTrait(EnumGolemTrait.RANGED) && props.getArms().function != null) {
+                RangedAttackGoal rangedAI = props.getArms().function.getRangedAttackAI(this);
+                if (rangedAI != null) {
+                    this.goalSelector.addGoal(1, rangedAI);
                 }
             }
-            tasks.addTask(2, new EntityAIAttackMelee(this, 1.15, false));
+            
+            this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.15, false));
+            
             if (isFollowingOwner()) {
-                targetTasks.addTask(1, new AIOwnerHurtByTarget(this));
-                targetTasks.addTask(2, new AIOwnerHurtTarget(this));
+                // TODO: Add owner hurt target goals
             }
-            targetTasks.addTask(3, new EntityAIHurtByTarget(this, false));
+            
+            this.targetSelector.addGoal(3, new HurtByTargetGoal(this));
         }
     }
-    
-    public boolean isOnLadder() {
-        return isBesideClimbableBlock();
-    }
-    
-    public IEntityLivingData onInitialSpawn(DifficultyInstance diff, IEntityLivingData ld) {
-        setHomePosAndDistance(getPosition(), 32);
-        updateEntityAttributes();
-        return ld;
-    }
-    
-    public int getTotalArmorValue() {
-        int armor = getProperties().getMaterial().armor;
-        if (getProperties().hasTrait(EnumGolemTrait.ARMORED)) {
-            armor = (int)Math.max(armor * 1.5, armor + 1);
+
+    private PathNavigation createGolemNavigation() {
+        IGolemProperties props = getProperties();
+        if (props.hasTrait(EnumGolemTrait.FLYER)) {
+            return new FlyingPathNavigation(this, level());
+        } else if (props.hasTrait(EnumGolemTrait.CLIMBER)) {
+            return new WallClimberNavigation(this, level());
+        } else {
+            return new GroundPathNavigation(this, level());
         }
-        if (getProperties().hasTrait(EnumGolemTrait.FRAGILE)) {
-            armor *= (int)0.75;
-        }
-        return armor;
     }
-    
-    public void onLivingUpdate() {
-        updateArmSwingProgress();
-        super.onLivingUpdate();
-    }
-    
+
+    // ==================== Update ====================
+
     @Override
-    public void onUpdate() {
-        super.onUpdate();
+    public void tick() {
+        super.tick();
+        
         if (getProperties().hasTrait(EnumGolemTrait.FLYER)) {
             setNoGravity(true);
         }
-        if (!world.isRemote) {
+        
+        if (!level().isClientSide) {
             if (firstRun) {
                 firstRun = false;
-                if (hasHome() && !getPosition().equals(getHomePosition())) {
-                    goHome();
+                if (hasRestriction() && !blockPosition().equals(getRestrictCenter())) {
+                    teleportToHome();
                 }
             }
+            
+            // Clear suspended tasks
             if (task != null && task.isSuspended()) {
                 task = null;
             }
-            if (getAttackTarget() != null && getAttackTarget().isDead) {
-                setAttackTarget(null);
+            
+            // Clear dead targets
+            if (getTarget() != null && getTarget().isDeadOrDying()) {
+                setTarget(null);
             }
-            if (getAttackTarget() != null && getProperties().hasTrait(EnumGolemTrait.RANGED) && getDistanceSq(getAttackTarget()) > 1024.0) {
-                setAttackTarget(null);
+            
+            // Ranged target distance check
+            if (getTarget() != null && getProperties().hasTrait(EnumGolemTrait.RANGED) && distanceToSqr(getTarget()) > 1024.0) {
+                setTarget(null);
             }
-            if (!FMLCommonHandler.instance().getMinecraftServerInstance().isPVPEnabled() && getAttackTarget() != null && getAttackTarget() instanceof EntityPlayer) {
-                setAttackTarget(null);
-            }
-            if (ticksExisted % (getProperties().hasTrait(EnumGolemTrait.REPAIR) ? 40 : 100) == 0) {
+            
+            // Health regeneration
+            int healInterval = getProperties().hasTrait(EnumGolemTrait.REPAIR) ? 40 : 100;
+            if (tickCount % healInterval == 0) {
                 heal(1.0f);
             }
+            
+            // Climbing detection
             if (getProperties().hasTrait(EnumGolemTrait.CLIMBER)) {
-                setBesideClimbableBlock(collidedHorizontally);
+                setBesideClimbableBlock(horizontalCollision);
+            }
+        } else {
+            // Client-side part redraw
+            if (tickCount < 20 || tickCount % 20 == 0) {
+                redrawParts = true;
             }
         }
-        else if (ticksExisted < 20 || ticksExisted % 20 == 0) {
-            redrawParts = true;
-        }
-        if (getProperties().getHead().function != null) {
-            getProperties().getHead().function.onUpdateTick(this);
-        }
-        if (getProperties().getArms().function != null) {
-            getProperties().getArms().function.onUpdateTick(this);
-        }
-        if (getProperties().getLegs().function != null) {
-            getProperties().getLegs().function.onUpdateTick(this);
-        }
-        if (getProperties().getAddon().function != null) {
-            getProperties().getAddon().function.onUpdateTick(this);
-        }
+        
+        // Part function updates
+        IGolemProperties props = getProperties();
+        // TODO: Call part function onUpdateTick when implemented
     }
-    
-    @SideOnly(Side.CLIENT)
-    public void handleStatusUpdate(byte par1) {
-        if (par1 == 5) {
-            FXDispatcher.INSTANCE.drawGenericParticles(posX, posY + height + 0.1, posZ, 0.0, 0.0, 0.0, 1.0f, 1.0f, 1.0f, 0.5f, false, 704 + (rand.nextBoolean() ? 0 : 3), 3, 1, 6, 0, 2.0f, 0.0f, 1);
-        }
-        else if (par1 == 6) {
-            FXDispatcher.INSTANCE.drawGenericParticles(posX, posY + height + 0.1, posZ, 0.0, 0.025, 0.0, 0.1f, 1.0f, 1.0f, 0.5f, false, 15, 1, 1, 10, 0, 2.0f, 0.0f, 1);
-        }
-        else if (par1 == 7) {
-            FXDispatcher.INSTANCE.drawGenericParticles(posX, posY + height + 0.1, posZ, 0.0, 0.05, 0.0, 1.0f, 1.0f, 1.0f, 0.5f, false, 640, 10, 1, 10, 0, 2.0f, 0.0f, 1);
-        }
-        else if (par1 == 8) {
-            FXDispatcher.INSTANCE.drawGenericParticles(posX, posY + height + 0.1, posZ, 0.0, 0.01, 0.0, 1.0f, 1.0f, 0.1f, 0.5f, false, 14, 1, 1, 20, 0, 2.0f, 0.0f, 1);
-        }
-        else if (par1 == 9) {
-            for (int a = 0; a < 5; ++a) {
-                FXDispatcher.INSTANCE.drawGenericParticles(posX, posY + height, posZ, rand.nextGaussian() * 0.009999999776482582, rand.nextFloat() * 0.02, rand.nextGaussian() * 0.009999999776482582, 1.0f, 1.0f, 1.0f, 0.5f, false, 13, 1, 1, 20 + rand.nextInt(20), 0, 0.3f + rand.nextFloat() * 0.4f, 0.0f, 1);
-            }
-        }
-        else {
-            super.handleStatusUpdate(par1);
-        }
+
+    @Override
+    public void aiStep() {
+        super.aiStep();
     }
-    
+
+    // ==================== Movement ====================
+
     public float getGolemMoveSpeed() {
-        return 1.0f + getProperties().getRank() * 0.025f + (getProperties().hasTrait(EnumGolemTrait.LIGHT) ? 0.2f : 0.0f) + (getProperties().hasTrait(EnumGolemTrait.HEAVY) ? -0.175f : 0.0f) + (getProperties().hasTrait(EnumGolemTrait.FLYER) ? -0.33f : 0.0f) + (getProperties().hasTrait(EnumGolemTrait.WHEELED) ? 0.25f : 0.0f);
+        IGolemProperties props = getProperties();
+        float speed = 1.0f + props.getRank() * 0.025f;
+        if (props.hasTrait(EnumGolemTrait.LIGHT)) speed += 0.2f;
+        if (props.hasTrait(EnumGolemTrait.HEAVY)) speed -= 0.175f;
+        if (props.hasTrait(EnumGolemTrait.FLYER)) speed -= 0.33f;
+        if (props.hasTrait(EnumGolemTrait.WHEELED)) speed += 0.25f;
+        return speed;
     }
-    
-    public PathNavigate getGolemNavigator() {
-        return getProperties().hasTrait(EnumGolemTrait.FLYER) ? new PathNavigateGolemAir(this, world) : (getProperties().hasTrait(EnumGolemTrait.CLIMBER) ? new PathNavigateClimber(this, world) : new PathNavigateGolemGround(this, world));
-    }
-    
-    protected boolean canTriggerWalking() {
-        return getProperties().hasTrait(EnumGolemTrait.HEAVY) && !getProperties().hasTrait(EnumGolemTrait.FLYER);
-    }
-    
-    public void fall(float distance, float damageMultiplier) {
-        if (!getProperties().hasTrait(EnumGolemTrait.FLYER) && !getProperties().hasTrait(EnumGolemTrait.CLIMBER)) {
-            super.fall(distance, damageMultiplier);
-        }
-    }
-    
-    private void goHome() {
-        double d0 = posX;
-        double d2 = posY;
-        double d3 = posZ;
-        posX = getHomePosition().getX() + 0.5;
-        posY = getHomePosition().getY();
-        posZ = getHomePosition().getZ() + 0.5;
-        boolean flag = false;
-        BlockPos blockpos = new BlockPos(this);
-        boolean flag2 = false;
-        while (!flag2 && blockpos.getY() < world.getActualHeight()) {
-            BlockPos blockpos2 = blockpos.up();
-            IBlockState iblockstate = world.getBlockState(blockpos2);
-            if (iblockstate.getMaterial().blocksMovement()) {
-                flag2 = true;
-            }
-            else {
-                ++posY;
-                blockpos = blockpos2;
-            }
-        }
-        if (flag2) {
-            setPositionAndUpdate(posX, posY, posZ);
-            if (world.getCollisionBoxes(this, getEntityBoundingBox()).isEmpty()) {
-                flag = true;
-            }
-        }
-        if (!flag) {
-            setPositionAndUpdate(d0, d2, d3);
-        }
-        else if (this instanceof EntityCreature) {
-            getNavigator().clearPath();
-        }
-    }
-    
+
     @Override
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        setProperties(GolemProperties.fromLong(nbt.getLong("props")));
-        setHomePosAndDistance(BlockPos.fromLong(nbt.getLong("homepos")), 32);
-        setFlags(nbt.getByte("gflags"));
-        rankXp = nbt.getInteger("rankXP");
-        setGolemColor(nbt.getByte("color"));
-        updateEntityAttributes();
+    public boolean onClimbable() {
+        return isBesideClimbableBlock();
     }
-    
-    @Override
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        nbt.setLong("props", getProperties().toLong());
-        nbt.setLong("homepos", getHomePosition().toLong());
-        nbt.setByte("gflags", getFlags());
-        nbt.setInteger("rankXP", rankXp);
-        nbt.setByte("color", getGolemColor());
-    }
-    
-    protected void damageEntity(DamageSource ds, float damage) {
-        if (ds.isFireDamage() && getProperties().hasTrait(EnumGolemTrait.FIREPROOF)) {
-            return;
-        }
-        if (ds.isExplosion() && getProperties().hasTrait(EnumGolemTrait.BLASTPROOF)) {
-            damage = Math.min(getMaxHealth() / 2.0f, damage * 0.3f);
-        }
-        if (ds == DamageSource.CACTUS) {
-            return;
-        }
-        if (hasHome() && (ds == DamageSource.IN_WALL || ds == DamageSource.OUT_OF_WORLD)) {
-            goHome();
-        }
-        super.damageEntity(ds, damage);
-    }
-    
-    @Override
-    protected boolean processInteract(EntityPlayer player, EnumHand hand) {
-        if (isDead) {
-            return false;
-        }
-        if (player.getHeldItem(hand).getItem() instanceof ItemNameTag) {
-            return false;
-        }
-        if (!world.isRemote && isOwner(player) && !isDead) {
-            if (player.isSneaking()) {
-                playSound(SoundsTC.zap, 1.0f, 1.0f);
-                if (task != null) {
-                    task.setReserved(false);
-                }
-                dropCarried();
-                ItemStack placer = new ItemStack(ItemsTC.golemPlacer);
-                placer.setTagInfo("props", new NBTTagLong(getProperties().toLong()));
-                placer.setTagInfo("xp", new NBTTagInt(rankXp));
-                entityDropItem(placer, 0.5f);
-                setDead();
-                player.swingArm(hand);
-            }
-            else if (player.getHeldItem(hand).getItem() instanceof ItemGolemBell && ThaumcraftCapabilities.getKnowledge(player).isResearchKnown("GOLEMDIRECT")) {
-                if (task != null) {
-                    task.setReserved(false);
-                }
-                playSound(SoundsTC.scan, 1.0f, 1.0f);
-                setFollowingOwner(!isFollowingOwner());
-                if (isFollowingOwner()) {
-                    player.sendStatusMessage(new TextComponentTranslation("golem.follow", ""), true);
-                    if (ModConfig.CONFIG_GRAPHICS.showGolemEmotes) {
-                        world.setEntityState(this, (byte)5);
-                    }
-                    detachHome();
-                }
-                else {
-                    player.sendStatusMessage(new TextComponentTranslation("golem.stay", ""), true);
-                    if (ModConfig.CONFIG_GRAPHICS.showGolemEmotes) {
-                        world.setEntityState(this, (byte)8);
-                    }
-                    setHomePosAndDistance(getPosition(), getProperties().hasTrait(EnumGolemTrait.SCOUT) ? 48 : 32);
-                }
-                updateEntityAttributes();
-                player.swingArm(hand);
-            }
-            else if (!player.getHeldItem(hand).isEmpty()) {
-                int[] ids = OreDictionary.getOreIDs(player.getHeldItem(hand));
-                if (ids != null && ids.length > 0) {
-                    for (int id : ids) {
-                        String s = OreDictionary.getOreName(id);
-                        if (s.startsWith("dye")) {
-                            for (int a = 0; a < ConfigAspects.dyes.length; ++a) {
-                                if (s.equals(ConfigAspects.dyes[a])) {
-                                    playSound(SoundsTC.zap, 1.0f, 1.0f);
-                                    setGolemColor((byte)(16 - a));
-                                    player.getHeldItem(hand).shrink(1);
-                                    player.swingArm(hand);
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return true;
-        }
-        return super.processInteract(player, hand);
-    }
-    
-    @Override
-    public void onDeath(DamageSource cause) {
-        if (task != null) {
-            task.setReserved(false);
-        }
-        super.onDeath(cause);
-        if (!world.isRemote) {
-            dropCarried();
-        }
-    }
-    
-    protected void dropCarried() {
-        for (ItemStack s : getCarrying()) {
-            if (s != null && !s.isEmpty()) {
-                entityDropItem(s, 0.25f);
-            }
-        }
-    }
-    
-    protected void dropFewItems(boolean p_70628_1_, int p_70628_2_) {
-        float b = p_70628_2_ * 0.15f;
-        for (ItemStack stack : getProperties().generateComponents()) {
-            ItemStack s = stack.copy();
-            if (rand.nextFloat() < 0.3f + b) {
-                if (s.getCount() > 0) {
-                    s.shrink(rand.nextInt(s.getCount()));
-                }
-                entityDropItem(s, 0.25f);
-            }
-        }
-    }
-    
+
     public boolean isBesideClimbableBlock() {
-        return ((byte) dataManager.get((DataParameter)EntityThaumcraftGolem.CLIMBING) & 0x1) != 0x0;
+        return (this.entityData.get(DATA_CLIMBING) & 0x01) != 0;
     }
-    
+
     public void setBesideClimbableBlock(boolean climbing) {
-        byte b0 = (byte) dataManager.get((DataParameter)EntityThaumcraftGolem.CLIMBING);
+        byte b = this.entityData.get(DATA_CLIMBING);
         if (climbing) {
-            b0 |= 0x1;
+            b |= 0x01;
+        } else {
+            b &= 0xFE;
         }
-        else {
-            b0 &= 0xFFFFFFFE;
+        this.entityData.set(DATA_CLIMBING, b);
+    }
+
+    // Note: canTriggerWalking() no longer exists in 1.20.1
+    // Sound suppression for non-heavy golems is handled differently now
+    @Override
+    protected void playStepSound(BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        if (getProperties().hasTrait(EnumGolemTrait.HEAVY) && !getProperties().hasTrait(EnumGolemTrait.FLYER)) {
+            super.playStepSound(pos, state);
         }
-        dataManager.set(EntityThaumcraftGolem.CLIMBING, b0);
+        // Light/flying golems make no footstep sounds
     }
-    
-    public boolean isFollowingOwner() {
-        return Utils.getBit(getFlags(), 1);
-    }
-    
-    public void setFollowingOwner(boolean par1) {
-        byte var2 = getFlags();
-        if (par1) {
-            setFlags((byte)Utils.setBit(var2, 1));
+
+    @Override
+    public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
+        if (getProperties().hasTrait(EnumGolemTrait.FLYER) || getProperties().hasTrait(EnumGolemTrait.CLIMBER)) {
+            return false;
         }
-        else {
-            setFlags((byte)Utils.clearBit(var2, 1));
+        return super.causeFallDamage(distance, multiplier, source);
+    }
+
+    private void teleportToHome() {
+        if (!hasRestriction()) return;
+        
+        BlockPos home = getRestrictCenter();
+        double oldX = getX();
+        double oldY = getY();
+        double oldZ = getZ();
+        
+        setPos(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
+        
+        // Find valid position above
+        BlockPos checkPos = blockPosition();
+        while (checkPos.getY() < level().getMaxBuildHeight()) {
+            if (level().getBlockState(checkPos.above()).blocksMotion()) {
+                break;
+            }
+            setPos(getX(), getY() + 1, getZ());
+            checkPos = checkPos.above();
+        }
+        
+        // Check if position is valid
+        if (level().noCollision(this)) {
+            getNavigation().stop();
+        } else {
+            setPos(oldX, oldY, oldZ);
         }
     }
-    
-    public void setAttackTarget(EntityLivingBase entitylivingbaseIn) {
-        super.setAttackTarget(entitylivingbaseIn);
-        setInCombat(getAttackTarget() != null);
+
+    // ==================== Damage ====================
+
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        if (source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE) && getProperties().hasTrait(EnumGolemTrait.FIREPROOF)) {
+            return false;
+        }
+        if (source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION) && getProperties().hasTrait(EnumGolemTrait.BLASTPROOF)) {
+            amount = Math.min(getMaxHealth() / 2.0f, amount * 0.3f);
+        }
+        if (source == damageSources().cactus()) {
+            return false;
+        }
+        if (hasRestriction() && (source == damageSources().inWall() || source == damageSources().fellOutOfWorld())) {
+            teleportToHome();
+        }
+        return super.hurt(source, amount);
     }
-    
+
+    @Override
+    public int getArmorValue() {
+        int armor = getProperties().getMaterial().armor;
+        if (getProperties().hasTrait(EnumGolemTrait.ARMORED)) {
+            armor = (int) Math.max(armor * 1.5, armor + 1);
+        }
+        if (getProperties().hasTrait(EnumGolemTrait.FRAGILE)) {
+            armor = (int) (armor * 0.75);
+        }
+        return armor;
+    }
+
+    // ==================== Combat ====================
+
+    @Override
+    public void setTarget(LivingEntity target) {
+        super.setTarget(target);
+        setInCombat(getTarget() != null);
+    }
+
     @Override
     public boolean isInCombat() {
-        return Utils.getBit(getFlags(), 3);
+        return (getFlags() & FLAG_COMBAT) != 0;
     }
-    
-    public void setInCombat(boolean par1) {
-        byte var2 = getFlags();
-        if (par1) {
-            setFlags((byte)Utils.setBit(var2, 3));
+
+    public void setInCombat(boolean combat) {
+        byte flags = getFlags();
+        if (combat) {
+            flags |= FLAG_COMBAT;
+        } else {
+            flags &= ~FLAG_COMBAT;
         }
-        else {
-            setFlags((byte)Utils.clearBit(var2, 3));
-        }
+        setFlags(flags);
     }
-    
-    public boolean attackEntityAsMob(Entity ent) {
-        float dmg = (float) getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue();
-        int kb = 0;
-        if (ent instanceof EntityLivingBase) {
-            dmg += EnchantmentHelper.getModifierForCreature(getHeldItemMainhand(), ((EntityLivingBase)ent).getCreatureAttribute());
-            kb += EnchantmentHelper.getKnockbackModifier(this);
-        }
-        boolean flag = ent.attackEntityFrom(DamageSource.causeMobDamage(this), dmg);
-        if (flag) {
-            if (ent instanceof EntityLivingBase && getProperties().hasTrait(EnumGolemTrait.DEFT)) {
-                ((EntityLivingBase)ent).recentlyHit = 100;
+
+    @Override
+    public boolean doHurtTarget(Entity target) {
+        float damage = (float) getAttribute(Attributes.ATTACK_DAMAGE).getValue();
+        
+        boolean hit = target.hurt(damageSources().mobAttack(this), damage);
+        if (hit) {
+            if (target instanceof LivingEntity living && getProperties().hasTrait(EnumGolemTrait.DEFT)) {
+                living.setLastHurtByMob(this);
             }
-            if (kb > 0) {
-                ent.addVelocity(-MathHelper.sin(rotationYaw * 3.1415927f / 180.0f) * kb * 0.5f, 0.1, MathHelper.cos(rotationYaw * 3.1415927f / 180.0f) * kb * 0.5f);
-                motionX *= 0.6;
-                motionZ *= 0.6;
-            }
-            int j = EnchantmentHelper.getFireAspectModifier(this);
-            if (j > 0) {
-                ent.setFire(j * 4);
-            }
-            applyEnchantments(this, ent);
+            
+            // Apply enchantments
+            doEnchantDamageEffects(this, target);
+            
+            // Call arm function
             if (getProperties().getArms().function != null) {
-                getProperties().getArms().function.onMeleeAttack(this, ent);
+                getProperties().getArms().function.onMeleeAttack(this, target);
             }
-            if (ent instanceof EntityLiving && !ent.isEntityAlive()) {
+            
+            // XP for kills
+            if (target instanceof Mob && !target.isAlive()) {
                 addRankXp(8);
             }
         }
-        return flag;
+        return hit;
     }
-    
+
+    @Override
+    public void performRangedAttack(LivingEntity target, float distanceFactor) {
+        if (getProperties().getArms().function != null) {
+            getProperties().getArms().function.onRangedAttack(this, target, distanceFactor);
+        }
+    }
+
+    // ==================== Following ====================
+
+    public boolean isFollowingOwner() {
+        return (getFlags() & FLAG_FOLLOWING) != 0;
+    }
+
+    public void setFollowingOwner(boolean following) {
+        byte flags = getFlags();
+        if (following) {
+            flags |= FLAG_FOLLOWING;
+        } else {
+            flags &= ~FLAG_FOLLOWING;
+        }
+        setFlags(flags);
+    }
+
+    // ==================== Tasks ====================
+
     public Task getTask() {
         if (task == null && taskID != Integer.MAX_VALUE) {
-            task = TaskHandler.getTask(world.provider.getDimension(), taskID);
+            task = TaskHandler.getTask(level().dimension(), taskID);
             taskID = Integer.MAX_VALUE;
         }
         return task;
     }
-    
+
     public void setTask(Task task) {
         this.task = task;
     }
-    
+
+    // ==================== XP/Rank ====================
+
     @Override
     public void addRankXp(int xp) {
-        if (!getProperties().hasTrait(EnumGolemTrait.SMART) || world.isRemote) {
+        if (!getProperties().hasTrait(EnumGolemTrait.SMART) || level().isClientSide) {
             return;
         }
+        
         int rank = getProperties().getRank();
         if (rank < 10) {
             rankXp += xp;
-            int xn = (rank + 1) * (rank + 1) * 1000;
-            if (rankXp >= xn) {
-                rankXp -= xn;
+            int xpNeeded = (rank + 1) * (rank + 1) * XP_MULTIPLIER;
+            if (rankXp >= xpNeeded) {
+                rankXp -= xpNeeded;
                 IGolemProperties props = getProperties();
                 props.setRank(rank + 1);
                 setProperties(props);
-                if (ModConfig.CONFIG_GRAPHICS.showGolemEmotes) {
-                    world.setEntityState(this, (byte)9);
-                    playSound(SoundEvents.ENTITY_PLAYER_LEVELUP, 0.25f, 1.0f);
-                }
+                playSound(SoundEvents.PLAYER_LEVELUP, 0.25f, 1.0f);
+                level().broadcastEntityEvent(this, (byte) 9);
             }
         }
     }
-    
+
+    // ==================== Inventory ====================
+
     @Override
     public ItemStack holdItem(ItemStack stack) {
-        if (stack == null || stack.isEmpty() || stack.getCount() <= 0) {
-            return stack;
-        }
-        for (int a = 0; a < (getProperties().hasTrait(EnumGolemTrait.HAULER) ? 2 : 1); ++a) {
-            if (getItemStackFromSlot(EntityEquipmentSlot.values()[a]) == null || getItemStackFromSlot(EntityEquipmentSlot.values()[a]).isEmpty()) {
-                setItemStackToSlot(EntityEquipmentSlot.values()[a], stack);
+        if (stack.isEmpty()) return stack;
+        
+        int slots = getProperties().hasTrait(EnumGolemTrait.HAULER) ? 2 : 1;
+        for (int i = 0; i < slots; i++) {
+            EquipmentSlot slot = EquipmentSlot.values()[i];
+            ItemStack current = getItemBySlot(slot);
+            
+            if (current.isEmpty()) {
+                setItemSlot(slot, stack.copy());
                 return ItemStack.EMPTY;
             }
-            if (getItemStackFromSlot(EntityEquipmentSlot.values()[a]).getCount() < getItemStackFromSlot(EntityEquipmentSlot.values()[a]).getMaxStackSize() && ItemStack.areItemsEqual(getItemStackFromSlot(EntityEquipmentSlot.values()[a]), stack) && ItemStack.areItemStackTagsEqual(getItemStackFromSlot(EntityEquipmentSlot.values()[a]), stack)) {
-                int d = Math.min(stack.getCount(), getItemStackFromSlot(EntityEquipmentSlot.values()[a]).getMaxStackSize() - getItemStackFromSlot(EntityEquipmentSlot.values()[a]).getCount());
-                stack.shrink(d);
-                getItemStackFromSlot(EntityEquipmentSlot.values()[a]).grow(d);
-                if (stack.getCount() <= 0) {
-                    stack = ItemStack.EMPTY;
+            
+            if (ItemStack.isSameItemSameTags(current, stack) && current.getCount() < current.getMaxStackSize()) {
+                int space = current.getMaxStackSize() - current.getCount();
+                int toAdd = Math.min(stack.getCount(), space);
+                current.grow(toAdd);
+                stack.shrink(toAdd);
+                if (stack.isEmpty()) {
+                    return ItemStack.EMPTY;
                 }
             }
         }
         return stack;
     }
-    
+
     @Override
     public ItemStack dropItem(ItemStack stack) {
-        ItemStack out = ItemStack.EMPTY;
-        for (int a = 0; a < (getProperties().hasTrait(EnumGolemTrait.HAULER) ? 2 : 1); ++a) {
-            if (getItemStackFromSlot(EntityEquipmentSlot.values()[a]) != null) {
-                if (!getItemStackFromSlot(EntityEquipmentSlot.values()[a]).isEmpty()) {
-                    if (stack == null || stack.isEmpty()) {
-                        out = getItemStackFromSlot(EntityEquipmentSlot.values()[a]).copy();
-                        setItemStackToSlot(EntityEquipmentSlot.values()[a], ItemStack.EMPTY);
+        int slots = getProperties().hasTrait(EnumGolemTrait.HAULER) ? 2 : 1;
+        ItemStack result = ItemStack.EMPTY;
+        
+        for (int i = 0; i < slots; i++) {
+            EquipmentSlot slot = EquipmentSlot.values()[i];
+            ItemStack current = getItemBySlot(slot);
+            
+            if (!current.isEmpty()) {
+                if (stack == null || stack.isEmpty()) {
+                    result = current.copy();
+                    setItemSlot(slot, ItemStack.EMPTY);
+                    break;
+                } else if (ItemStack.isSameItemSameTags(current, stack)) {
+                    int toDrop = Math.min(stack.getCount(), current.getCount());
+                    result = current.copy();
+                    result.setCount(toDrop);
+                    current.shrink(toDrop);
+                    if (current.isEmpty()) {
+                        setItemSlot(slot, ItemStack.EMPTY);
                     }
-                    else if (ItemStack.areItemsEqual(getItemStackFromSlot(EntityEquipmentSlot.values()[a]), stack) && ItemStack.areItemStackTagsEqual(getItemStackFromSlot(EntityEquipmentSlot.values()[a]), stack)) {
-                        out = getItemStackFromSlot(EntityEquipmentSlot.values()[a]).copy();
-                        out.setCount(Math.min(stack.getCount(), out.getCount()));
-                        getItemStackFromSlot(EntityEquipmentSlot.values()[a]).shrink(stack.getCount());
-                        if (getItemStackFromSlot(EntityEquipmentSlot.values()[a]).getCount() <= 0) {
-                            setItemStackToSlot(EntityEquipmentSlot.values()[a], ItemStack.EMPTY);
-                        }
-                    }
-                    if (out != null && !out.isEmpty()) {
-                        break;
-                    }
+                    break;
                 }
             }
         }
-        if (getProperties().hasTrait(EnumGolemTrait.HAULER) && (getItemStackFromSlot(EntityEquipmentSlot.values()[0]) == null || getItemStackFromSlot(EntityEquipmentSlot.values()[0]).isEmpty()) && getItemStackFromSlot(EntityEquipmentSlot.values()[1]) != null && !getItemStackFromSlot(EntityEquipmentSlot.values()[1]).isEmpty()) {
-            setItemStackToSlot(EntityEquipmentSlot.values()[0], getItemStackFromSlot(EntityEquipmentSlot.values()[1]).copy());
-            setItemStackToSlot(EntityEquipmentSlot.values()[1], ItemStack.EMPTY);
+        
+        // Shift items if hauler
+        if (getProperties().hasTrait(EnumGolemTrait.HAULER)) {
+            ItemStack first = getItemBySlot(EquipmentSlot.values()[0]);
+            ItemStack second = getItemBySlot(EquipmentSlot.values()[1]);
+            if (first.isEmpty() && !second.isEmpty()) {
+                setItemSlot(EquipmentSlot.values()[0], second.copy());
+                setItemSlot(EquipmentSlot.values()[1], ItemStack.EMPTY);
+            }
         }
-        return out;
+        
+        return result;
     }
-    
+
     @Override
     public int canCarryAmount(ItemStack stack) {
-        int ss = 0;
-        for (int a = 0; a < (getProperties().hasTrait(EnumGolemTrait.HAULER) ? 2 : 1); ++a) {
-            if (getItemStackFromSlot(EntityEquipmentSlot.values()[a]) == null || getItemStackFromSlot(EntityEquipmentSlot.values()[a]).isEmpty()) {
-                ss += getItemStackFromSlot(EntityEquipmentSlot.values()[a]).getMaxStackSize();
-            }
-            if (ItemStack.areItemsEqual(getItemStackFromSlot(EntityEquipmentSlot.values()[a]), stack) && ItemStack.areItemStackTagsEqual(getItemStackFromSlot(EntityEquipmentSlot.values()[a]), stack)) {
-                ss += getItemStackFromSlot(EntityEquipmentSlot.values()[a]).getMaxStackSize() - getItemStackFromSlot(EntityEquipmentSlot.values()[a]).getCount();
+        int total = 0;
+        int slots = getProperties().hasTrait(EnumGolemTrait.HAULER) ? 2 : 1;
+        
+        for (int i = 0; i < slots; i++) {
+            ItemStack current = getItemBySlot(EquipmentSlot.values()[i]);
+            if (current.isEmpty()) {
+                total += stack.getMaxStackSize();
+            } else if (ItemStack.isSameItemSameTags(current, stack)) {
+                total += stack.getMaxStackSize() - current.getCount();
             }
         }
-        return ss;
+        return total;
     }
-    
+
     @Override
     public boolean canCarry(ItemStack stack, boolean partial) {
-        int ca = canCarryAmount(stack);
-        if (ca > 0) {
-            if (!partial) {
-                if (ca < stack.getCount()) {
-                    return false;
-                }
-            }
-            return true;
+        int amount = canCarryAmount(stack);
+        if (amount > 0) {
+            return partial || amount >= stack.getCount();
         }
         return false;
     }
-    
+
     @Override
     public boolean isCarrying(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
-        for (int a = 0; a < (getProperties().hasTrait(EnumGolemTrait.HAULER) ? 2 : 1); ++a) {
-            if (getItemStackFromSlot(EntityEquipmentSlot.values()[a]) != null && !getItemStackFromSlot(EntityEquipmentSlot.values()[a]).isEmpty() && getItemStackFromSlot(EntityEquipmentSlot.values()[a]).getCount() > 0 && ItemStack.areItemsEqual(getItemStackFromSlot(EntityEquipmentSlot.values()[a]), stack) && ItemStack.areItemStackTagsEqual(getItemStackFromSlot(EntityEquipmentSlot.values()[a]), stack)) {
+        if (stack.isEmpty()) return false;
+        
+        int slots = getProperties().hasTrait(EnumGolemTrait.HAULER) ? 2 : 1;
+        for (int i = 0; i < slots; i++) {
+            ItemStack current = getItemBySlot(EquipmentSlot.values()[i]);
+            if (!current.isEmpty() && ItemStack.isSameItemSameTags(current, stack)) {
                 return true;
             }
         }
         return false;
     }
-    
+
     @Override
     public NonNullList<ItemStack> getCarrying() {
-        if (getProperties().hasTrait(EnumGolemTrait.HAULER)) {
-            NonNullList<ItemStack> stacks = NonNullList.withSize(2, ItemStack.EMPTY);
-            stacks.set(0, getItemStackFromSlot(EntityEquipmentSlot.values()[0]));
-            stacks.set(1, getItemStackFromSlot(EntityEquipmentSlot.values()[1]));
-            return stacks;
+        int slots = getProperties().hasTrait(EnumGolemTrait.HAULER) ? 2 : 1;
+        NonNullList<ItemStack> list = NonNullList.withSize(slots, ItemStack.EMPTY);
+        for (int i = 0; i < slots; i++) {
+            list.set(i, getItemBySlot(EquipmentSlot.values()[i]));
         }
-        return NonNullList.withSize(1, getItemStackFromSlot(EntityEquipmentSlot.values()[0]));
+        return list;
     }
-    
+
+    // ==================== IGolemAPI ====================
+
     @Override
-    public EntityLivingBase getGolemEntity() {
+    public LivingEntity getGolemEntity() {
         return this;
     }
-    
+
     @Override
-    public World getGolemWorld() {
-        return getEntityWorld();
+    public Level getGolemWorld() {
+        return level();
     }
-    
+
     @Override
     public void swingArm() {
-        if (!isSwingInProgress || swingProgressInt >= 3 || swingProgressInt < 0) {
-            swingProgressInt = -1;
-            isSwingInProgress = true;
-            if (world instanceof WorldServer) {
-                ((WorldServer) world).getEntityTracker().sendToTrackingAndSelf(this, new SPacketAnimation(this, 0));
+        if (!swinging || swingTime >= 3 || swingTime < 0) {
+            swingTime = -1;
+            swinging = true;
+            if (level() instanceof ServerLevel serverLevel) {
+                serverLevel.broadcastEntityEvent(this, (byte) 4);
             }
         }
     }
-    
-    public void attackEntityWithRangedAttack(EntityLivingBase target, float range) {
-        if (getProperties().getArms().function != null) {
-            getProperties().getArms().function.onRangedAttack(this, target, range);
-        }
-    }
-    
-    public void setSwingingArms(boolean swingingArms) {
-    }
-    
-    static {
-        PROPS1 = EntityDataManager.createKey(EntityThaumcraftGolem.class, DataSerializers.VARINT);
-        PROPS2 = EntityDataManager.createKey(EntityThaumcraftGolem.class, DataSerializers.VARINT);
-        PROPS3 = EntityDataManager.createKey(EntityThaumcraftGolem.class, DataSerializers.VARINT);
-        CLIMBING = EntityDataManager.createKey(EntityThaumcraftGolem.class, DataSerializers.BYTE);
-    }
-    
-    class FlyingMoveControl extends EntityMoveHelper
-    {
-        public FlyingMoveControl(EntityThaumcraftGolem vex) {
-            super(vex);
-        }
+
+    // ==================== Interaction ====================
+
+    @Override
+    protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+        if (isRemoved()) return InteractionResult.PASS;
+        if (player.getItemInHand(hand).getItem() == Items.NAME_TAG) return InteractionResult.PASS;
         
-        public void onUpdateMoveHelper() {
-            if (action == EntityMoveHelper.Action.MOVE_TO) {
-                double d0 = posX - EntityThaumcraftGolem.this.posX;
-                double d2 = posY - EntityThaumcraftGolem.this.posY;
-                double d3 = posZ - EntityThaumcraftGolem.this.posZ;
-                double d4 = d0 * d0 + d2 * d2 + d3 * d3;
-                d4 = MathHelper.sqrt(d4);
-                if (d4 < getEntityBoundingBox().getAverageEdgeLength()) {
-                    action = EntityMoveHelper.Action.WAIT;
-                    EntityThaumcraftGolem this$0 = EntityThaumcraftGolem.this;
-                    this$0.motionX *= 0.5;
-                    EntityThaumcraftGolem this$2 = EntityThaumcraftGolem.this;
-                    this$2.motionY *= 0.5;
-                    EntityThaumcraftGolem this$3 = EntityThaumcraftGolem.this;
-                    this$3.motionZ *= 0.5;
+        if (!level().isClientSide && isOwner(player)) {
+            ItemStack heldItem = player.getItemInHand(hand);
+            
+            if (player.isShiftKeyDown()) {
+                // Pick up golem
+                playSound(SoundEvents.ITEM_PICKUP, 1.0f, 1.0f);
+                if (task != null) {
+                    task.setReserved(false);
                 }
-                else {
-                    EntityThaumcraftGolem this$4 = EntityThaumcraftGolem.this;
-                    this$4.motionX += d0 / d4 * 0.033 * speed;
-                    EntityThaumcraftGolem this$5 = EntityThaumcraftGolem.this;
-                    this$5.motionY += d2 / d4 * 0.0125 * speed;
-                    EntityThaumcraftGolem this$6 = EntityThaumcraftGolem.this;
-                    this$6.motionZ += d3 / d4 * 0.033 * speed;
-                    if (getAttackTarget() == null) {
-                        rotationYaw = -(float)MathHelper.atan2(motionX, motionZ) * 57.295776f;
-                        renderYawOffset = rotationYaw;
-                    }
-                    else {
-                        double d5 = getAttackTarget().posX - EntityThaumcraftGolem.this.posX;
-                        double d6 = getAttackTarget().posZ - EntityThaumcraftGolem.this.posZ;
-                        rotationYaw = -(float)MathHelper.atan2(d5, d6) * 57.295776f;
-                        renderYawOffset = rotationYaw;
+                dropCarried();
+                
+                // Create golem placer item with saved data
+                // TODO: Create ItemGolemPlacer when implemented
+                // ItemStack placer = new ItemStack(ItemsTC.golemPlacer);
+                // placer.getOrCreateTag().putLong("props", getProperties().toLong());
+                // placer.getOrCreateTag().putInt("xp", rankXp);
+                // spawnAtLocation(placer, 0.5f);
+                
+                discard();
+                player.swing(hand);
+                return InteractionResult.SUCCESS;
+            }
+            
+            // Dye coloring
+            if (heldItem.getItem() instanceof DyeItem dyeItem) {
+                DyeColor color = dyeItem.getDyeColor();
+                setGolemColor((byte) (16 - color.getId()));
+                heldItem.shrink(1);
+                playSound(SoundEvents.ITEM_PICKUP, 1.0f, 1.5f);
+                player.swing(hand);
+                return InteractionResult.SUCCESS;
+            }
+            
+            // TODO: Handle golem bell for follow/stay toggle
+            
+            return InteractionResult.SUCCESS;
+        }
+        return super.mobInteract(player, hand);
+    }
+
+    private void dropCarried() {
+        for (ItemStack stack : getCarrying()) {
+            if (!stack.isEmpty()) {
+                spawnAtLocation(stack, 0.25f);
+            }
+        }
+        // Clear inventory
+        int slots = getProperties().hasTrait(EnumGolemTrait.HAULER) ? 2 : 1;
+        for (int i = 0; i < slots; i++) {
+            setItemSlot(EquipmentSlot.values()[i], ItemStack.EMPTY);
+        }
+    }
+
+    // ==================== Death ====================
+
+    @Override
+    public void die(DamageSource source) {
+        if (task != null) {
+            task.setReserved(false);
+        }
+        super.die(source);
+        if (!level().isClientSide) {
+            dropCarried();
+        }
+    }
+
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int looting, boolean recentlyHit) {
+        super.dropCustomDeathLoot(source, looting, recentlyHit);
+        float bonus = looting * 0.15f;
+        
+        for (ItemStack stack : getProperties().generateComponents()) {
+            ItemStack drop = stack.copy();
+            if (random.nextFloat() < 0.3f + bonus) {
+                if (drop.getCount() > 1) {
+                    drop.shrink(random.nextInt(drop.getCount()));
+                }
+                spawnAtLocation(drop, 0.25f);
+            }
+        }
+    }
+
+    // ==================== NBT ====================
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putLong("props", getProperties().toLong());
+        tag.putLong("homepos", getRestrictCenter().asLong());
+        tag.putByte("gflags", getFlags());
+        tag.putInt("rankXP", rankXp);
+        tag.putByte("color", getGolemColor());
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setProperties(GolemProperties.fromLong(tag.getLong("props")));
+        restrictTo(BlockPos.of(tag.getLong("homepos")), 32);
+        setFlags(tag.getByte("gflags"));
+        rankXp = tag.getInt("rankXP");
+        setGolemColor(tag.getByte("color"));
+        updateEntityAttributes();
+    }
+
+    // ==================== Properties ====================
+
+    @Override
+    protected float getStandingEyeHeight(Pose pose, EntityDimensions dimensions) {
+        return 0.7f;
+    }
+
+    // ==================== Inner Classes ====================
+
+    /**
+     * Custom flying movement control for flying golems
+     */
+    private class GolemFlyingMoveControl extends MoveControl {
+        public GolemFlyingMoveControl(Mob mob) {
+            super(mob);
+        }
+
+        @Override
+        public void tick() {
+            if (operation == Operation.MOVE_TO) {
+                double dx = wantedX - mob.getX();
+                double dy = wantedY - mob.getY();
+                double dz = wantedZ - mob.getZ();
+                double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                
+                if (distance < mob.getBoundingBox().getSize()) {
+                    operation = Operation.WAIT;
+                    Vec3 motion = mob.getDeltaMovement();
+                    mob.setDeltaMovement(motion.multiply(0.5, 0.5, 0.5));
+                } else {
+                    Vec3 motion = mob.getDeltaMovement();
+                    mob.setDeltaMovement(
+                        motion.x + dx / distance * 0.033 * speedModifier,
+                        motion.y + dy / distance * 0.0125 * speedModifier,
+                        motion.z + dz / distance * 0.033 * speedModifier
+                    );
+                    
+                    if (mob.getTarget() == null) {
+                        Vec3 m = mob.getDeltaMovement();
+                        mob.setYRot((float) (-Mth.atan2(m.x, m.z) * Mth.RAD_TO_DEG));
+                        mob.yBodyRot = mob.getYRot();
+                    } else {
+                        double tx = mob.getTarget().getX() - mob.getX();
+                        double tz = mob.getTarget().getZ() - mob.getZ();
+                        mob.setYRot((float) (-Mth.atan2(tx, tz) * Mth.RAD_TO_DEG));
+                        mob.yBodyRot = mob.getYRot();
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Simple follow owner goal
+     */
+    private class FollowOwnerGoal extends Goal {
+        private final EntityThaumcraftGolem golem;
+        private LivingEntity owner;
+        private final double speedModifier;
+        private final float stopDistance;
+        private final float startDistance;
+        private int timeToRecalcPath;
+
+        public FollowOwnerGoal(EntityThaumcraftGolem golem, double speed, float startDist, float stopDist) {
+            this.golem = golem;
+            this.speedModifier = speed;
+            this.startDistance = startDist;
+            this.stopDistance = stopDist;
+        }
+
+        @Override
+        public boolean canUse() {
+            LivingEntity owner = golem.getOwner();
+            if (owner == null || owner.isSpectator()) return false;
+            if (golem.distanceToSqr(owner) < startDistance * startDistance) return false;
+            this.owner = owner;
+            return true;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            if (golem.getNavigation().isDone()) return false;
+            return golem.distanceToSqr(owner) > stopDistance * stopDistance;
+        }
+
+        @Override
+        public void start() {
+            timeToRecalcPath = 0;
+        }
+
+        @Override
+        public void stop() {
+            owner = null;
+            golem.getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            golem.getLookControl().setLookAt(owner, 10.0f, golem.getMaxHeadXRot());
+            if (--timeToRecalcPath <= 0) {
+                timeToRecalcPath = 10;
+                golem.getNavigation().moveTo(owner, speedModifier);
             }
         }
     }

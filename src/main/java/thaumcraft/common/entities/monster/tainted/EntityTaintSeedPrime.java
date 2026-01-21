@@ -1,15 +1,28 @@
 package thaumcraft.common.entities.monster.tainted;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.world.World;
-import thaumcraft.common.config.ConfigItems;
 
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.damagesource.DamageSource;
+import thaumcraft.init.ModEntities;
 
-public class EntityTaintSeedPrime extends EntityTaintSeed
-{
-    public EntityTaintSeedPrime(World par1World) {
-        super(par1World);
-        setSize(2.0f, 2.0f);
-        experienceValue = 12;
+/**
+ * EntityTaintSeedPrime - A larger, more powerful taint seed.
+ * Spreads taint over a larger area and has more health.
+ */
+public class EntityTaintSeedPrime extends EntityTaintSeed {
+    
+    public EntityTaintSeedPrime(EntityType<? extends EntityTaintSeedPrime> type, Level level) {
+        super(type, level);
+        this.xpReward = 12;
+    }
+    
+    public EntityTaintSeedPrime(Level level) {
+        this(ModEntities.TAINT_SEED_PRIME.get(), level);
     }
     
     @Override
@@ -17,22 +30,23 @@ public class EntityTaintSeedPrime extends EntityTaintSeed
         return 2;
     }
     
-    @Override
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(150.0);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(7.0);
-        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.0);
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 150.0)
+                .add(Attributes.ATTACK_DAMAGE, 7.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.0)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0);
     }
     
     @Override
-    protected void dropFewItems(boolean flag, int i) {
-        entityDropItem(ConfigItems.FLUX_CRYSTAL.copy(), height / 2.0f);
-        if (rand.nextBoolean()) {
-            entityDropItem(ConfigItems.FLUX_CRYSTAL.copy(), height / 2.0f);
+    protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
+        // TODO: Drop flux crystals when implemented
+        spawnAtLocation(new ItemStack(Items.SLIME_BALL));
+        if (random.nextBoolean()) {
+            spawnAtLocation(new ItemStack(Items.SLIME_BALL));
         }
-        if (rand.nextBoolean()) {
-            entityDropItem(ConfigItems.FLUX_CRYSTAL.copy(), height / 2.0f);
+        if (random.nextBoolean()) {
+            spawnAtLocation(new ItemStack(Items.SLIME_BALL));
         }
     }
 }

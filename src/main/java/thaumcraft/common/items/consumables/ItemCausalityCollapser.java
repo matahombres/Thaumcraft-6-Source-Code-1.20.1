@@ -1,35 +1,63 @@
 package thaumcraft.common.items.consumables;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumHand;
-import net.minecraft.world.World;
-import thaumcraft.common.entities.projectile.EntityCausalityCollapser;
-import thaumcraft.common.items.ItemTCBase;
 
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
-public class ItemCausalityCollapser extends ItemTCBase
-{
+import javax.annotation.Nullable;
+import java.util.List;
+
+/**
+ * Causality Collapser - A powerful throwable that creates a void implosion.
+ * Extremely dangerous - destroys everything in the blast radius.
+ */
+public class ItemCausalityCollapser extends Item {
+
     public ItemCausalityCollapser() {
-        super("causality_collapser");
-        setMaxStackSize(16);
-        setMaxDamage(0);
+        super(new Item.Properties()
+                .stacksTo(16)
+                .rarity(Rarity.EPIC));
     }
-    
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
-        if (!player.capabilities.isCreativeMode) {
-            player.getHeldItem(hand).shrink(1);
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+
+        if (!player.getAbilities().instabuild) {
+            stack.shrink(1);
         }
-        player.playSound(SoundEvents.ENTITY_EGG_THROW, 0.3f, 0.4f / (ItemCausalityCollapser.itemRand.nextFloat() * 0.4f + 0.8f));
-        if (!world.isRemote) {
-            EntityCausalityCollapser proj = new EntityCausalityCollapser(world, player);
-            proj.shoot(player, player.rotationPitch, player.rotationYaw, -5.0f, 0.8f, 2.0f);
-            world.spawnEntity(proj);
+
+        // Play throw sound
+        player.playSound(SoundEvents.EGG_THROW, 0.3f,
+                0.4f / (level.random.nextFloat() * 0.4f + 0.8f));
+
+        if (!level.isClientSide()) {
+            // TODO: Spawn EntityCausalityCollapser projectile
+            // This creates a devastating void implosion where it lands
+            // EntityCausalityCollapser proj = new EntityCausalityCollapser(level, player);
+            // proj.shootFromRotation(player, player.getXRot(), player.getYRot(), -5.0f, 0.8f, 2.0f);
+            // level.addFreshEntity(proj);
         }
-        return (ActionResult<ItemStack>)new ActionResult(EnumActionResult.SUCCESS, player.getHeldItem(hand));
+
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+    }
+
+    @Override
+    @OnlyIn(Dist.CLIENT)
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("item.thaumcraft.causality_collapser.desc")
+                .withStyle(style -> style.withColor(0x8B0000)));
+        tooltip.add(Component.translatable("item.thaumcraft.causality_collapser.warning")
+                .withStyle(style -> style.withColor(0xFF0000)));
+        super.appendHoverText(stack, level, tooltip, flag);
     }
 }

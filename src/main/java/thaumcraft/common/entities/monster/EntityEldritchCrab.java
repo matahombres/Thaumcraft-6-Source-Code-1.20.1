@@ -1,244 +1,295 @@
 package thaumcraft.common.entities.monster;
-import net.minecraft.block.Block;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.EnumCreatureAttribute;
-import net.minecraft.entity.IEntityLivingData;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.EntityAIAttackMelee;
-import net.minecraft.entity.ai.EntityAIBase;
-import net.minecraft.entity.ai.EntityAIHurtByTarget;
-import net.minecraft.entity.ai.EntityAILeapAtTarget;
-import net.minecraft.entity.ai.EntityAILookIdle;
-import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
-import net.minecraft.entity.ai.EntityAISwimming;
-import net.minecraft.entity.ai.EntityAIWander;
-import net.minecraft.entity.monster.EntityMob;
-import net.minecraft.entity.monster.EntitySpider;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Items;
-import net.minecraft.init.MobEffects;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.pathfinding.PathNavigateGround;
-import net.minecraft.potion.Potion;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.BlockPos;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.Difficulty;
 import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.EnumDifficulty;
-import net.minecraft.world.World;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.MobType;
+import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LeapAtTargetGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.level.block.state.BlockState;
 import thaumcraft.api.entities.IEldritchMob;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.common.entities.monster.cult.EntityCultist;
-import thaumcraft.common.lib.SoundsTC;
+import thaumcraft.init.ModEntities;
 
+import javax.annotation.Nullable;
 
-public class EntityEldritchCrab extends EntityMob implements IEldritchMob
-{
-    private static DataParameter<Boolean> HELM;
-    private static DataParameter<Integer> RIDING;
-    private int attackTime;
+/**
+ * EntityEldritchCrab - A spider-like eldritch creature.
+ * Can ride on the heads of other entities and attack them.
+ * Sometimes wears a helm for extra armor.
+ */
+public class EntityEldritchCrab extends Monster implements IEldritchMob {
     
-    public EntityEldritchCrab(World par1World) {
-        super(par1World);
-        attackTime = 0;
-        setSize(0.8f, 0.6f);
-        experienceValue = 6;
-        ((PathNavigateGround) getNavigator()).setBreakDoors(true);
+    private static final EntityDataAccessor<Boolean> DATA_HELM = 
+            SynchedEntityData.defineId(EntityEldritchCrab.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_RIDING = 
+            SynchedEntityData.defineId(EntityEldritchCrab.class, EntityDataSerializers.INT);
+    
+    private int attackTime = 0;
+    
+    public EntityEldritchCrab(EntityType<? extends EntityEldritchCrab> type, Level level) {
+        super(type, level);
+        this.xpReward = 6;
+        ((GroundPathNavigation) getNavigation()).setCanOpenDoors(true);
     }
     
-    protected void initEntityAI() {
-        tasks.addTask(0, new EntityAISwimming(this));
-        tasks.addTask(2, new EntityAILeapAtTarget(this, 0.63f));
-        tasks.addTask(3, new EntityAIAttackMelee(this, 1.0, false));
-        tasks.addTask(7, new EntityAIWander(this, 0.8));
-        tasks.addTask(8, new EntityAILookIdle(this));
-        targetTasks.addTask(1, new EntityAIHurtByTarget(this, true));
-        targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityPlayer.class, true));
-        targetTasks.addTask(3, new EntityAINearestAttackableTarget(this, EntityCultist.class, true));
+    public EntityEldritchCrab(Level level) {
+        this(ModEntities.ELDRITCH_CRAB.get(), level);
     }
     
-    public double getYOffset() {
-        return isRiding() ? 0.5 : 0.0;
+    @Override
+    protected void registerGoals() {
+        this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.goalSelector.addGoal(2, new LeapAtTargetGoal(this, 0.63f));
+        this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.0, false));
+        this.goalSelector.addGoal(7, new WaterAvoidingRandomStrollGoal(this, 0.8));
+        this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
+        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+        
+        this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
+        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
+        // TODO: Target EntityCultist when implemented
     }
     
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(20.0);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(4.0);
-        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(hasHelm() ? 0.275 : 0.3);
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_HELM, false);
+        this.entityData.define(DATA_RIDING, -1);
     }
     
-    protected void entityInit() {
-        super.entityInit();
-        getDataManager().register(EntityEldritchCrab.HELM, false);
-        getDataManager().register(EntityEldritchCrab.RIDING, (-1));
-    }
-    
-    public int getRiding() {
-        return (int) getDataManager().get((DataParameter)EntityEldritchCrab.RIDING);
-    }
-    
-    public void setRiding(int s) {
-        getDataManager().set(EntityEldritchCrab.RIDING, s);
-    }
-    
-    public boolean canPickUpLoot() {
-        return false;
-    }
-    
-    public int getTotalArmorValue() {
-        return hasHelm() ? 5 : 0;
-    }
-    
-    public IEntityLivingData onInitialSpawn(DifficultyInstance diff, IEntityLivingData data) {
-        if (world.getDifficulty() == EnumDifficulty.HARD) {
-            setHelm(true);
-        }
-        else {
-            setHelm(rand.nextFloat() < 0.33f);
-        }
-        if (data == null) {
-            data = new EntitySpider.GroupData();
-            if (world.getDifficulty() == EnumDifficulty.HARD && world.rand.nextFloat() < 0.1f * diff.getClampedAdditionalDifficulty()) {
-                ((EntitySpider.GroupData)data).setRandomEffect(world.rand);
-            }
-        }
-        if (data instanceof EntitySpider.GroupData) {
-            Potion potion = ((EntitySpider.GroupData)data).effect;
-            if (potion != null) {
-                addPotionEffect(new PotionEffect(potion, Integer.MAX_VALUE));
-            }
-        }
-        return super.onInitialSpawn(diff, data);
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 20.0)
+                .add(Attributes.ATTACK_DAMAGE, 4.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.3);
     }
     
     public boolean hasHelm() {
-        return (boolean) getDataManager().get((DataParameter)EntityEldritchCrab.HELM);
+        return this.entityData.get(DATA_HELM);
     }
     
-    public void setHelm(boolean par1) {
-        getDataManager().set(EntityEldritchCrab.HELM, par1);
+    public void setHelm(boolean helm) {
+        this.entityData.set(DATA_HELM, helm);
+        // Update movement speed based on helm
+        getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(helm ? 0.275 : 0.3);
     }
     
-    public void onUpdate() {
-        super.onUpdate();
+    public int getRidingTarget() {
+        return this.entityData.get(DATA_RIDING);
+    }
+    
+    public void setRidingTarget(int entityId) {
+        this.entityData.set(DATA_RIDING, entityId);
+    }
+    
+    @Override
+    public double getMyRidingOffset() {
+        return isPassenger() ? 0.5 : 0.0;
+    }
+    
+    @Override
+    public int getArmorValue() {
+        return hasHelm() ? 5 : 0;
+    }
+    
+    @Nullable
+    @Override
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
+            MobSpawnType spawnType, @Nullable SpawnGroupData spawnData, @Nullable CompoundTag tag) {
+        
+        spawnData = super.finalizeSpawn(level, difficulty, spawnType, spawnData, tag);
+        
+        // Chance to have helm
+        if (level.getDifficulty() == Difficulty.HARD) {
+            setHelm(true);
+        } else {
+            setHelm(random.nextFloat() < 0.33f);
+        }
+        
+        // Chance to have a random potion effect (like spiders)
+        if (level.getDifficulty() == Difficulty.HARD && random.nextFloat() < 0.1f * difficulty.getSpecialMultiplier()) {
+            int effectType = random.nextInt(3);
+            MobEffectInstance effect = switch (effectType) {
+                case 0 -> new MobEffectInstance(MobEffects.MOVEMENT_SPEED, Integer.MAX_VALUE, 1);
+                case 1 -> new MobEffectInstance(MobEffects.DAMAGE_BOOST, Integer.MAX_VALUE, 0);
+                default -> new MobEffectInstance(MobEffects.REGENERATION, Integer.MAX_VALUE, 0);
+            };
+            addEffect(effect);
+        }
+        
+        return spawnData;
+    }
+    
+    @Override
+    public void tick() {
+        super.tick();
         --attackTime;
-        if (ticksExisted < 20) {
+        
+        // Prevent fall damage shortly after spawning
+        if (tickCount < 20) {
             fallDistance = 0.0f;
         }
-        if (!world.isRemote) {
-            if (getRidingEntity() == null && getAttackTarget() != null && !getAttackTarget().isBeingRidden() && !onGround && !hasHelm() && !getAttackTarget().isDead && posY - getAttackTarget().posY >= getAttackTarget().height / 2.0f && getDistanceSq(getAttackTarget()) < 4.0) {
-                startRiding(getAttackTarget());
-                setRiding(getAttackTarget().getEntityId());
+        
+        if (!level().isClientSide) {
+            // Try to ride on target's head
+            if (getVehicle() == null && getTarget() != null && !getTarget().isVehicle() && 
+                    !onGround() && !hasHelm() && getTarget().isAlive() &&
+                    getY() - getTarget().getY() >= getTarget().getBbHeight() / 2.0f &&
+                    distanceToSqr(getTarget()) < 4.0) {
+                startRiding(getTarget());
+                setRidingTarget(getTarget().getId());
             }
-            if (getRidingEntity() != null && !isDead && attackTime <= 0) {
-                attackTime = 10 + rand.nextInt(10);
-                attackEntityAsMob(getRidingEntity());
-                if (rand.nextFloat() < 0.2) {
-                    dismountRidingEntity();
-                    setRiding(-1);
+            
+            // Attack while riding
+            if (getVehicle() != null && isAlive() && attackTime <= 0) {
+                attackTime = 10 + random.nextInt(10);
+                doHurtTarget(getVehicle());
+                
+                // Chance to dismount
+                if (random.nextFloat() < 0.2) {
+                    stopRiding();
+                    setRidingTarget(-1);
                 }
             }
-            if (getRidingEntity() == null && getRiding() != -1) {
-                setRiding(-1);
+            
+            // Sync riding state
+            if (getVehicle() == null && getRidingTarget() != -1) {
+                setRidingTarget(-1);
+            }
+        } else {
+            // Client-side riding sync
+            if (getVehicle() == null && getRidingTarget() != -1) {
+                Entity e = level().getEntity(getRidingTarget());
+                if (e != null) {
+                    startRiding(e);
+                }
+            } else if (getVehicle() != null && getRidingTarget() == -1) {
+                stopRiding();
             }
         }
-        else if (getRidingEntity() == null && getRiding() != -1) {
-            Entity e = world.getEntityByID(getRiding());
-            if (e != null) {
-                startRiding(e);
-            }
-        }
-        else if (getRidingEntity() != null && getRiding() == -1) {
-            dismountRidingEntity();
-        }
     }
     
-    protected Item getDropItem() {
-        return Item.getItemById(0);
-    }
-    
-    protected void dropFewItems(boolean p_70628_1_, int p_70628_2_) {
-        super.dropFewItems(p_70628_1_, p_70628_2_);
-        if (p_70628_1_ && (rand.nextInt(3) == 0 || rand.nextInt(1 + p_70628_2_) > 0)) {
-            dropItem(Items.ENDER_PEARL, 1);
-        }
-    }
-    
-    public boolean attackEntityAsMob(Entity p_70652_1_) {
-        if (super.attackEntityAsMob(p_70652_1_)) {
-            playSound(SoundsTC.crabclaw, 1.0f, 0.9f + world.rand.nextFloat() * 0.2f);
+    @Override
+    public boolean doHurtTarget(Entity target) {
+        if (super.doHurtTarget(target)) {
+            // TODO: Play SoundsTC.crabclaw
+            playSound(SoundEvents.SPIDER_HURT, 1.0f, 0.9f + random.nextFloat() * 0.2f);
             return true;
         }
         return false;
     }
     
-    public boolean attackEntityFrom(DamageSource source, float damage) {
-        boolean b = super.attackEntityFrom(source, damage);
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        boolean hurt = super.hurt(source, amount);
+        
+        // Helm breaks at half health
         if (hasHelm() && getHealth() / getMaxHealth() <= 0.5f) {
             setHelm(false);
-            renderBrokenItemStack(new ItemStack(ItemsTC.crimsonPlateChest));
-            getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.3);
+            // TODO: renderBrokenItemStack for crimson plate
         }
-        return b;
+        
+        return hurt;
     }
     
-    public void readEntityFromNBT(NBTTagCompound par1NBTTagCompound) {
-        super.readEntityFromNBT(par1NBTTagCompound);
-        setHelm(par1NBTTagCompound.getBoolean("helm"));
-        if (!hasHelm()) {
-            getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.3);
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
+        super.dropCustomDeathLoot(source, lootingLevel, wasRecentlyHit);
+        
+        // Chance to drop ender pearl
+        if (wasRecentlyHit && (random.nextInt(3) == 0 || random.nextInt(1 + lootingLevel) > 0)) {
+            spawnAtLocation(new ItemStack(Items.ENDER_PEARL));
         }
     }
     
-    public void writeEntityToNBT(NBTTagCompound par1NBTTagCompound) {
-        super.writeEntityToNBT(par1NBTTagCompound);
-        par1NBTTagCompound.setBoolean("helm", hasHelm());
-    }
-    
-    public int getTalkInterval() {
+    @Override
+    public int getAmbientSoundInterval() {
         return 160;
     }
     
+    @Override
     protected SoundEvent getAmbientSound() {
-        return SoundsTC.crabtalk;
+        // TODO: Return SoundsTC.crabtalk
+        return SoundEvents.SPIDER_AMBIENT;
     }
     
-    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-        return SoundEvents.ENTITY_GENERIC_HURT;
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return SoundEvents.GENERIC_HURT;
     }
     
+    @Override
     protected SoundEvent getDeathSound() {
-        return SoundsTC.crabdeath;
+        // TODO: Return SoundsTC.crabdeath
+        return SoundEvents.SPIDER_DEATH;
     }
     
-    protected void playStepSound(BlockPos p_180429_1_, Block p_180429_2_) {
-        playSound(SoundEvents.ENTITY_SPIDER_STEP, 0.15f, 1.0f);
+    @Override
+    protected void playStepSound(BlockPos pos, BlockState state) {
+        playSound(SoundEvents.SPIDER_STEP, 0.15f, 1.0f);
     }
     
-    public EnumCreatureAttribute getCreatureAttribute() {
-        return EnumCreatureAttribute.ARTHROPOD;
+    @Override
+    public MobType getMobType() {
+        return MobType.ARTHROPOD;
     }
     
-    public boolean isPotionApplicable(PotionEffect p_70687_1_) {
-        return !p_70687_1_.getPotion().equals(MobEffects.POISON) && super.isPotionApplicable(p_70687_1_);
+    @Override
+    public boolean canBeAffected(MobEffectInstance effect) {
+        // Immune to poison
+        if (effect.getEffect() == MobEffects.POISON) {
+            return false;
+        }
+        return super.canBeAffected(effect);
     }
     
-    public boolean isOnSameTeam(Entity el) {
-        return el instanceof EntityEldritchCrab;
+    @Override
+    public boolean isAlliedTo(Entity entity) {
+        // Allied with other crabs
+        if (entity instanceof EntityEldritchCrab) {
+            return true;
+        }
+        return super.isAlliedTo(entity);
     }
     
-    static {
-        HELM = EntityDataManager.createKey(EntityEldritchCrab.class, DataSerializers.BOOLEAN);
-        RIDING = EntityDataManager.createKey(EntityEldritchCrab.class, DataSerializers.VARINT);
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("helm", hasHelm());
+    }
+    
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setHelm(tag.getBoolean("helm"));
     }
 }

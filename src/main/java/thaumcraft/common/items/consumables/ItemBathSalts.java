@@ -1,17 +1,24 @@
 package thaumcraft.common.items.consumables;
-import net.minecraft.item.ItemStack;
-import net.minecraft.world.World;
-import thaumcraft.common.items.ItemTCBase;
 
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
-public class ItemBathSalts extends ItemTCBase
-{
+/**
+ * Bath Salts - Crafting ingredient that has a short despawn time.
+ * Used for creating purifying baths.
+ */
+public class ItemBathSalts extends Item {
+
     public ItemBathSalts() {
-        super("bath_salts");
-        setHasSubtypes(false);
+        super(new Item.Properties());
     }
-    
-    public int getEntityLifespan(ItemStack itemStack, World world) {
-        return 200;
+
+    /**
+     * Bath salts dissolve quickly in water - short entity lifespan.
+     */
+    @Override
+    public int getEntityLifespan(ItemStack itemStack, Level level) {
+        return 200; // 10 seconds
     }
 }

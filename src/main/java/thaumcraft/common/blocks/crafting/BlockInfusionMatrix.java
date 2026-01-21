@@ -1,36 +1,63 @@
 package thaumcraft.common.blocks.crafting;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.util.EnumBlockRenderType;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import thaumcraft.common.blocks.BlockTCDevice;
-import thaumcraft.common.tiles.crafting.TileInfusionMatrix;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class BlockInfusionMatrix extends BlockTCDevice
-{
+import javax.annotation.Nullable;
+
+/**
+ * The infusion altar's central matrix block.
+ * This is the heart of the infusion crafting system.
+ * Renders invisibly - actual visuals are handled by the tile entity renderer.
+ */
+public class BlockInfusionMatrix extends Block implements EntityBlock {
+
+    private static final VoxelShape SHAPE = Block.box(4.0, 4.0, 4.0, 12.0, 12.0, 12.0);
+
     public BlockInfusionMatrix() {
-        super(Material.ROCK, TileInfusionMatrix.class, "infusion_matrix");
-        setSoundType(SoundType.STONE);
+        super(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.STONE)
+                .strength(5.0f, 100.0f)
+                .sound(SoundType.STONE)
+                .noOcclusion()
+                .noCollission()
+                .lightLevel(state -> 5));
     }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
     }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
+
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        // Matrix is rendered by tile entity special renderer
+        return RenderShape.INVISIBLE;
     }
-    
-    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face) {
-        return BlockFaceShape.UNDEFINED;
+
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        // TODO: Return TileInfusionMatrix when implemented
+        return null;
     }
-    
-    public EnumBlockRenderType getRenderType(IBlockState state) {
-        return EnumBlockRenderType.INVISIBLE;
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(net.minecraft.world.level.Level level, BlockState state, BlockEntityType<T> type) {
+        // TODO: Return ticker when TileInfusionMatrix is implemented
+        return null;
     }
 }

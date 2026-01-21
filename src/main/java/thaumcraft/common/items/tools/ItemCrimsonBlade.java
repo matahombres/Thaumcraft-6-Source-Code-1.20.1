@@ -1,97 +1,128 @@
 package thaumcraft.common.items.tools;
-import java.util.List;
-import net.minecraft.client.renderer.ItemMeshDefinition;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemSword;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.World;
-import net.minecraftforge.common.util.EnumHelper;
-import net.minecraftforge.fml.common.FMLCommonHandler;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.Tier;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import thaumcraft.api.items.IWarpingGear;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.IThaumcraftItems;
+import thaumcraft.init.ModItems;
 
+import javax.annotation.Nullable;
+import java.util.List;
 
-public class ItemCrimsonBlade extends ItemSword implements IWarpingGear, IThaumcraftItems
-{
-    public static Item.ToolMaterial toolMatCrimsonVoid;
-    
+/**
+ * Crimson Blade - A powerful sword used by the Crimson Cult.
+ * Applies weakness and hunger to targets.
+ * Self-repairs and causes warp when equipped.
+ */
+public class ItemCrimsonBlade extends SwordItem implements IWarpingGear {
+
+    /**
+     * Custom tier for the Crimson Blade.
+     */
+    public static final Tier CRIMSON_VOID_TIER = new Tier() {
+        @Override
+        public int getUses() {
+            return 200;
+        }
+
+        @Override
+        public float getSpeed() {
+            return 8.0f;
+        }
+
+        @Override
+        public float getAttackDamageBonus() {
+            return 3.5f;
+        }
+
+        @Override
+        public int getLevel() {
+            return 4; // Same as netherite
+        }
+
+        @Override
+        public int getEnchantmentValue() {
+            return 20;
+        }
+
+        @Override
+        public Ingredient getRepairIngredient() {
+            return Ingredient.of(ModItems.VOID_METAL_INGOT.get());
+        }
+    };
+
     public ItemCrimsonBlade() {
-        super(ItemCrimsonBlade.toolMatCrimsonVoid);
-        setCreativeTab(ConfigItems.TABTC);
-        setRegistryName("crimson_blade");
-        setUnlocalizedName("crimson_blade");
-        ConfigItems.ITEM_VARIANT_HOLDERS.add(this);
+        super(CRIMSON_VOID_TIER,
+                3,  // attack damage bonus
+                -2.4f,  // attack speed
+                new Item.Properties()
+                        .rarity(Rarity.EPIC));
     }
-    
-    public Item getItem() {
-        return this;
+
+    @Override
+    public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+        return repair.is(ModItems.VOID_METAL_INGOT.get()) || super.isValidRepairItem(toRepair, repair);
     }
-    
-    public String[] getVariantNames() {
-        return new String[] { "normal" };
-    }
-    
-    public int[] getVariantMeta() {
-        return new int[] { 0 };
-    }
-    
-    public ItemMeshDefinition getCustomMesh() {
-        return null;
-    }
-    
-    public ModelResourceLocation getCustomModelResourceLocation(String variant) {
-        return new ModelResourceLocation("thaumcraft:" + variant);
-    }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.EPIC;
-    }
-    
-    public void onUpdate(ItemStack stack, World world, Entity entity, int p_77663_4_, boolean p_77663_5_) {
-        super.onUpdate(stack, world, entity, p_77663_4_, p_77663_5_);
-        if (stack.isItemDamaged() && entity != null && entity.ticksExisted % 20 == 0 && entity instanceof EntityLivingBase) {
-            stack.damageItem(-1, (EntityLivingBase)entity);
+
+    /**
+     * Self-repair mechanic - repairs 1 durability every 20 ticks.
+     */
+    @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
+        super.inventoryTick(stack, level, entity, slotId, isSelected);
+        
+        if (stack.isDamaged() && entity != null && entity.tickCount % 20 == 0 && entity instanceof LivingEntity) {
+            stack.setDamageValue(stack.getDamageValue() - 1);
         }
     }
-    
-    public boolean hitEntity(ItemStack is, EntityLivingBase target, EntityLivingBase hitter) {
-        if (!target.world.isRemote) {
-            if (!(target instanceof EntityPlayer) || !(hitter instanceof EntityPlayer) || FMLCommonHandler.instance().getMinecraftServerInstance().isPVPEnabled()) {
-                try {
-                    target.addPotionEffect(new PotionEffect(MobEffects.WEAKNESS, 60));
-                    target.addPotionEffect(new PotionEffect(MobEffects.HUNGER, 120));
+
+    /**
+     * Apply weakness and hunger effects on hit.
+     */
+    @Override
+    public boolean hurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+        if (!target.level().isClientSide()) {
+            // Check PvP rules
+            boolean canApplyEffects = true;
+            if (target instanceof Player && attacker instanceof Player) {
+                if (target.level().getServer() != null && !target.level().getServer().isPvpAllowed()) {
+                    canApplyEffects = false;
                 }
-                catch (Exception ex) {}
+            }
+
+            if (canApplyEffects) {
+                // Weakness for 3 seconds (60 ticks)
+                target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 0));
+                // Hunger for 6 seconds (120 ticks)
+                target.addEffect(new MobEffectInstance(MobEffects.HUNGER, 120, 0));
             }
         }
-        return super.hitEntity(is, target, hitter);
+        return super.hurtEnemy(stack, target, attacker);
     }
-    
-    public int getWarp(ItemStack itemstack, EntityPlayer player) {
+
+    @Override
+    public int getWarp(ItemStack stack, Player player) {
         return 2;
     }
-    
-    @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.GOLD + I18n.translateToLocal("enchantment.special.sapgreat"));
-        super.addInformation(stack, worldIn, tooltip, flagIn);
-    }
-    
-    static {
-        ItemCrimsonBlade.toolMatCrimsonVoid = EnumHelper.addToolMaterial("CVOID", 4, 200, 8.0f, 3.5f, 20).setRepairItem(new ItemStack(ItemsTC.ingots, 1, 1));
+
+    @Override
+    @OnlyIn(Dist.CLIENT)
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("enchantment.special.sapgreat").withStyle(style -> style.withColor(0x8B0000)));
+        tooltip.add(Component.translatable("item.thaumcraft.self_repair").withStyle(style -> style.withColor(0x9400D3)));
+        super.appendHoverText(stack, level, tooltip, flag);
     }
 }

@@ -1,53 +1,95 @@
 package thaumcraft.common.entities.projectile;
-import java.util.Iterator;
-import java.util.List;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.projectile.EntityThrowable;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.world.World;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.entities.EntityFluxRift;
-import thaumcraft.common.lib.utils.EntityUtils;
 
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.HitResult;
+import thaumcraft.init.ModEntities;
 
-public class EntityCausalityCollapser extends EntityThrowable
-{
-    public EntityCausalityCollapser(World par1World) {
-        super(par1World);
+/**
+ * EntityCausalityCollapser - Special projectile that closes flux rifts.
+ * 
+ * Features:
+ * - Creates explosion on impact
+ * - Collapses any flux rifts within 3 block radius
+ * - Orange/red particle trail
+ */
+public class EntityCausalityCollapser extends ThrowableProjectile {
+    
+    public EntityCausalityCollapser(EntityType<? extends EntityCausalityCollapser> type, Level level) {
+        super(type, level);
     }
     
-    public EntityCausalityCollapser(World par1World, EntityLivingBase par2EntityLiving) {
-        super(par1World, par2EntityLiving);
+    public EntityCausalityCollapser(Level level, LivingEntity owner) {
+        super(ModEntities.CAUSALITY_COLLAPSER.get(), owner, level);
     }
     
-    public EntityCausalityCollapser(World par1World, double par2, double par4, double par6) {
-        super(par1World, par2, par4, par6);
+    public EntityCausalityCollapser(Level level, double x, double y, double z) {
+        super(ModEntities.CAUSALITY_COLLAPSER.get(), x, y, z, level);
     }
     
+    @Override
+    protected void defineSynchedData() {
+        // No additional synced data
+    }
+    
+    @Override
     public void shoot(double x, double y, double z, float velocity, float inaccuracy) {
+        // Fixed velocity of 0.8
         super.shoot(x, y, z, 0.8f, inaccuracy);
     }
     
-    public void onUpdate() {
-        super.onUpdate();
-        if (world.isRemote) {
-            for (double i = 0.0; i < 3.0; ++i) {
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Client-side particles - orange/red trail
+        if (level().isClientSide) {
+            for (int i = 0; i < 3; i++) {
                 double coeff = i / 3.0;
-                FXDispatcher.INSTANCE.drawAlumentum((float)(prevPosX + (posX - prevPosX) * coeff), (float)(prevPosY + (posY - prevPosY) * coeff) + height / 2.0f, (float)(prevPosZ + (posZ - prevPosZ) * coeff), 0.0125f * (rand.nextFloat() - 0.5f), 0.0125f * (rand.nextFloat() - 0.5f), 0.0125f * (rand.nextFloat() - 0.5f), 0.8f + rand.nextFloat() * 0.2f, 0.3f + rand.nextFloat() * 0.1f, rand.nextFloat() * 0.1f, 0.5f, 4.0f);
-                FXDispatcher.INSTANCE.drawGenericParticles(posX + world.rand.nextGaussian() * 0.20000000298023224, posY + world.rand.nextGaussian() * 0.20000000298023224, posZ + world.rand.nextGaussian() * 0.20000000298023224, 0.0, 0.0, 0.0, 1.0f, 1.0f, 1.0f, 0.7f, false, 448, 8, 1, 8, 0, 0.3f, 0.0f, 1);
+                double px = xOld + (getX() - xOld) * coeff;
+                double py = yOld + (getY() - yOld) * coeff + getBbHeight() / 2.0f;
+                double pz = zOld + (getZ() - zOld) * coeff;
+                
+                // Orange/red flame particles
+                level().addParticle(ParticleTypes.FLAME,
+                    px + (random.nextFloat() - 0.5) * 0.2,
+                    py + (random.nextFloat() - 0.5) * 0.2,
+                    pz + (random.nextFloat() - 0.5) * 0.2,
+                    (random.nextFloat() - 0.5) * 0.02,
+                    (random.nextFloat() - 0.5) * 0.02,
+                    (random.nextFloat() - 0.5) * 0.02);
+                
+                // Bright spark particles
+                level().addParticle(ParticleTypes.ELECTRIC_SPARK,
+                    px + (random.nextFloat() - 0.5) * 0.2,
+                    py + (random.nextFloat() - 0.5) * 0.2,
+                    pz + (random.nextFloat() - 0.5) * 0.2,
+                    0, 0, 0);
             }
         }
     }
     
-    protected void onImpact(RayTraceResult par1RayTraceResult) {
-        if (!world.isRemote) {
-            world.createExplosion(this, posX, posY, posZ, 2.0f, true);
-            List<EntityFluxRift> list = EntityUtils.getEntitiesInRange(world, posX, posY, posZ, this, EntityFluxRift.class, 3.0);
-            for (EntityFluxRift fr : list) {
-                fr.setCollapse(true);
-            }
-            setDead();
+    @Override
+    protected void onHit(HitResult result) {
+        if (!level().isClientSide) {
+            // Create medium explosion (larger than alumentum)
+            level().explode(this, getX(), getY(), getZ(), 2.0f, Level.ExplosionInteraction.TNT);
+            
+            // TODO: Find and collapse nearby flux rifts when EntityFluxRift is implemented
+            // List<EntityFluxRift> rifts = EntityUtils.getEntitiesInRange(level(), getX(), getY(), getZ(), this, EntityFluxRift.class, 3.0);
+            // for (EntityFluxRift rift : rifts) {
+            //     rift.setCollapse(true);
+            // }
+            
+            discard();
         }
+    }
+    
+    @Override
+    protected float getGravity() {
+        return 0.03f; // Standard throwable gravity
     }
 }

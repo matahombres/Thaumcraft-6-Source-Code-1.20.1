@@ -1,45 +1,75 @@
 package thaumcraft.common.entities.projectile;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.projectile.EntityThrowable;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.world.World;
-import thaumcraft.client.fx.FXDispatcher;
 
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.HitResult;
+import thaumcraft.init.ModEntities;
 
-public class EntityAlumentum extends EntityThrowable
-{
-    public EntityAlumentum(World par1World) {
-        super(par1World);
+/**
+ * EntityAlumentum - Explosive throwable projectile.
+ * When it hits something, it creates a small explosion.
+ * Used with Alumentum item for combat/utility.
+ */
+public class EntityAlumentum extends ThrowableProjectile {
+    
+    public EntityAlumentum(EntityType<? extends EntityAlumentum> type, Level level) {
+        super(type, level);
     }
     
-    public EntityAlumentum(World par1World, EntityLivingBase par2EntityLiving) {
-        super(par1World, par2EntityLiving);
+    public EntityAlumentum(Level level, LivingEntity owner) {
+        super(ModEntities.ALUMENTUM.get(), owner, level);
     }
     
-    public EntityAlumentum(World par1World, double par2, double par4, double par6) {
-        super(par1World, par2, par4, par6);
+    public EntityAlumentum(Level level, double x, double y, double z) {
+        super(ModEntities.ALUMENTUM.get(), x, y, z, level);
     }
     
-    public void shoot(double x, double y, double z, float velocity, float inaccuracy) {
-        super.shoot(x, y, z, 0.75f, inaccuracy);
+    @Override
+    protected void defineSynchedData() {
+        // No additional synced data needed
     }
     
-    public void onUpdate() {
-        super.onUpdate();
-        if (world.isRemote) {
-            for (double i = 0.0; i < 3.0; ++i) {
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Client-side particle effects
+        if (level().isClientSide) {
+            // TODO: Add particle effects via FXDispatcher when implemented
+            // For now, spawn basic flame particles
+            for (int i = 0; i < 3; i++) {
                 double coeff = i / 3.0;
-                FXDispatcher.INSTANCE.drawAlumentum((float)(prevPosX + (posX - prevPosX) * coeff), (float)(prevPosY + (posY - prevPosY) * coeff) + height / 2.0f, (float)(prevPosZ + (posZ - prevPosZ) * coeff), 0.0125f * (rand.nextFloat() - 0.5f), 0.0125f * (rand.nextFloat() - 0.5f), 0.0125f * (rand.nextFloat() - 0.5f), rand.nextFloat() * 0.2f, rand.nextFloat() * 0.1f, rand.nextFloat() * 0.1f, 0.5f, 4.0f);
-                FXDispatcher.INSTANCE.drawGenericParticles(posX + world.rand.nextGaussian() * 0.20000000298023224, posY + world.rand.nextGaussian() * 0.20000000298023224, posZ + world.rand.nextGaussian() * 0.20000000298023224, 0.0, 0.0, 0.0, 1.0f, 1.0f, 1.0f, 0.7f, false, 448, 8, 1, 8, 0, 0.3f, 0.0f, 1);
+                double px = xOld + (getX() - xOld) * coeff;
+                double py = yOld + (getY() - yOld) * coeff + getBbHeight() / 2.0f;
+                double pz = zOld + (getZ() - zOld) * coeff;
+                
+                level().addParticle(
+                    net.minecraft.core.particles.ParticleTypes.FLAME,
+                    px, py, pz,
+                    0.0125 * (random.nextFloat() - 0.5),
+                    0.0125 * (random.nextFloat() - 0.5),
+                    0.0125 * (random.nextFloat() - 0.5)
+                );
             }
         }
     }
     
-    protected void onImpact(RayTraceResult par1RayTraceResult) {
-        if (!world.isRemote) {
-            world.createExplosion(this, posX, posY, posZ, 1.1f, true);
-            setDead();
+    @Override
+    protected void onHit(HitResult result) {
+        super.onHit(result);
+        
+        if (!level().isClientSide) {
+            // Create explosion at impact point
+            // Explosion size 1.1f - small but noticeable
+            level().explode(this, getX(), getY(), getZ(), 1.1f, Level.ExplosionInteraction.TNT);
+            discard();
         }
+    }
+    
+    @Override
+    protected float getGravity() {
+        return 0.03f; // Standard throwable gravity
     }
 }

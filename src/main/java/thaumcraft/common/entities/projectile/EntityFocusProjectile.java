@@ -1,257 +1,356 @@
 package thaumcraft.common.entities.projectile;
-import io.netty.buffer.ByteBuf;
-import java.awt.Color;
-import java.util.Iterator;
-import java.util.List;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.projectile.EntityThrowable;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.registry.IEntityAdditionalSpawnData;
-import thaumcraft.api.casters.FocusEffect;
-import thaumcraft.api.casters.FocusEngine;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.casters.FocusPackage;
 import thaumcraft.api.casters.Trajectory;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.lib.events.ServerEvents;
-import thaumcraft.common.lib.utils.EntityUtils;
-import thaumcraft.common.lib.utils.Utils;
+import thaumcraft.init.ModEntities;
 
+import javax.annotation.Nullable;
+import java.util.List;
+import java.util.function.Predicate;
 
-public class EntityFocusProjectile extends EntityThrowable implements IEntityAdditionalSpawnData
-{
-    FocusPackage focusPackage;
-    private static DataParameter<Integer> SPECIAL;
-    private static DataParameter<Integer> OWNER;
-    boolean noTouchy;
-    private Entity target;
-    boolean firstParticle;
-    public float lastRenderTick;
-    FocusEffect[] effects;
+/**
+ * Focus Projectile Entity - A projectile that delivers focus effects on impact.
+ * Supports bouncing, homing (seeking), and various other behaviors.
+ */
+public class EntityFocusProjectile extends ThrowableProjectile {
     
-    public EntityFocusProjectile(World par1World) {
-        super(par1World);
-        noTouchy = false;
-        firstParticle = false;
-        lastRenderTick = 0.0f;
-        effects = null;
-        setSize(0.15f, 0.15f);
+    /** No special behavior */
+    public static final int SPECIAL_NONE = 0;
+    /** Bounces off surfaces */
+    public static final int SPECIAL_BOUNCY = 1;
+    /** Seeks hostile entities */
+    public static final int SPECIAL_SEEKING_HOSTILE = 2;
+    /** Seeks friendly entities */
+    public static final int SPECIAL_SEEKING_FRIENDLY = 3;
+    
+    private static final EntityDataAccessor<Integer> DATA_SPECIAL = 
+            SynchedEntityData.defineId(EntityFocusProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_OWNER_ID = 
+            SynchedEntityData.defineId(EntityFocusProjectile.class, EntityDataSerializers.INT);
+    
+    private FocusPackage focusPackage;
+    private Entity seekTarget;
+    
+    public EntityFocusProjectile(EntityType<? extends EntityFocusProjectile> type, Level level) {
+        super(type, level);
     }
     
+    public EntityFocusProjectile(Level level, LivingEntity owner) {
+        super(ModEntities.FOCUS_PROJECTILE.get(), owner, level);
+    }
+    
+    /**
+     * Create a focus projectile with full parameters.
+     */
     public EntityFocusProjectile(FocusPackage pack, float speed, Trajectory trajectory, int special) {
-        super(pack.world, pack.getCaster());
-        noTouchy = false;
-        firstParticle = false;
-        lastRenderTick = 0.0f;
-        effects = null;
-        focusPackage = pack;
-        setPosition(trajectory.source.x + trajectory.direction.x * pack.getCaster().width * 2.1, trajectory.source.y + trajectory.direction.y * pack.getCaster().width * 2.1, trajectory.source.z + trajectory.direction.z * pack.getCaster().width * 2.1);
-        shoot(trajectory.direction.x, trajectory.direction.y, trajectory.direction.z, speed, 0.0f);
-        setSize(0.15f, 0.15f);
-        setSpecial(special);
-        ignoreEntity = pack.getCaster();
-        setOwner(getThrower().getEntityId());
-    }
-    
-    protected float getGravityVelocity() {
-        return (getSpecial() > 1) ? 0.005f : 0.01f;
-    }
-    
-    public void entityInit() {
-        super.entityInit();
-        getDataManager().register(EntityFocusProjectile.SPECIAL, 0);
-        getDataManager().register(EntityFocusProjectile.OWNER, 0);
-    }
-    
-    public void setOwner(int s) {
-        getDataManager().set(EntityFocusProjectile.OWNER, s);
-    }
-    
-    public int getOwner() {
-        return (int) getDataManager().get((DataParameter)EntityFocusProjectile.OWNER);
-    }
-    
-    public EntityLivingBase getThrower() {
-        if (world.isRemote) {
-            Entity e = world.getEntityByID(getOwner());
-            if (e != null && e instanceof EntityLivingBase) {
-                return (EntityLivingBase)e;
-            }
+        super(ModEntities.FOCUS_PROJECTILE.get(), pack.world);
+        
+        this.focusPackage = pack;
+        
+        // Find owner from package
+        LivingEntity owner = findOwner(pack);
+        if (owner != null) {
+            setOwner(owner);
+            setOwnerId(owner.getId());
         }
-        return super.getThrower();
+        
+        // Position slightly in front of the caster
+        double offsetScale = owner != null ? owner.getBbWidth() * 2.1 : 0.5;
+        Vec3 startPos = trajectory.source.add(trajectory.direction.scale(offsetScale));
+        setPos(startPos.x, startPos.y, startPos.z);
+        
+        // Set velocity
+        Vec3 dir = trajectory.direction.normalize();
+        shoot(dir.x, dir.y, dir.z, speed, 0.0f);
+        
+        setSpecial(special);
     }
     
-    public void setSpecial(int s) {
-        getDataManager().set(EntityFocusProjectile.SPECIAL, s);
+    @Override
+    protected void defineSynchedData() {
+        this.entityData.define(DATA_SPECIAL, 0);
+        this.entityData.define(DATA_OWNER_ID, 0);
+    }
+    
+    public void setSpecial(int special) {
+        this.entityData.set(DATA_SPECIAL, special);
     }
     
     public int getSpecial() {
-        return (int) getDataManager().get((DataParameter)EntityFocusProjectile.SPECIAL);
+        return this.entityData.get(DATA_SPECIAL);
     }
     
-    public void writeSpawnData(ByteBuf data) {
-        Utils.writeNBTTagCompoundToBuffer(data, focusPackage.serialize());
+    public void setOwnerId(int id) {
+        this.entityData.set(DATA_OWNER_ID, id);
     }
     
-    public void readSpawnData(ByteBuf data) {
-        try {
-            (focusPackage = new FocusPackage()).deserialize(Utils.readNBTTagCompoundFromBuffer(data));
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
+    public int getOwnerId() {
+        return this.entityData.get(DATA_OWNER_ID);
     }
     
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        nbt.setTag("pack", focusPackage.serialize());
-        nbt.setInteger("special", getSpecial());
+    @Override
+    protected float getGravity() {
+        // Seeking projectiles have less gravity
+        return getSpecial() > 1 ? 0.005f : 0.01f;
     }
     
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        setSpecial(nbt.getInteger("special"));
-        try {
-            (focusPackage = new FocusPackage()).deserialize(nbt.getCompoundTag("pack"));
-        }
-        catch (Exception ex) {}
-        if (getThrower() != null) {
-            setOwner(getThrower().getEntityId());
-        }
-    }
-    
-    protected void onImpact(RayTraceResult mop) {
-        if (mop != null) {
-            if (getSpecial() == 1 && mop.typeOfHit == RayTraceResult.Type.BLOCK) {
-                IBlockState bs = world.getBlockState(mop.getBlockPos());
-                AxisAlignedBB bb = bs.getCollisionBoundingBox(world, mop.getBlockPos());
-                if (bb == null) {
-                    return;
+    @Override
+    protected void onHit(HitResult result) {
+        if (result == null) return;
+        
+        int special = getSpecial();
+        
+        // Handle bouncy projectiles
+        if (special == SPECIAL_BOUNCY && result.getType() == HitResult.Type.BLOCK) {
+            BlockHitResult blockHit = (BlockHitResult) result;
+            BlockState state = level().getBlockState(blockHit.getBlockPos());
+            AABB collision = state.getCollisionShape(level(), blockHit.getBlockPos()).bounds();
+            
+            if (!collision.equals(AABB.ofSize(Vec3.ZERO, 0, 0, 0))) {
+                // Bounce off the surface
+                Vec3 motion = getDeltaMovement();
+                
+                switch (blockHit.getDirection().getAxis()) {
+                    case X -> setDeltaMovement(motion.x * -0.9, motion.y * 0.9, motion.z * 0.9);
+                    case Y -> setDeltaMovement(motion.x * 0.9, motion.y * -0.9, motion.z * 0.9);
+                    case Z -> setDeltaMovement(motion.x * 0.9, motion.y * 0.9, motion.z * -0.9);
                 }
-                posX -= motionX;
-                posY -= motionY;
-                posZ -= motionZ;
-                if (mop.sideHit.getFrontOffsetZ() != 0) {
-                    motionZ *= -1.0;
+                
+                // Move back slightly
+                Vec3 newMotion = getDeltaMovement();
+                double len = newMotion.length();
+                if (len > 0) {
+                    setPos(getX() - newMotion.x / len * 0.05,
+                           getY() - newMotion.y / len * 0.05,
+                           getZ() - newMotion.z / len * 0.05);
                 }
-                if (mop.sideHit.getFrontOffsetX() != 0) {
-                    motionX *= -1.0;
-                }
-                if (mop.sideHit.getFrontOffsetY() != 0) {
-                    motionY *= -0.9;
-                }
-                motionX *= 0.9;
-                motionY *= 0.9;
-                motionZ *= 0.9;
-                float var20 = MathHelper.sqrt(motionX * motionX + motionY * motionY + motionZ * motionZ);
-                posX -= motionX / var20 * 0.05000000074505806;
-                posY -= motionY / var20 * 0.05000000074505806;
-                posZ -= motionZ / var20 * 0.05000000074505806;
-                if (!world.isRemote) {
-                    playSound(SoundEvents.ENTITY_LEASHKNOT_PLACE, 0.25f, 1.0f);
-                }
-                if (!world.isRemote && new Vec3d(motionX, motionY, motionZ).lengthVector() < 0.2) {
-                    setDead();
-                }
-            }
-            else if (!world.isRemote) {
-                if (mop.entityHit != null) {
-                    mop.hitVec = getPositionVector();
-                }
-                Vec3d pv = new Vec3d(prevPosX, prevPosY, prevPosZ);
-                Vec3d vf = new Vec3d(motionX, motionY, motionZ);
-                ServerEvents.addRunnableServer(getEntityWorld(), new Runnable() {
-                    @Override
-                    public void run() {
-                        FocusEngine.runFocusPackage(focusPackage, new Trajectory[] { new Trajectory(pv, vf.normalize()) }, new RayTraceResult[] { mop });
+                
+                playSound(SoundEvents.LEASH_KNOT_PLACE, 0.25f, 1.0f);
+                
+                // Die if too slow
+                if (newMotion.length() < 0.2) {
+                    if (!level().isClientSide) {
+                        discard();
                     }
-                }, 0);
-                setDead();
-            }
-        }
-    }
-    
-    public void onUpdate() {
-        super.onUpdate();
-        if (ticksExisted > 1200 || (!world.isRemote && getThrower() == null)) {
-            setDead();
-        }
-        firstParticle = true;
-        if (target == null && ticksExisted % 5 == 0 && getSpecial() > 1) {
-            List<EntityLivingBase> list = EntityUtils.getEntitiesInRangeSorted(getEntityWorld(), this, EntityLivingBase.class, 16.0);
-            for (EntityLivingBase pt : list) {
-                if (!pt.isDead && EntityUtils.isVisibleTo(1.75f, this, pt, 16.0f)) {
-                    if (!EntityUtils.canEntityBeSeen(this, pt)) {
-                        continue;
-                    }
-                    boolean f = EntityUtils.isFriendly(getThrower(), pt);
-                    if (f && getSpecial() == 3) {
-                        target = pt;
-                        break;
-                    }
-                    if (!f && getSpecial() == 2) {
-                        target = pt;
-                        break;
-                    }
-                    continue;
                 }
+                return;
             }
         }
-        if (target != null) {
-            double d = getDistanceSq(target);
-            double dx = target.posX - posX;
-            double dy = target.getEntityBoundingBox().minY + target.height * 0.6 - posY;
-            double dz = target.posZ - posZ;
-            Vec3d v = new Vec3d(dx, dy, dz);
-            v = v.normalize();
-            Vec3d mv = new Vec3d(motionX, motionY, motionZ);
-            double lv = mv.lengthVector();
-            mv = mv.normalize().add(v.scale(0.275));
-            mv = mv.normalize().scale(lv);
-            motionX = mv.x;
-            motionY = mv.y;
-            motionZ = mv.z;
-            if (ticksExisted % 5 == 0 && (target.isDead || !EntityUtils.isVisibleTo(1.75f, this, target, 16.0f) || !EntityUtils.canEntityBeSeen(this, target))) {
-                target = null;
+        
+        // Normal impact - execute focus effects
+        if (!level().isClientSide) {
+            executeFocusPackage(result);
+            discard();
+        }
+    }
+    
+    @Override
+    protected void onHitEntity(EntityHitResult result) {
+        // Handled by onHit
+    }
+    
+    @Override
+    protected void onHitBlock(BlockHitResult result) {
+        // Handled by onHit
+    }
+    
+    /**
+     * Execute the focus package at the hit location.
+     */
+    private void executeFocusPackage(HitResult hit) {
+        if (focusPackage == null) return;
+        
+        Vec3 prevPos = new Vec3(xOld, yOld, zOld);
+        Vec3 motion = getDeltaMovement().normalize();
+        
+        // TODO: Execute focus package through FocusEngine
+        // FocusEngine.runFocusPackage(focusPackage, 
+        //     new Trajectory[] { new Trajectory(prevPos, motion) },
+        //     new HitResult[] { hit });
+    }
+    
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Expire after 60 seconds
+        if (tickCount > 1200) {
+            discard();
+            return;
+        }
+        
+        // Expire if owner is gone (server only)
+        if (!level().isClientSide && getOwner() == null) {
+            discard();
+            return;
+        }
+        
+        // Handle seeking behavior
+        int special = getSpecial();
+        if (special == SPECIAL_SEEKING_HOSTILE || special == SPECIAL_SEEKING_FRIENDLY) {
+            updateSeeking(special == SPECIAL_SEEKING_FRIENDLY);
+        }
+    }
+    
+    /**
+     * Update seeking behavior - find and track targets.
+     */
+    private void updateSeeking(boolean seekFriendly) {
+        // Only search for new targets every 5 ticks
+        if (seekTarget == null && tickCount % 5 == 0) {
+            seekTarget = findSeekTarget(seekFriendly);
+        }
+        
+        // Adjust trajectory towards target
+        if (seekTarget != null) {
+            if (seekTarget.isRemoved() || !canSee(seekTarget)) {
+                seekTarget = null;
+            } else {
+                Vec3 targetPos = seekTarget.getBoundingBox().getCenter();
+                Vec3 toTarget = targetPos.subtract(position()).normalize();
+                
+                Vec3 motion = getDeltaMovement();
+                double speed = motion.length();
+                Vec3 newDir = motion.normalize().add(toTarget.scale(0.275)).normalize();
+                
+                setDeltaMovement(newDir.scale(speed));
             }
         }
     }
     
-    public Vec3d getLookVec() {
-        return new Vec3d(motionX, motionY, motionZ).normalize();
-    }
-    
-    public void renderParticle(float coeff) {
-        lastRenderTick = coeff;
-        if (effects == null) {
-            effects = focusPackage.getFocusEffects();
-        }
-        if (effects != null && effects.length > 0) {
-            FocusEffect eff = effects[rand.nextInt(effects.length)];
-            float scale = 1.0f;
-            Color c1 = new Color(FocusEngine.getElementColor(eff.getKey()));
-            FXDispatcher.INSTANCE.drawFireMote((float)(prevPosX + (posX - prevPosX) * coeff), (float)(prevPosY + (posY - prevPosY) * coeff) + height / 2.0f, (float)(prevPosZ + (posZ - prevPosZ) * coeff), 0.0125f * (rand.nextFloat() - 0.5f) * scale, 0.0125f * (rand.nextFloat() - 0.5f) * scale, 0.0125f * (rand.nextFloat() - 0.5f) * scale, c1.getRed() / 255.0f, c1.getGreen() / 255.0f, c1.getBlue() / 255.0f, 0.5f, 7.0f * scale);
-            if (firstParticle) {
-                firstParticle = false;
-                eff.renderParticleFX(world, prevPosX + (posX - prevPosX) * coeff + world.rand.nextGaussian() * 0.10000000149011612, prevPosY + (posY - prevPosY) * coeff + height / 2.0f + world.rand.nextGaussian() * 0.10000000149011612, prevPosZ + (posZ - prevPosZ) * coeff + world.rand.nextGaussian() * 0.10000000149011612, world.rand.nextGaussian() * 0.009999999776482582, world.rand.nextGaussian() * 0.009999999776482582, world.rand.nextGaussian() * 0.009999999776482582);
+    /**
+     * Find a target for seeking projectiles.
+     */
+    @Nullable
+    private Entity findSeekTarget(boolean seekFriendly) {
+        double range = 16.0;
+        AABB searchBox = getBoundingBox().inflate(range);
+        
+        Predicate<Entity> filter = e -> {
+            if (!(e instanceof LivingEntity living)) return false;
+            if (e.isRemoved()) return false;
+            if (e == getOwner()) return false;
+            if (!canSee(e)) return false;
+            
+            boolean isFriendly = isFriendlyTo(living);
+            return seekFriendly ? isFriendly : !isFriendly;
+        };
+        
+        List<Entity> entities = level().getEntities(this, searchBox, filter);
+        
+        // Return closest valid target
+        Entity closest = null;
+        double closestDist = range * range;
+        
+        for (Entity e : entities) {
+            double dist = distanceToSqr(e);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = e;
             }
         }
+        
+        return closest;
     }
     
-    static {
-        SPECIAL = EntityDataManager.createKey(EntityFocusProjectile.class, DataSerializers.VARINT);
-        OWNER = EntityDataManager.createKey(EntityFocusProjectile.class, DataSerializers.VARINT);
+    /**
+     * Check if an entity is friendly to the owner.
+     */
+    private boolean isFriendlyTo(LivingEntity target) {
+        Entity owner = getOwner();
+        if (owner == null) return false;
+        
+        // Same team = friendly
+        if (owner.isAlliedTo(target)) return true;
+        
+        // Same type = potentially friendly
+        if (owner.getType() == target.getType()) return true;
+        
+        // Check if target is owned by owner (pets, tamed animals)
+        if (target instanceof net.minecraft.world.entity.OwnableEntity ownable) {
+            if (owner.getUUID().equals(ownable.getOwnerUUID())) return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check if we can see an entity.
+     */
+    private boolean canSee(Entity target) {
+        Vec3 start = getEyePosition();
+        Vec3 end = target.getEyePosition();
+        return level().clip(new net.minecraft.world.level.ClipContext(
+                start, end,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE,
+                this)).getType() == HitResult.Type.MISS;
+    }
+    
+    @Override
+    public Vec3 getLookAngle() {
+        return getDeltaMovement().normalize();
+    }
+    
+    @Override
+    protected void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putInt("special", getSpecial());
+        if (focusPackage != null) {
+            tag.put("pack", focusPackage.serialize());
+        }
+    }
+    
+    @Override
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setSpecial(tag.getInt("special"));
+        if (tag.contains("pack")) {
+            focusPackage = new FocusPackage();
+            focusPackage.deserialize(tag.getCompound("pack"));
+        }
+        if (getOwner() != null) {
+            setOwnerId(getOwner().getId());
+        }
+    }
+    
+    /**
+     * Find the owner LivingEntity from a FocusPackage.
+     */
+    @Nullable
+    private LivingEntity findOwner(FocusPackage pack) {
+        if (pack.getCasterUUID() == null || pack.world == null) return null;
+        
+        for (var player : pack.world.players()) {
+            if (player.getUUID().equals(pack.getCasterUUID())) {
+                return player;
+            }
+        }
+        return null;
+    }
+    
+    public FocusPackage getFocusPackage() {
+        return focusPackage;
+    }
+    
+    public void setFocusPackage(FocusPackage pack) {
+        this.focusPackage = pack;
     }
 }

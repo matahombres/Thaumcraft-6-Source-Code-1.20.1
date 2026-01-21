@@ -1,260 +1,355 @@
 package thaumcraft.common.tiles.devices;
-import java.util.ArrayList;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.ITickable;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3i;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import thaumcraft.api.ThaumcraftApiHelper;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.IEssentiaTransport;
 import thaumcraft.api.aura.AuraHelper;
-import thaumcraft.api.blocks.BlocksTC;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.blocks.devices.BlockCondenserLattice;
-import thaumcraft.common.lib.utils.BlockStateUtils;
 import thaumcraft.common.tiles.TileThaumcraft;
+import thaumcraft.init.ModBlockEntities;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-public class TileCondenser extends TileThaumcraft implements ITickable, IEssentiaTransport
-{
-    private int essentia;
-    private int flux;
-    private int MAX;
-    private int count;
-    private ArrayList<Long> history;
-    private ArrayList<Long> blockList;
-    private ArrayList<Long> uncloggedList;
-    public float latticeCount;
-    public int interval;
-    public int cost;
+/**
+ * Flux Condenser tile entity - converts flux from the aura into Vitium essentia.
+ * Requires a lattice structure above it to function efficiently.
+ * Consumes essentia as fuel and drains flux from the local aura.
+ */
+public class TileCondenser extends TileThaumcraft implements IEssentiaTransport {
+
+    private static final int MAX_ESSENTIA = 100;
+    private static final int MAX_FLUX = 100;
+    private static final int MAX_LATTICE_COUNT = 40;
+    private static final int BASE_INTERVAL = 600;
+    private static final int MIN_INTERVAL = 5;
+
+    private int essentia = 0;   // Fuel essentia
+    private int flux = 0;       // Output Vitium essentia
+    private int count = 0;
     
-    public TileCondenser() {
-        MAX = 100;
-        count = 0;
-        history = new ArrayList<Long>();
-        blockList = new ArrayList<Long>();
-        uncloggedList = new ArrayList<Long>();
-        latticeCount = -1.0f;
-        interval = 0;
-        cost = 0;
+    // Lattice tracking
+    private float latticeCount = -1.0f;
+    public int interval = 0;
+    public int cost = 0;
+    private Set<Long> blockList = new HashSet<>();
+    private List<Long> uncloggedList = new ArrayList<>();
+
+    public TileCondenser(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
-    
+
+    public TileCondenser(BlockPos pos, BlockState state) {
+        this(ModBlockEntities.CONDENSER.get(), pos, state);
+    }
+
+    // ==================== NBT ====================
+
     @Override
-    public void readSyncNBT(NBTTagCompound nbttagcompound) {
-        essentia = nbttagcompound.getShort("essentia");
-        flux = nbttagcompound.getShort("flux");
+    protected void writeSyncNBT(CompoundTag tag) {
+        super.writeSyncNBT(tag);
+        tag.putShort("Essentia", (short) essentia);
+        tag.putShort("Flux", (short) flux);
     }
-    
+
     @Override
-    public NBTTagCompound writeSyncNBT(NBTTagCompound nbttagcompound) {
-        nbttagcompound.setShort("essentia", (short) essentia);
-        nbttagcompound.setShort("flux", (short) flux);
-        return nbttagcompound;
+    protected void readSyncNBT(CompoundTag tag) {
+        super.readSyncNBT(tag);
+        essentia = tag.getShort("Essentia");
+        flux = tag.getShort("Flux");
     }
-    
-    public void update() {
-        if (latticeCount < 0.0f) {
-            triggerCheck();
+
+    // ==================== Tick ====================
+
+    public static void serverTick(Level level, BlockPos pos, BlockState state, TileCondenser tile) {
+        // Initial lattice check
+        if (tile.latticeCount < 0) {
+            tile.triggerCheck();
         }
-        ++count;
-        if (BlockStateUtils.isEnabled(getBlockMetadata()) && latticeCount > 0.0f) {
-            if (world.isRemote) {
-                if (essentia > 0 && uncloggedList.size() > 0 && count % Math.max(3, interval / 50) == 0) {
-                    BlockPos p = BlockPos.fromLong(uncloggedList.get(world.rand.nextInt(uncloggedList.size())));
-                    if (p != null) {
-                        FXDispatcher.INSTANCE.spark(p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5, 4.5f + world.rand.nextFloat(), 0.33f + world.rand.nextFloat() * 0.66f, 0.33f + world.rand.nextFloat() * 0.66f, 0.33f + world.rand.nextFloat() * 0.66f, 0.8f);
-                    }
+
+        tile.count++;
+
+        if (!tile.isEnabled(state) || tile.latticeCount <= 0) return;
+
+        // Fill essentia from connected sources
+        if (tile.count % 5 == 0 && tile.essentia < MAX_ESSENTIA) {
+            tile.fillEssentia();
+        }
+
+        // Condense flux from aura
+        if (tile.interval > 0 && 
+            tile.essentia >= tile.cost && 
+            tile.flux < MAX_FLUX && 
+            tile.count % tile.interval == 0) {
+            
+            float auraFlux = AuraHelper.getFlux(level, pos);
+            if (auraFlux >= 1.0f) {
+                AuraHelper.drainFlux(level, pos, 1.0f, false);
+                tile.essentia -= tile.cost;
+                tile.flux++;
+                
+                // Small chance to dirty a lattice block
+                if (level.random.nextInt(50) == 0) {
+                    tile.makeLatticeDirty();
                 }
+                
+                tile.syncTile(false);
+                tile.setChanged();
             }
-            else {
-                if (count % 5 == 0 && essentia < MAX) {
-                    fill();
-                }
-                if (interval > 0 && essentia >= cost && flux < MAX && count % interval == 0 && AuraHelper.getFlux(getWorld(), getPos()) >= 1.0f) {
-                    AuraHelper.drainFlux(getWorld(), getPos(), 1.0f, false);
-                    essentia -= cost;
-                    ++flux;
-                    if (world.rand.nextInt(50) == 0) {
+        }
+    }
+
+    public static void clientTick(Level level, BlockPos pos, BlockState state, TileCondenser tile) {
+        // Client-side particle effects
+        if (tile.essentia > 0 && !tile.uncloggedList.isEmpty() && tile.count % Math.max(3, tile.interval / 50) == 0) {
+            // TODO: Spawn spark particles at random lattice block
+        }
+        tile.count++;
+    }
+
+    private boolean isEnabled(BlockState state) {
+        if (state.hasProperty(BlockStateProperties.ENABLED)) {
+            return state.getValue(BlockStateProperties.ENABLED);
+        }
+        return true;
+    }
+
+    /**
+     * Fill essentia fuel from connected essentia sources.
+     */
+    private void fillEssentia() {
+        if (level == null) return;
+
+        for (Direction face : Direction.Plane.HORIZONTAL) {
+            BlockEntity te = ThaumcraftApiHelper.getConnectableTile(level, worldPosition, face);
+            if (te instanceof IEssentiaTransport transport) {
+                Direction opposite = face.getOpposite();
+                
+                if (!transport.canOutputTo(opposite)) continue;
+                
+                if (transport.getEssentiaAmount(opposite) > 0 &&
+                    transport.getSuctionAmount(opposite) < getSuctionAmount(face) &&
+                    getSuctionAmount(face) >= transport.getMinimumSuction()) {
+                    
+                    Aspect type = transport.getEssentiaType(opposite);
+                    if (type != null && type != Aspect.FLUX) {
+                        int taken = transport.takeEssentia(type, 1, opposite);
+                        essentia += taken;
+                        syncTile(false);
+                        setChanged();
+                        
+                        if (essentia >= MAX_ESSENTIA) break;
+                    } else if (type == Aspect.FLUX) {
+                        // Flux essentia dirties the lattice
                         makeLatticeDirty();
                     }
-                    syncTile(false);
-                    markDirty();
                 }
             }
         }
     }
-    
+
+    /**
+     * Mark a random lattice block as dirty (clogged).
+     */
     private void makeLatticeDirty() {
-        if (uncloggedList.size() > 0) {
-            int q = world.rand.nextInt(uncloggedList.size());
-            if (q == 0) {
-                q = world.rand.nextInt(uncloggedList.size());
+        // TODO: When condenser lattice blocks are implemented,
+        // pick a random unclogged lattice and change it to dirty state
+        if (!uncloggedList.isEmpty() && level != null) {
+            int index = level.random.nextInt(uncloggedList.size());
+            if (index == 0 && uncloggedList.size() > 1) {
+                index = level.random.nextInt(uncloggedList.size());
             }
-            BlockPos p = BlockPos.fromLong(uncloggedList.get(q));
-            if (p != null) {
-                IBlockState bs = world.getBlockState(p);
-                if (bs.getBlock() == BlocksTC.condenserlattice) {
-                    world.setBlockState(p, BlocksTC.condenserlatticeDirty.getDefaultState(), 3);
-                    ((BlockCondenserLattice)bs.getBlock()).triggerUpdate(world, p);
-                }
-            }
+            // BlockPos p = BlockPos.of(uncloggedList.get(index));
+            // Change block to dirty lattice
         }
     }
-    
-    private void fill() {
-        for (EnumFacing face : EnumFacing.HORIZONTALS) {
-            TileEntity te = ThaumcraftApiHelper.getConnectableTile(world, pos, face);
-            if (te != null) {
-                IEssentiaTransport ic = (IEssentiaTransport)te;
-                Aspect ta = null;
-                if (!ic.canOutputTo(face.getOpposite())) {
-                    return;
-                }
-                if (ic.getEssentiaAmount(face.getOpposite()) > 0 && ic.getSuctionAmount(face.getOpposite()) < getSuctionAmount(face) && getSuctionAmount(face) >= ic.getMinimumSuction()) {
-                    ta = ic.getEssentiaType(face.getOpposite());
-                }
-                if (ta != null) {
-                    if (ta != Aspect.FLUX) {
-                        essentia += ic.takeEssentia(ta, 1, face.getOpposite());
-                    }
-                    else {
-                        makeLatticeDirty();
-                    }
-                    syncTile(false);
-                    markDirty();
-                    if (essentia >= MAX) {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    
+
+    /**
+     * Scan for lattice blocks above the condenser.
+     */
     public void triggerCheck() {
-        history.clear();
         blockList.clear();
         uncloggedList.clear();
-        latticeCount = 0.0f;
+        latticeCount = 0;
         interval = 0;
-        performCheck(pos, true, false);
-        history.clear();
-        if (latticeCount <= 0.0f) {
-            latticeCount = 0.0f;
-        }
-        else {
-            if (latticeCount > 40.0f) {
-                latticeCount = 40.0f;
+        
+        // Perform recursive lattice search
+        Set<Long> visited = new HashSet<>();
+        performCheck(worldPosition, true, false, visited);
+        
+        if (latticeCount <= 0) {
+            latticeCount = 0;
+        } else {
+            if (latticeCount > MAX_LATTICE_COUNT) {
+                latticeCount = MAX_LATTICE_COUNT;
             }
-            interval = Math.round(600.0f - latticeCount * 15.0f);
-            if (interval < 5) {
-                interval = 5;
+            // Calculate interval based on lattice count
+            interval = Math.round(BASE_INTERVAL - latticeCount * 15.0f);
+            if (interval < MIN_INTERVAL) {
+                interval = MIN_INTERVAL;
             }
-            cost = (int)(4.0 + Math.sqrt(blockList.size()));
+            // Calculate cost based on structure size
+            cost = (int) (4.0 + Math.sqrt(blockList.size()));
         }
     }
-    
-    private void performCheck(BlockPos pos, boolean skip, boolean clogged) {
-        if (latticeCount < 0.0f) {
-            return;
-        }
-        history.add(pos.toLong());
+
+    private void performCheck(BlockPos pos, boolean skip, boolean clogged, Set<Long> visited) {
+        if (latticeCount < 0 || level == null) return;
+        
+        visited.add(pos.asLong());
         boolean found = false;
         int sides = 0;
-        for (EnumFacing face : EnumFacing.VALUES) {
-            if (!skip || face == EnumFacing.UP) {
-                BlockPos p2 = pos.offset(face);
-                IBlockState bs = world.getBlockState(p2);
-                boolean lattice = bs.getBlock() == BlocksTC.condenserlattice;
-                boolean latticeDirty = bs.getBlock() == BlocksTC.condenserlatticeDirty;
-                if (skip && latticeDirty) {
-                    clogged = true;
+
+        for (Direction face : Direction.values()) {
+            if (skip && face != Direction.UP) continue;
+
+            BlockPos checkPos = pos.relative(face);
+            BlockState state = level.getBlockState(checkPos);
+            
+            // TODO: Check for condenser lattice blocks
+            // boolean isLattice = state.is(ModBlocks.CONDENSER_LATTICE.get());
+            // boolean isDirtyLattice = state.is(ModBlocks.CONDENSER_LATTICE_DIRTY.get());
+            boolean isLattice = false;
+            boolean isDirtyLattice = false;
+
+            if (skip && isDirtyLattice) {
+                clogged = true;
+            }
+            if (isLattice || isDirtyLattice) {
+                sides++;
+            }
+
+            if (!visited.contains(checkPos.asLong())) {
+                // Check for another condenser below (invalid)
+                if (face == Direction.DOWN) {
+                    // TODO: Check if block is condenser
+                    // if (state.is(ModBlocks.CONDENSER.get())) {
+                    //     latticeCount = -99;
+                    //     return;
+                    // }
                 }
-                if (lattice || latticeDirty) {
-                    ++sides;
-                }
-                if (!history.contains(p2.toLong())) {
-                    if (face == EnumFacing.DOWN && world.getBlockState(p2).getBlock() == BlocksTC.condenser) {
-                        latticeCount = -99.0f;
-                        return;
-                    }
-                    if (getPos().getY() < p2.getY()) {
-                        if (getPos().distanceSq(p2) <= 74.0) {
-                            if (lattice || latticeDirty) {
-                                blockList.add(p2.toLong());
-                                if (lattice) {
-                                    uncloggedList.add(p2.toLong());
-                                }
-                                found = true;
-                                performCheck(p2, false, clogged || latticeDirty);
-                                if (skip) {
-                                    break;
-                                }
+
+                // Only count lattice blocks above the condenser
+                if (worldPosition.getY() < checkPos.getY()) {
+                    double distSq = worldPosition.distSqr(checkPos);
+                    if (distSq <= 74) { // Within range
+                        if (isLattice || isDirtyLattice) {
+                            blockList.add(checkPos.asLong());
+                            if (isLattice) {
+                                uncloggedList.add(checkPos.asLong());
                             }
+                            found = true;
+                            performCheck(checkPos, false, clogged || isDirtyLattice, visited);
+                            if (skip) break;
                         }
                     }
                 }
             }
         }
+
         if (found && !clogged) {
-            float f = 1.0f - 0.15f * sides;
-            latticeCount += f;
+            float bonus = 1.0f - 0.15f * sides;
+            latticeCount += bonus;
         }
     }
-    
-    public boolean isConnectable(EnumFacing face) {
-        return face != EnumFacing.UP;
+
+    // ==================== IEssentiaTransport ====================
+
+    @Override
+    public boolean isConnectable(Direction face) {
+        return face != Direction.UP;
     }
-    
-    public boolean canInputFrom(EnumFacing face) {
-        return face != EnumFacing.UP && face != EnumFacing.DOWN;
+
+    @Override
+    public boolean canInputFrom(Direction face) {
+        return face != Direction.UP && face != Direction.DOWN;
     }
-    
-    public boolean canOutputTo(EnumFacing face) {
-        return face == EnumFacing.DOWN;
+
+    @Override
+    public boolean canOutputTo(Direction face) {
+        return face == Direction.DOWN;
     }
-    
+
+    @Override
     public void setSuction(Aspect aspect, int amount) {
+        // Not used
     }
-    
-    public Aspect getSuctionType(EnumFacing face) {
-        return null;
+
+    @Override
+    public Aspect getSuctionType(Direction face) {
+        return null; // Accepts any non-flux essentia
     }
-    
-    public int getSuctionAmount(EnumFacing face) {
-        return (face == EnumFacing.DOWN || essentia >= MAX) ? 0 : 128;
-    }
-    
-    public int takeEssentia(Aspect aspect, int amount, EnumFacing face) {
-        int amt = (canOutputTo(face) && (aspect == null || aspect == Aspect.FLUX)) ? Math.min(amount, flux) : 0;
-        if (amt > 0) {
-            flux -= amt;
-            syncTile(false);
-            markDirty();
+
+    @Override
+    public int getSuctionAmount(Direction face) {
+        if (face == Direction.DOWN || essentia >= MAX_ESSENTIA) {
+            return 0;
         }
-        return amt;
+        return 128;
     }
-    
-    public int addEssentia(Aspect aspect, int amount, EnumFacing face) {
-        int amt = canInputFrom(face) ? Math.min(amount, MAX - essentia) : 0;
-        if (amt > 0) {
+
+    @Override
+    public int takeEssentia(Aspect aspect, int amount, Direction face) {
+        if (!canOutputTo(face)) return 0;
+        if (aspect != null && aspect != Aspect.FLUX) return 0;
+        
+        int taken = Math.min(amount, flux);
+        if (taken > 0) {
+            flux -= taken;
             syncTile(false);
-            markDirty();
+            setChanged();
         }
-        return amt;
+        return taken;
     }
-    
-    public Aspect getEssentiaType(EnumFacing face) {
+
+    @Override
+    public int addEssentia(Aspect aspect, int amount, Direction face) {
+        if (!canInputFrom(face)) return 0;
+        
+        int added = Math.min(amount, MAX_ESSENTIA - essentia);
+        if (added > 0) {
+            essentia += added;
+            syncTile(false);
+            setChanged();
+        }
+        return added;
+    }
+
+    @Override
+    public Aspect getEssentiaType(Direction face) {
         return Aspect.FLUX;
     }
-    
-    public int getEssentiaAmount(EnumFacing face) {
+
+    @Override
+    public int getEssentiaAmount(Direction face) {
         return flux;
     }
-    
+
+    @Override
     public int getMinimumSuction() {
         return 0;
+    }
+
+    // ==================== Getters ====================
+
+    public int getEssentia() {
+        return essentia;
+    }
+
+    public int getFlux() {
+        return flux;
+    }
+
+    public float getLatticeCount() {
+        return latticeCount;
     }
 }

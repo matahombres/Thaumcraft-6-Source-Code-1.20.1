@@ -1,57 +1,67 @@
 package thaumcraft.common.items.baubles;
-import baubles.api.BaubleType;
-import baubles.api.IBauble;
-import java.util.List;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.capabilities.IPlayerWarp;
-import thaumcraft.api.capabilities.ThaumcraftCapabilities;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
 import thaumcraft.api.items.IVisDiscountGear;
 import thaumcraft.api.items.IWarpingGear;
-import thaumcraft.common.items.ItemTCBase;
 
+import javax.annotation.Nullable;
+import java.util.List;
 
-public class ItemVoidseerCharm extends ItemTCBase implements IBauble, IVisDiscountGear, IWarpingGear
-{
+/**
+ * Voidseer Charm - A charm that converts accumulated warp into vis discount.
+ * The more permanent warp the player has, the higher the discount (up to 25%).
+ * However, wearing it also adds warp based on the discount.
+ * 
+ * This is a double-edged item for players who have embraced corruption.
+ * 
+ * TODO: Add Curios integration for charm slot support.
+ */
+public class ItemVoidseerCharm extends Item implements IVisDiscountGear, IWarpingGear {
+    
     public ItemVoidseerCharm() {
-        super("voidseer_charm");
-        maxStackSize = 1;
-        canRepair = false;
-        setMaxDamage(0);
+        super(new Item.Properties()
+                .stacksTo(1)
+                .rarity(Rarity.RARE));
     }
     
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.RARE;
+    @Override
+    public int getVisDiscount(ItemStack stack, Player player) {
+        // Calculate discount based on permanent warp
+        // Max 25% discount at 100+ permanent warp
+        // TODO: Get actual warp from player capability when implemented
+        int permanentWarp = getPlayerPermanentWarp(player);
+        permanentWarp = Math.min(100, permanentWarp);
+        return (int) (permanentWarp / 100.0f * 25.0f);
     }
     
-    public BaubleType getBaubleType(ItemStack itemstack) {
-        return BaubleType.CHARM;
+    @Override
+    public int getWarp(ItemStack stack, Player player) {
+        // Warp added is 1/5th of the discount gained
+        return getVisDiscount(stack, player) / 5;
     }
     
-    @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.DARK_BLUE + "" + TextFormatting.ITALIC + I18n.translateToLocal("item.voidseer_charm.text"));
-        super.addInformation(stack, worldIn, tooltip, flagIn);
+    /**
+     * Get the player's permanent warp level.
+     * TODO: Implement with actual warp capability system.
+     */
+    private int getPlayerPermanentWarp(Player player) {
+        // Placeholder - will be replaced with actual capability check
+        // ThaumcraftCapabilities.getWarp(player).get(IPlayerWarp.EnumWarpType.PERMANENT)
+        return 0;
     }
     
-    public int getVisDiscount(ItemStack stack, EntityPlayer player) {
-        int q = 0;
-        IPlayerWarp warp = ThaumcraftCapabilities.getWarp(player);
-        if (warp != null) {
-            int pw = Math.min(100, warp.get(IPlayerWarp.EnumWarpType.PERMANENT));
-            q = (int)(pw / 100.0f * 25.0f);
-        }
-        return q;
-    }
-    
-    public int getWarp(ItemStack itemstack, EntityPlayer player) {
-        return getVisDiscount(itemstack, player) / 5;
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("item.thaumcraft.voidseer_charm.text")
+                .withStyle(ChatFormatting.DARK_BLUE, ChatFormatting.ITALIC));
+        tooltip.add(Component.translatable("item.thaumcraft.voidseer_charm.desc")
+                .withStyle(ChatFormatting.GRAY));
     }
 }

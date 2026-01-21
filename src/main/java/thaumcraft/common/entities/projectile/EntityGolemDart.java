@@ -1,29 +1,33 @@
 package thaumcraft.common.entities.projectile;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.projectile.EntityArrow;
-import net.minecraft.init.Items;
-import net.minecraft.item.ItemStack;
-import net.minecraft.world.World;
 
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import thaumcraft.init.ModEntities;
 
-public class EntityGolemDart extends EntityArrow
-{
-    public EntityGolemDart(World par1World) {
-        super(par1World);
-        setSize(0.2f, 0.2f);
+/**
+ * EntityGolemDart - Arrow-based projectile fired by golems.
+ * Simple arrow with smaller hitbox.
+ */
+public class EntityGolemDart extends AbstractArrow {
+    
+    public EntityGolemDart(EntityType<? extends EntityGolemDart> type, Level level) {
+        super(type, level);
     }
     
-    public EntityGolemDart(World par1World, double par2, double par4, double par6) {
-        super(par1World, par2, par4, par6);
-        setSize(0.2f, 0.2f);
+    public EntityGolemDart(Level level, double x, double y, double z) {
+        super(ModEntities.GOLEM_DART.get(), x, y, z, level);
     }
     
-    public EntityGolemDart(World par1World, EntityLivingBase par2EntityLivingBase) {
-        super(par1World, par2EntityLivingBase);
-        setSize(0.2f, 0.2f);
+    public EntityGolemDart(Level level, LivingEntity owner) {
+        super(ModEntities.GOLEM_DART.get(), owner, level);
     }
     
-    protected ItemStack getArrowStack() {
+    @Override
+    protected ItemStack getPickupItem() {
         return new ItemStack(Items.ARROW);
     }
 }

@@ -1,253 +1,196 @@
 package thaumcraft.api.casters;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
+
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.util.EntitySelectors;
-import net.minecraft.world.World;
-import net.minecraftforge.common.DimensionManager;
 
-
-
-public class FocusPackage implements IFocusElement {
-	
-	@Override
-	public String getResearch() {
-		return null;
-	}
-	
-	public World world;
-	private EntityLivingBase caster;	
-	private UUID casterUUID;
-	
-	private float power = 1;
-	private int complexity = 0;
-	
-	int index;
-	UUID uid;
-	
-	public List<IFocusElement> nodes =  Collections.synchronizedList(new ArrayList<>());	
-	
-	public FocusPackage() {	}
-
-	public FocusPackage(EntityLivingBase caster) {
-		super();
-		world = caster.world;
-		this.caster = caster;
-		casterUUID = caster.getUniqueID();
-	}	
-		
-	@Override
-	public String getKey() {
-		return "thaumcraft.PACKAGE";
-	}
-
-	@Override
-	public EnumUnitType getType() {
-		return EnumUnitType.PACKAGE;
-	}
-	
-	public int getComplexity() {
-		return complexity;
-	}
-
-	public void setComplexity(int complexity) {
-		this.complexity = complexity;
-	}
-
-	public UUID getUniqueID() {
-		return uid;
-	}
-
-	public void setUniqueID(UUID id) {
-		uid = id;
-	}
-	
-	public int getExecutionIndex() {
-		return index;
-	}
-
-	public void setExecutionIndex(int idx) {
-		index = idx;
-	}
-	
-	public void addNode(IFocusElement e) {
-		nodes.add(e);
-	}
-	
-	public UUID getCasterUUID() {
-		if (caster!=null) casterUUID = caster.getUniqueID();
-		return casterUUID;
-	}
-
-	public void setCasterUUID(UUID casterUUID) {
-		this.casterUUID = casterUUID;
-	}	
-	
-	public EntityLivingBase getCaster() {
-		try {
-			if (caster==null) {
-				caster = world.getPlayerEntityByUUID(getCasterUUID());
-			}
-			if (caster==null) {
-				for (EntityLivingBase e : world.getEntities(EntityLivingBase.class, EntitySelectors.IS_ALIVE)) {
-					if (getCasterUUID().equals(e.getUniqueID())) {
-						caster = e;
-						break;
-					}
-				}
-			}
-		} catch (Exception e) {}
-		return caster;
-	}
-	
-	public FocusEffect[] getFocusEffects() {		
-		return getFocusEffectsPackage(this);
-	}
-	
-	private FocusEffect[] getFocusEffectsPackage(FocusPackage fp) {
-		ArrayList<FocusEffect> out = new ArrayList<>();
-		for (IFocusElement el:fp.nodes) {
-			if (el instanceof FocusEffect) out.add((FocusEffect) el);
-			else
-			if (el instanceof FocusPackage) {
-				for (FocusEffect fep:getFocusEffectsPackage((FocusPackage) el))
-					out.add(fep);
-			} else 
-			if (el instanceof FocusModSplit) {
-				for (FocusPackage fsp:((FocusModSplit)el).getSplitPackages())
-					for (FocusEffect fep:getFocusEffectsPackage(fsp))
-						out.add(fep);
-			}
-		}
-		return out.toArray(new FocusEffect[]{});
-	}
-
-	public void deserialize(NBTTagCompound nbt) {
-		uid = nbt.getUniqueId("uid");		
-		index = nbt.getInteger("index");
-		int dim = nbt.getInteger("dim");
-		world = DimensionManager.getWorld(dim);
-		setCasterUUID(nbt.getUniqueId("casterUUID"));
-		power = nbt.getFloat("power");
-		complexity = nbt.getInteger("complexity");
-				
-		NBTTagList nodelist = nbt.getTagList("nodes", (byte)10);
-		nodes.clear();
-		for (int x=0;x<nodelist.tagCount();x++) {
-			NBTTagCompound nodenbt = nodelist.getCompoundTagAt(x);
-			EnumUnitType ut = EnumUnitType.valueOf(nodenbt.getString("type"));
-			if (ut!=null) {
-				if (ut==EnumUnitType.PACKAGE) {
-					FocusPackage fp = new FocusPackage();
-					fp.deserialize(nodenbt.getCompoundTag("package"));
-					nodes.add(fp);
-					break;
-				} else {
-					IFocusElement fn = FocusEngine.getElement(nodenbt.getString("key")); 
-					if (fn!=null) {						
-						if (fn instanceof FocusNode) {
-							((FocusNode)fn).initialize();
-							if (((FocusNode)fn).getSettingList()!=null)
-								for (String ns : ((FocusNode)fn).getSettingList()) {
-									((FocusNode)fn).getSetting(ns).setValue(nodenbt.getInteger("setting."+ns));
-								}
-							
-							if (fn instanceof FocusModSplit) {								
-								((FocusModSplit)fn).deserialize(nodenbt.getCompoundTag("packages"));		
-							}
-						}
-						addNode(fn);
-					}
-				}
-			}
-		}
-		
-	}
-
-	public NBTTagCompound serialize() {
-		NBTTagCompound nbt = new NBTTagCompound();
-		if (uid!=null) nbt.setUniqueId("uid", uid);
-		nbt.setInteger("index", index);
-		if (getCasterUUID() != null) nbt.setUniqueId("casterUUID", getCasterUUID());
-		if (world!=null) nbt.setInteger("dim", world.provider.getDimension());
-		nbt.setFloat("power", power);
-		nbt.setInteger("complexity", complexity);
-		
-		//nodes
-		NBTTagList nodelist = new NBTTagList();
-		synchronized (nodes) {
-			for (IFocusElement node:nodes) {
-				if (node==null || node.getType()==null) continue;
-				NBTTagCompound nodenbt = new NBTTagCompound();
-				nodenbt.setString("type", node.getType().name());
-				nodenbt.setString("key", node.getKey());
-				if (node.getType()==EnumUnitType.PACKAGE) {
-					nodenbt.setTag("package", ((FocusPackage)node).serialize());
-					nodelist.appendTag(nodenbt);
-					break;
-				} else {				
-					if (node instanceof FocusNode && ((FocusNode)node).getSettingList()!=null)
-						for (String ns : ((FocusNode)node).getSettingList()) {
-							nodenbt.setInteger("setting."+ns, ((FocusNode)node).getSettingValue(ns));
-						}
-					if (node instanceof FocusModSplit) {	
-						nodenbt.setTag("packages", ((FocusModSplit)node).serialize());	
-					}
-					nodelist.appendTag(nodenbt);
-				}			
-			}
-		}
-		nbt.setTag("nodes", nodelist);					
-		
-		return nbt;
-	}
-
-	public float getPower() {
-		return power;
-	}
-
-	public void multiplyPower(float pow) {
-		power *= pow;
-	}
-
-	public FocusPackage copy(EntityLivingBase caster) {
-		FocusPackage fp = new FocusPackage(caster);
-		fp.deserialize(serialize());
-		return fp;
-	}
-	
-	public void initialize(EntityLivingBase caster) {
-		world=caster.getEntityWorld();
-		IFocusElement node = nodes.get(0);
-		if (node instanceof FocusMediumRoot && ((FocusMediumRoot)node).supplyTargets()==null) {
-			((FocusMediumRoot)node).setupFromCaster(caster);
-		}
-	}
-
-	public int getSortingHelper() {
-		String s="";
-		for (IFocusElement k: nodes) {
-			s+=k.getKey();
-			if (k instanceof FocusNode && ((FocusNode)k).getSettingList()!=null)
-				for (String ns : ((FocusNode)k).getSettingList()) {
-					s += ""+((FocusNode)k).getSettingValue(ns);
-				}
-		}		
-		return s.hashCode();
-	}
-
-	
-	
-	
-
-	
-	
-	
-	
-	
-
+/**
+ * A FocusPackage contains the configuration of a focus's spell effect.
+ * It holds a list of focus elements (medium, modifiers, effect) that
+ * define how the spell behaves.
+ */
+public class FocusPackage {
+    
+    /** The elements that make up this focus package */
+    public List<IFocusElement> nodes = new ArrayList<>();
+    
+    /** The world this package is executing in */
+    public Level world;
+    
+    /** Current processing index */
+    public int index = 0;
+    
+    /** Cached complexity value */
+    private int complexity = -1;
+    
+    /** Power multiplier for this package */
+    private float power = 1.0f;
+    
+    /** Unique ID for tracking this spell cast */
+    private long uniqueID;
+    
+    /** UUID of the entity that cast this spell */
+    private UUID casterUUID;
+    
+    public FocusPackage() {
+        this.uniqueID = System.currentTimeMillis();
+    }
+    
+    /**
+     * Calculate the complexity (vis cost) of this focus package.
+     * Higher complexity = higher vis cost.
+     */
+    public int getComplexity() {
+        if (complexity < 0) {
+            complexity = 0;
+            for (IFocusElement element : nodes) {
+                // Base complexity for each element
+                complexity += 5;
+                // TODO: Add element-specific complexity calculations
+            }
+        }
+        return Math.max(1, complexity);
+    }
+    
+    /**
+     * Get a sorting helper string for comparing focus configurations.
+     */
+    public int getSortingHelper() {
+        StringBuilder sb = new StringBuilder();
+        for (IFocusElement element : nodes) {
+            sb.append(element.getKey()).append(";");
+        }
+        return sb.toString().hashCode();
+    }
+    
+    /**
+     * Serialize this package to NBT for storage.
+     */
+    public CompoundTag serialize() {
+        CompoundTag tag = new CompoundTag();
+        ListTag nodeList = new ListTag();
+        
+        for (IFocusElement element : nodes) {
+            CompoundTag nodeTag = new CompoundTag();
+            nodeTag.putString("key", element.getKey());
+            nodeTag.putString("type", element.getType().name());
+            // TODO: Serialize element-specific settings
+            nodeList.add(nodeTag);
+        }
+        
+        tag.put("nodes", nodeList);
+        tag.putInt("complexity", getComplexity());
+        return tag;
+    }
+    
+    /**
+     * Deserialize this package from NBT.
+     */
+    public void deserialize(CompoundTag tag) {
+        nodes.clear();
+        complexity = tag.getInt("complexity");
+        
+        if (tag.contains("nodes", Tag.TAG_LIST)) {
+            ListTag nodeList = tag.getList("nodes", Tag.TAG_COMPOUND);
+            for (int i = 0; i < nodeList.size(); i++) {
+                CompoundTag nodeTag = nodeList.getCompound(i);
+                String key = nodeTag.getString("key");
+                // TODO: Recreate focus elements from registry
+                // For now, just store complexity from NBT
+            }
+        }
+    }
+    
+    /**
+     * Get all effect elements in this package.
+     */
+    public List<IFocusElement> getEffects() {
+        List<IFocusElement> effects = new ArrayList<>();
+        for (IFocusElement element : nodes) {
+            if (element.getType() == IFocusElement.EnumUnitType.EFFECT) {
+                effects.add(element);
+            }
+        }
+        return effects;
+    }
+    
+    /**
+     * Create a simple focus package with basic settings.
+     * This is a helper for creating default focus configurations.
+     */
+    public static FocusPackage createSimple(String effectKey) {
+        FocusPackage pack = new FocusPackage();
+        // TODO: Create actual focus elements
+        // For now, return an empty package with set complexity
+        pack.complexity = 10;
+        return pack;
+    }
+    
+    // ==================== Power ====================
+    
+    public float getPower() {
+        return power;
+    }
+    
+    public void setPower(float power) {
+        this.power = power;
+    }
+    
+    public void multiplyPower(float multiplier) {
+        this.power *= multiplier;
+    }
+    
+    // ==================== Unique ID ====================
+    
+    public long getUniqueID() {
+        return uniqueID;
+    }
+    
+    public void setUniqueID(long id) {
+        this.uniqueID = id;
+    }
+    
+    // ==================== Caster ====================
+    
+    public UUID getCasterUUID() {
+        return casterUUID;
+    }
+    
+    public void setCasterUUID(UUID uuid) {
+        this.casterUUID = uuid;
+    }
+    
+    /**
+     * Get the caster entity from the world.
+     * Returns null if the caster cannot be found.
+     */
+    public LivingEntity getCaster() {
+        if (casterUUID == null || world == null) {
+            return null;
+        }
+        if (world instanceof ServerLevel serverLevel) {
+            Entity entity = serverLevel.getEntity(casterUUID);
+            if (entity instanceof LivingEntity living) {
+                return living;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Set the caster for this focus package.
+     */
+    public void setCaster(LivingEntity caster) {
+        if (caster != null) {
+            this.casterUUID = caster.getUUID();
+        }
+    }
 }

@@ -1,317 +1,219 @@
 package thaumcraft.api.research;
-import java.util.Arrays;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.text.translation.I18n;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import thaumcraft.api.research.ResearchStage.Knowledge;
 
+import java.util.Arrays;
 
+/**
+ * Represents a single research entry in the Thaumonomicon.
+ * Research entries contain stages, requirements, and rewards.
+ */
+public class ResearchEntry {
 
-public class ResearchEntry 
-{
-	
+    /** A short string used as a key for this research. Must be unique */
+    private String key;
 
-	/**
-	 * A short string used as a key for this research. Must be unique
-	 */
-	String key;
-	
-	/**
-	 * A short string used as a reference to the research category to which this must be added.
-	 */
-	String category;
-	
-	/**
-	 * A text name of the research entry. Can be a localizable string.
-	 */
-	String name;
-	
-	/**
-     * This links to any research that needs to be completed before this research can be discovered or learnt.
-     */
-    String[] parents;
-        
-    /**
-     * any research linked to this that will be unlocked automatically when this research is complete
-     */
-    String[] siblings;
-    
-	
-    /**
-     * the horizontal position of the research icon
-     */
-    int displayColumn;
+    /** A short string used as a reference to the research category to which this must be added */
+    private String category;
 
-    /**
-     * the vertical position of the research icon
-     */
-    int displayRow;
-    
-    /**
-     * the icon to be used for this research 
-     */
-    Object[] icons;    
+    /** A text name of the research entry. Can be a localizable string key */
+    private String name;
+
+    /** Links to any research that needs to be completed before this research can be discovered or learned */
+    private String[] parents;
+
+    /** Any research linked to this that will be unlocked automatically when this research is complete */
+    private String[] siblings;
+
+    /** The horizontal position of the research icon */
+    private int displayColumn;
+
+    /** The vertical position of the research icon */
+    private int displayRow;
+
+    /** The icon(s) to be used for this research (can be ItemStack, ResourceLocation, or Aspect) */
+    private Object[] icons;
+
+    /** Special meta-data tags that indicate how this research must be handled */
+    private EnumResearchMeta[] meta;
+
+    /** Items the player will receive on completion of this research */
+    private ItemStack[] rewardItem;
+
+    /** Knowledge the player will receive on completion of this research */
+    private Knowledge[] rewardKnow;
+
+    /** The various stages present in this research entry */
+    private ResearchStage[] stages;
+
+    /** The various addenda present in this research entry */
+    private ResearchAddendum[] addenda;
 
     /**
-     * special meta-data tags that indicate how this research must be handled
+     * Meta tags that modify research behavior
      */
-    EnumResearchMeta[] meta;
-    
-    /**
-     * items the player will receive on completion of this research
-     */
-    ItemStack[] rewardItem;
-    
-    /**
-     * knowledge the player will receive on completion of this research
-     */
-    Knowledge[] rewardKnow;
-    
-    
-    
     public enum EnumResearchMeta {
-    	ROUND,
-    	SPIKY,//these also grant .5 bonus inspiration for theorycrafting
-    	REVERSE,
-    	HIDDEN,//these also grant .1 bonus inspiration for theorycrafting
-    	AUTOUNLOCK,
-    	HEX;
-	}
-    
+        /** Round icon frame */
+        ROUND,
+        /** Spiky icon frame - grants 0.5 bonus inspiration for theorycrafting */
+        SPIKY,
+        /** Reverse direction of parent connections */
+        REVERSE,
+        /** Hidden until requirements are met - grants 0.1 bonus inspiration for theorycrafting */
+        HIDDEN,
+        /** Automatically unlocked when parents are complete */
+        AUTOUNLOCK,
+        /** Hexagonal icon frame */
+        HEX
+    }
+
+    // Getters and Setters
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setKey(String key) {
+        this.key = key;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getName() {
+        return name;
+    }
+
     /**
-     * The various stages present in this research entry
+     * @return the localized name of this research entry
      */
-    ResearchStage[] stages;
-    
+    public Component getLocalizedName() {
+        return Component.translatable(getName());
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String[] getParents() {
+        return parents;
+    }
+
     /**
-     * The various addena present in this research entry
+     * @return parents with ALL prefixes and postfixes stripped away
      */
-    ResearchAddendum[] addenda;
-    
-	/**
-	 * @return the key
-	 */
-	public String getKey() {
-		return key;
-	}
+    public String[] getParentsClean() {
+        if (parents == null) return null;
+        
+        String[] out = getParentsStripped();
+        for (int i = 0; i < out.length; i++) {
+            if (out[i].contains("@")) {
+                out[i] = out[i].substring(0, out[i].indexOf("@"));
+            }
+        }
+        return out;
+    }
 
-	/**
-	 * @param key the key to set
-	 */
-	public void setKey(String key) {
-		this.key = key;
-	}
+    /**
+     * @return parents with prefixes stripped away
+     */
+    public String[] getParentsStripped() {
+        if (parents == null) return null;
+        
+        String[] out = new String[parents.length];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = parents[i];
+            if (out[i].startsWith("~")) {
+                out[i] = out[i].substring(1);
+            }
+        }
+        return out;
+    }
 
-	/**
-	 * @return the category
-	 */
-	public String getCategory() {
-		return category;
-	}
+    public void setParents(String[] parents) {
+        this.parents = parents;
+    }
 
-	/**
-	 * @param category the category to set
-	 */
-	public void setCategory(String category) {
-		this.category = category;
-	}
+    public String[] getSiblings() {
+        return siblings;
+    }
 
-	/**
-	 * @return the name
-	 */
-	public String getName() {
-		return name;
-	}
-	
-	/**
-	 * @return the name
-	 */
-	public String getLocalizedName() {
-		return I18n.translateToLocal(getName());
-	}
+    public void setSiblings(String[] siblings) {
+        this.siblings = siblings;
+    }
 
-	/**
-	 * @param name the name to set
-	 */
-	public void setName(String name) {
-		this.name = name;
-	}
+    public int getDisplayColumn() {
+        return displayColumn;
+    }
 
-	/**
-	 * @return the parents
-	 */
-	public String[] getParents() {
-		return parents;
-	}
-	
-	/**
-	 * @return return parents with ALL prefixes and postfixes stripped away
-	 */
-	public String[] getParentsClean() {
-		String[] out = null;
-		if (parents!=null) { 
-			out = getParentsStripped();
-			for (int q=0;q<out.length;q++) {
-				if (out[q].contains("@")) 
-					out[q] = out[q].substring(0,out[q].indexOf("@"));
-			}
-		}
-		return out;
-	}
-	
-	
-	/**
-	 * @return return parents with prefixes stripped away
-	 */
-	public String[] getParentsStripped() {
-		String[] out = null;
-		if (parents!=null) { 
-			out = new String[parents.length];
-			for (int q=0;q<out.length;q++) {
-				out[q] = ""+parents[q];
-				if (out[q].startsWith("~")) 
-					out[q] = out[q].substring(1);
-			}
-		}
-		return out;
-	}
+    public void setDisplayColumn(int displayColumn) {
+        this.displayColumn = displayColumn;
+    }
 
-	/**
-	 * @param parents the parents to set
-	 */
-	public void setParents(String[] parents) {
-		this.parents = parents;
-	}
+    public int getDisplayRow() {
+        return displayRow;
+    }
 
-	/**
-	 * @return the siblings
-	 */
-	public String[] getSiblings() {
-		return siblings;
-	}
+    public void setDisplayRow(int displayRow) {
+        this.displayRow = displayRow;
+    }
 
-	/**
-	 * @param siblings the siblings to set
-	 */
-	public void setSiblings(String[] siblings) {
-		this.siblings = siblings;
-	}
+    public Object[] getIcons() {
+        return icons;
+    }
 
-	/**
-	 * @return the displayColumn
-	 */
-	public int getDisplayColumn() {
-		return displayColumn;
-	}
+    public void setIcons(Object[] icons) {
+        this.icons = icons;
+    }
 
-	/**
-	 * @param displayColumn the displayColumn to set
-	 */
-	public void setDisplayColumn(int displayColumn) {
-		this.displayColumn = displayColumn;
-	}
+    public EnumResearchMeta[] getMeta() {
+        return meta;
+    }
 
-	/**
-	 * @return the displayRow
-	 */
-	public int getDisplayRow() {
-		return displayRow;
-	}
+    public boolean hasMeta(EnumResearchMeta me) {
+        return meta != null && Arrays.asList(meta).contains(me);
+    }
 
-	/**
-	 * @param displayRow the displayRow to set
-	 */
-	public void setDisplayRow(int displayRow) {
-		this.displayRow = displayRow;
-	}
+    public void setMeta(EnumResearchMeta[] meta) {
+        this.meta = meta;
+    }
 
-	/**
-	 * @return the icons
-	 */
-	public Object[] getIcons() {
-		return icons;
-	}
+    public ResearchStage[] getStages() {
+        return stages;
+    }
 
-	/**
-	 * @param icons the icons to set
-	 */
-	public void setIcons(Object[] icons) {
-		this.icons = icons;
-	}
+    public void setStages(ResearchStage[] stages) {
+        this.stages = stages;
+    }
 
-	/**
-	 * @return the meta
-	 */
-	public EnumResearchMeta[] getMeta() {
-		return meta;
-	}
-	
-	public boolean hasMeta(EnumResearchMeta me) {
-		return meta==null ? false : Arrays.asList(meta).contains(me);
-	}
+    public ItemStack[] getRewardItem() {
+        return rewardItem;
+    }
 
-	/**
-	 * @param meta the meta to set
-	 */
-	public void setMeta(EnumResearchMeta[] meta) {
-		this.meta = meta;
-	}
+    public void setRewardItem(ItemStack[] rewardItem) {
+        this.rewardItem = rewardItem;
+    }
 
-	/**
-	 * @return the stages
-	 */
-	public ResearchStage[] getStages() {
-		return stages;
-	}
+    public Knowledge[] getRewardKnow() {
+        return rewardKnow;
+    }
 
-	/**
-	 * @param stages the stages to set
-	 */
-	public void setStages(ResearchStage[] stages) {
-		this.stages = stages;
-	}
+    public void setRewardKnow(Knowledge[] rewardKnow) {
+        this.rewardKnow = rewardKnow;
+    }
 
-	/**
-	 * @return the rewardItem
-	 */
-	public ItemStack[] getRewardItem() {
-		return rewardItem;
-	}
+    public ResearchAddendum[] getAddenda() {
+        return addenda;
+    }
 
-	/**
-	 * @param rewardItem the rewardItem to set
-	 */
-	public void setRewardItem(ItemStack[] rewardItem) {
-		this.rewardItem = rewardItem;
-	}
-
-	/**
-	 * @return the rewardKnow
-	 */
-	public Knowledge[] getRewardKnow() {
-		return rewardKnow;
-	}
-
-	/**
-	 * @param rewardKnow the rewardKnow to set
-	 */
-	public void setRewardKnow(Knowledge[] rewardKnow) {
-		this.rewardKnow = rewardKnow;
-	}
-
-	/**
-	 * @return the addenda
-	 */
-	public ResearchAddendum[] getAddenda() {
-		return addenda;
-	}
-
-	/**
-	 * @param addenda the addenda to set
-	 */
-	public void setAddenda(ResearchAddendum[] addenda) {
-		this.addenda = addenda;
-	}
-    
-    
-	
+    public void setAddenda(ResearchAddendum[] addenda) {
+        this.addenda = addenda;
+    }
 }

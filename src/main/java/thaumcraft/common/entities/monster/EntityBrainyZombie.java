@@ -1,37 +1,50 @@
 package thaumcraft.common.entities.monster;
-import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.EntityAIBase;
-import net.minecraft.entity.ai.EntityAIHurtByTarget;
-import net.minecraft.entity.monster.EntityZombie;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.DamageSource;
-import net.minecraft.world.World;
-import thaumcraft.api.items.ItemsTC;
 
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModItems;
 
-public class EntityBrainyZombie extends EntityZombie
-{
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(25.0);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(5.0);
-        getEntityAttribute(EntityBrainyZombie.SPAWN_REINFORCEMENTS_CHANCE).setBaseValue(0.0);
+/**
+ * EntityBrainyZombie - A zombie variant that drops zombie brains.
+ * Has higher health and attack damage than regular zombies.
+ * Does not spawn reinforcements.
+ */
+public class EntityBrainyZombie extends Zombie {
+    
+    public EntityBrainyZombie(EntityType<? extends EntityBrainyZombie> type, Level level) {
+        super(type, level);
     }
     
-    public EntityBrainyZombie(World world) {
-        super(world);
-        targetTasks.addTask(1, new EntityAIHurtByTarget(this, false));
+    public EntityBrainyZombie(Level level) {
+        super(ModEntities.BRAINY_ZOMBIE.get(), level);
     }
     
-    public int getTotalArmorValue() {
-        return super.getTotalArmorValue() + 1;
+    public static AttributeSupplier.Builder createAttributes() {
+        return Zombie.createAttributes()
+                .add(Attributes.MAX_HEALTH, 25.0)
+                .add(Attributes.ATTACK_DAMAGE, 5.0)
+                .add(Attributes.SPAWN_REINFORCEMENTS_CHANCE, 0.0);
     }
     
-    protected void dropLoot(boolean wasRecentlyHit, int lootingModifier, DamageSource source) {
-        if (world.rand.nextInt(10) - lootingModifier <= 4) {
-            entityDropItem(new ItemStack(ItemsTC.brain), 1.5f);
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
+        super.dropCustomDeathLoot(source, lootingLevel, wasRecentlyHit);
+        
+        // Drop zombie brain with chance affected by looting
+        if (random.nextInt(10) - lootingLevel <= 4) {
+            // TODO: Use ModItems.ZOMBIE_BRAIN when implemented
+            // this.spawnAtLocation(new ItemStack(ModItems.ZOMBIE_BRAIN.get()), 1.5f);
         }
-        super.dropLoot(wasRecentlyHit, lootingModifier, source);
+    }
+    
+    @Override
+    public int getArmorValue() {
+        return super.getArmorValue() + 1;
     }
 }

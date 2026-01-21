@@ -1,73 +1,65 @@
 package thaumcraft.common.blocks.devices;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.util.BlockRenderLayer;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.crafting.IInfusionStabiliserExt;
-import thaumcraft.common.blocks.BlockTCDevice;
-import thaumcraft.common.tiles.devices.TileStabilizer;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class BlockStabilizer extends BlockTCDevice implements IInfusionStabiliserExt
-{
+import javax.annotation.Nullable;
+
+/**
+ * Runic matrix stabilizer for infusion crafting.
+ * Provides significant stabilization bonus to nearby infusion altar.
+ * More effective than candles but requires essentia to operate.
+ */
+public class BlockStabilizer extends Block implements EntityBlock {
+
+    private static final VoxelShape SHAPE = Block.box(3.0, 0.0, 3.0, 13.0, 16.0, 13.0);
+
+    private static final float STABILIZATION_BONUS = 0.25f;
+
     public BlockStabilizer() {
-        super(Material.ROCK, TileStabilizer.class, "stabilizer");
-        setSoundType(SoundType.STONE);
+        super(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.STONE)
+                .strength(3.0f)
+                .sound(SoundType.STONE)
+                .noOcclusion()
+                .lightLevel(state -> 4));
     }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
-    }
-    
+
     @Override
-    public int damageDropped(IBlockState state) {
-        return 0;
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
     }
-    
-    @SideOnly(Side.CLIENT)
-    public static int colorMultiplier(int meta) {
-        float f = meta / 15.0f;
-        float f2 = f * 0.5f + 0.5f;
-        if (meta == 0) {
-            f2 = 0.3f;
-        }
-        int i = MathHelper.clamp((int)(f2 * 255.0f), 0, 255);
-        int j = MathHelper.clamp((int)(f2 * 255.0f), 0, 255);
-        int k = MathHelper.clamp((int)(f2 * 255.0f), 0, 255);
-        return 0xFF000000 | i << 16 | j << 8 | k;
+
+    /**
+     * Returns the stabilization bonus for infusion crafting.
+     */
+    public float getStabilizationBonus() {
+        return STABILIZATION_BONUS;
     }
-    
-    public BlockRenderLayer getBlockLayer() {
-        return BlockRenderLayer.CUTOUT;
-    }
-    
-    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face) {
-        return BlockFaceShape.UNDEFINED;
-    }
-    
-    public int getLightValue(IBlockState state) {
-        return 4;
-    }
-    
-    @Override
-    public boolean canStabaliseInfusion(World world, BlockPos pos) {
+
+    /**
+     * Check if this stabilizer can currently stabilize infusion.
+     * Requires essentia to function.
+     */
+    public boolean canStabilizeInfusion(Level level, BlockPos pos) {
+        // TODO: Check if has essentia when TileStabilizer is implemented
         return true;
     }
-    
+
+    @Nullable
     @Override
-    public float getStabilizationAmount(World world, BlockPos pos) {
-        return 0.25f;
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        // TODO: Return TileStabilizer when implemented
+        return null;
     }
 }

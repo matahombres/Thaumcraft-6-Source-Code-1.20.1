@@ -1,101 +1,86 @@
 package thaumcraft.common.lib.capabilities;
+
 import javax.annotation.Nonnull;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.MathHelper;
+import javax.annotation.Nullable;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+import net.minecraftforge.common.util.LazyOptional;
+import thaumcraft.Thaumcraft;
 import thaumcraft.api.capabilities.IPlayerWarp;
-import thaumcraft.api.capabilities.ThaumcraftCapabilities;
-import thaumcraft.common.lib.network.PacketHandler;
-import thaumcraft.common.lib.network.playerdata.PacketSyncWarp;
 
-
-public class PlayerWarp
-{
-    public static void preInit() {
-        CapabilityManager.INSTANCE.register(IPlayerWarp.class, new Capability.IStorage<IPlayerWarp>() {
-            public NBTTagCompound writeNBT(Capability<IPlayerWarp> capability, IPlayerWarp instance, EnumFacing side) {
-                return instance.serializeNBT();
-            }
-            
-            public void readNBT(Capability<IPlayerWarp> capability, IPlayerWarp instance, EnumFacing side, NBTBase nbt) {
-                if (nbt instanceof NBTTagCompound) {
-                    instance.deserializeNBT((NBTTagCompound) nbt);
-                }
-            }
-        }, DefaultImpl::new);
-    }
+/**
+ * PlayerWarp - Implementation of the IPlayerWarp capability.
+ * Tracks warp (corruption) levels for a player.
+ * 
+ * @author Azanor
+ * Ported to 1.20.1
+ */
+public class PlayerWarp {
     
-    private static class DefaultImpl implements IPlayerWarp
-    {
-        private int[] warp;
-        private int counter;
+    public static final ResourceLocation ID = new ResourceLocation(Thaumcraft.MODID, "warp");
+    
+    /**
+     * Default implementation of IPlayerWarp
+     */
+    public static class DefaultImpl implements IPlayerWarp {
         
-        private DefaultImpl() {
-            warp = new int[EnumWarpType.values().length];
-        }
+        private int permanentWarp = 0;
+        private int normalWarp = 0;
+        private int temporaryWarp = 0;
+        private int counter = 0;
         
         @Override
         public void clear() {
-            warp = new int[EnumWarpType.values().length];
+            permanentWarp = 0;
+            normalWarp = 0;
+            temporaryWarp = 0;
             counter = 0;
         }
         
         @Override
         public int get(@Nonnull EnumWarpType type) {
-            return warp[type.ordinal()];
+            return switch (type) {
+                case PERMANENT -> permanentWarp;
+                case NORMAL -> normalWarp;
+                case TEMPORARY -> temporaryWarp;
+            };
         }
         
         @Override
-        public void set(EnumWarpType type, int amount) {
-            warp[type.ordinal()] = MathHelper.clamp(amount, 0, 500);
+        public void set(@Nonnull EnumWarpType type, int amount) {
+            amount = Math.max(0, amount);
+            switch (type) {
+                case PERMANENT -> permanentWarp = amount;
+                case NORMAL -> normalWarp = amount;
+                case TEMPORARY -> temporaryWarp = amount;
+            }
         }
         
         @Override
         public int add(@Nonnull EnumWarpType type, int amount) {
-            return warp[type.ordinal()] = MathHelper.clamp(warp[type.ordinal()] + amount, 0, 500);
+            int current = get(type);
+            int newValue = Math.max(0, current + amount);
+            set(type, newValue);
+            return newValue;
         }
         
         @Override
-        public int reduce(@Nonnull EnumWarpType type, int amount) {
-            return warp[type.ordinal()] = MathHelper.clamp(warp[type.ordinal()] - amount, 0, 500);
+        public int getTotalWarp() {
+            return permanentWarp + normalWarp + temporaryWarp;
         }
         
         @Override
-        public void sync(@Nonnull EntityPlayerMP player) {
-            PacketHandler.INSTANCE.sendTo(new PacketSyncWarp(player), player);
+        public int getPermanentWarp() {
+            return permanentWarp + normalWarp;
         }
         
-        public NBTTagCompound serializeNBT() {
-            NBTTagCompound properties = new NBTTagCompound();
-            properties.setIntArray("warp", warp);
-            properties.setInteger("counter", getCounter());
-            return properties;
-        }
-        
-        public void deserializeNBT(NBTTagCompound properties) {
-            if (properties == null) {
-                return;
-            }
-            clear();
-            int[] ba = properties.getIntArray("warp");
-            if (ba != null) {
-                int l = EnumWarpType.values().length;
-                if (ba.length < l) {
-                    l = ba.length;
-                }
-                for (int a = 0; a < l; ++a) {
-                    warp[a] = ba[a];
-                }
-            }
-            setCounter(properties.getInteger("counter"));
+        @Override
+        public boolean shouldTick() {
+            return temporaryWarp > 0;
         }
         
         @Override
@@ -104,41 +89,67 @@ public class PlayerWarp
         }
         
         @Override
-        public void setCounter(int amount) {
-            counter = amount;
+        public void setCounter(int count) {
+            this.counter = count;
+        }
+        
+        @Override
+        public void sync(@Nonnull ServerPlayer player) {
+            // TODO: Send sync packet when network system is implemented
+            // PacketHandler.sendTo(new PacketSyncWarp(player), player);
+        }
+        
+        @Override
+        public CompoundTag serializeNBT() {
+            CompoundTag tag = new CompoundTag();
+            tag.putInt("perm", permanentWarp);
+            tag.putInt("norm", normalWarp);
+            tag.putInt("temp", temporaryWarp);
+            tag.putInt("counter", counter);
+            return tag;
+        }
+        
+        @Override
+        public void deserializeNBT(CompoundTag tag) {
+            if (tag == null) {
+                return;
+            }
+            permanentWarp = tag.getInt("perm");
+            normalWarp = tag.getInt("norm");
+            temporaryWarp = tag.getInt("temp");
+            counter = tag.getInt("counter");
         }
     }
     
-    public static class Provider implements ICapabilitySerializable<NBTTagCompound>
-    {
-        public static ResourceLocation NAME;
-        private DefaultImpl warp;
+    /**
+     * Capability provider for IPlayerWarp
+     */
+    public static class Provider implements ICapabilitySerializable<CompoundTag> {
         
-        public Provider() {
-            warp = new DefaultImpl();
-        }
+        private final DefaultImpl warp = new DefaultImpl();
+        private final LazyOptional<IPlayerWarp> optional = LazyOptional.of(() -> warp);
         
-        public boolean hasCapability(Capability<?> capability, EnumFacing facing) {
-            return capability == ThaumcraftCapabilities.WARP;
-        }
-        
-        public <T> T getCapability(Capability<T> capability, EnumFacing facing) {
-            if (capability == ThaumcraftCapabilities.WARP) {
-                return ThaumcraftCapabilities.WARP.cast(warp);
+        @Nonnull
+        @Override
+        public <T> LazyOptional<T> getCapability(@Nonnull Capability<T> cap, @Nullable Direction side) {
+            if (cap == ThaumcraftCapabilities.WARP) {
+                return optional.cast();
             }
-            return null;
+            return LazyOptional.empty();
         }
         
-        public NBTTagCompound serializeNBT() {
+        @Override
+        public CompoundTag serializeNBT() {
             return warp.serializeNBT();
         }
         
-        public void deserializeNBT(NBTTagCompound nbt) {
+        @Override
+        public void deserializeNBT(CompoundTag nbt) {
             warp.deserializeNBT(nbt);
         }
         
-        static {
-            NAME = new ResourceLocation("thaumcraft", "warp");
+        public void invalidate() {
+            optional.invalidate();
         }
     }
 }

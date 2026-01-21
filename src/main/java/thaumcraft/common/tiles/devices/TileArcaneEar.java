@@ -1,187 +1,276 @@
 package thaumcraft.common.tiles.devices;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
+import thaumcraft.common.tiles.TileThaumcraft;
+import thaumcraft.init.ModBlockEntities;
+
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.WeakHashMap;
-import net.minecraft.block.Block;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Blocks;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.ITickable;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import thaumcraft.common.blocks.IBlockEnabled;
-import thaumcraft.common.blocks.devices.BlockArcaneEarToggle;
-import thaumcraft.common.lib.utils.BlockStateUtils;
 
+/**
+ * Arcane Ear tile entity - detects note block sounds and emits redstone.
+ * Can be configured to respond to specific notes and instruments.
+ * Has pulse and toggle variants.
+ */
+public class TileArcaneEar extends TileThaumcraft {
 
-public class TileArcaneEar extends TileEntity implements ITickable
-{
-    public byte note;
-    public byte tone;
-    public int redstoneSignal;
-    public static WeakHashMap<Integer, ArrayList<Integer[]>> noteBlockEvents;
+    // Note block event tracking (dimension -> list of [x, y, z, instrument, note])
+    public static WeakHashMap<Level, ArrayList<int[]>> noteBlockEvents = new WeakHashMap<>();
+
+    public static final int MAX_NOTE = 24;
+    public static final int MAX_RANGE_SQ = 4096; // 64 blocks
+
+    public byte note = 0;
+    public byte instrument = 0;
+    public int redstoneSignal = 0;
     
-    public TileArcaneEar() {
-        note = 0;
-        tone = 0;
-        redstoneSignal = 0;
+    // For toggle variant
+    private boolean isToggle = false;
+    private boolean toggleState = false;
+
+    public TileArcaneEar(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
-    
-    public NBTTagCompound writeToNBT(NBTTagCompound par1NBTTagCompound) {
-        super.writeToNBT(par1NBTTagCompound);
-        par1NBTTagCompound.setByte("note", note);
-        par1NBTTagCompound.setByte("tone", tone);
-        return par1NBTTagCompound;
+
+    public TileArcaneEar(BlockPos pos, BlockState state) {
+        this(ModBlockEntities.ARCANE_EAR.get(), pos, state);
     }
-    
-    public void readFromNBT(NBTTagCompound par1NBTTagCompound) {
-        super.readFromNBT(par1NBTTagCompound);
-        note = par1NBTTagCompound.getByte("note");
-        tone = par1NBTTagCompound.getByte("tone");
-        if (note < 0) {
-            note = 0;
-        }
-        if (note > 24) {
-            note = 24;
-        }
+
+    // ==================== NBT ====================
+
+    @Override
+    public void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
+        tag.putByte("Note", note);
+        tag.putByte("Instrument", instrument);
+        tag.putBoolean("Toggle", isToggle);
+        tag.putBoolean("ToggleState", toggleState);
     }
-    
-    public void update() {
-        if (!world.isRemote) {
-            if (redstoneSignal > 0) {
-                --redstoneSignal;
-                if (redstoneSignal == 0) {
-                    EnumFacing facing = BlockStateUtils.getFacing(getBlockMetadata()).getOpposite();
-                    TileEntity tileentity = world.getTileEntity(pos);
-                    world.setBlockState(pos, world.getBlockState(pos).withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)false), 3);
-                    if (tileentity != null) {
-                        tileentity.validate();
-                        world.setTileEntity(pos, tileentity);
-                    }
-                    world.notifyNeighborsOfStateChange(pos, getBlockType(), true);
-                    world.notifyNeighborsOfStateChange(pos.offset(facing), getBlockType(), true);
-                    IBlockState state = world.getBlockState(pos);
-                    world.markAndNotifyBlock(pos, world.getChunkFromBlockCoords(pos), state, state, 3);
-                }
+
+    @Override
+    public void load(CompoundTag tag) {
+        super.load(tag);
+        note = tag.getByte("Note");
+        instrument = tag.getByte("Instrument");
+        if (note < 0) note = 0;
+        if (note > MAX_NOTE) note = MAX_NOTE;
+        isToggle = tag.getBoolean("Toggle");
+        toggleState = tag.getBoolean("ToggleState");
+    }
+
+    // ==================== Tick ====================
+
+    public static void serverTick(Level level, BlockPos pos, BlockState state, TileArcaneEar tile) {
+        // Decrease redstone signal (pulse mode)
+        if (tile.redstoneSignal > 0) {
+            tile.redstoneSignal--;
+            if (tile.redstoneSignal == 0) {
+                tile.updateRedstone(state, false);
             }
-            ArrayList<Integer[]> nbe = TileArcaneEar.noteBlockEvents.get(world.provider.getDimension());
-            if (nbe != null) {
-                for (Integer[] dat : nbe) {
-                    if (dat[3] == tone && dat[4] == note && getDistanceSq(dat[0] + 0.5, dat[1] + 0.5, dat[2] + 0.5) <= 4096.0) {
-                        EnumFacing facing2 = BlockStateUtils.getFacing(getBlockMetadata()).getOpposite();
-                        triggerNote(world, pos, true);
-                        TileEntity tileentity2 = world.getTileEntity(pos);
-                        IBlockState state2 = world.getBlockState(pos);
-                        if (getBlockType() instanceof BlockArcaneEarToggle) {
-                            world.setBlockState(pos, state2.withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)!BlockStateUtils.isEnabled(state2)), 3);
-                        }
-                        else {
-                            redstoneSignal = 10;
-                            world.setBlockState(pos, state2.withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)true), 3);
-                        }
-                        if (tileentity2 != null) {
-                            tileentity2.validate();
-                            world.setTileEntity(pos, tileentity2);
-                        }
-                        world.notifyNeighborsOfStateChange(pos, getBlockType(), true);
-                        world.notifyNeighborsOfStateChange(pos.offset(facing2), getBlockType(), true);
-                        IBlockState state3 = world.getBlockState(pos);
-                        world.markAndNotifyBlock(pos, world.getChunkFromBlockCoords(pos), state3, state3, 3);
+        }
+
+        // Check for matching note block events
+        ArrayList<int[]> events = noteBlockEvents.get(level);
+        if (events != null && !events.isEmpty()) {
+            for (int[] data : events) {
+                // data = [x, y, z, instrument, note]
+                if (data[3] == tile.instrument && data[4] == tile.note) {
+                    double distSq = pos.distSqr(new BlockPos(data[0], data[1], data[2]));
+                    if (distSq <= MAX_RANGE_SQ) {
+                        tile.onNoteDetected(state);
                         break;
                     }
                 }
             }
         }
     }
-    
-    public void updateTone() {
-        try {
-            EnumFacing facing = BlockStateUtils.getFacing(getBlockMetadata()).getOpposite();
-            IBlockState iblockstate = world.getBlockState(pos.offset(facing));
-            Material material = iblockstate.getMaterial();
-            tone = 0;
-            if (material == Material.ROCK) {
-                tone = 1;
-            }
-            if (material == Material.SAND) {
-                tone = 2;
-            }
-            if (material == Material.GLASS) {
-                tone = 3;
-            }
-            if (material == Material.WOOD) {
-                tone = 4;
-            }
-            Block block = iblockstate.getBlock();
-            if (block == Blocks.CLAY) {
-                tone = 5;
-            }
-            if (block == Blocks.GOLD_BLOCK) {
-                tone = 6;
-            }
-            if (block == Blocks.WOOL) {
-                tone = 7;
-            }
-            if (block == Blocks.PACKED_ICE) {
-                tone = 8;
-            }
-            if (block == Blocks.BONE_BLOCK) {
-                tone = 9;
-            }
-            markDirty();
+
+    /**
+     * Called when a matching note is detected.
+     */
+    private void onNoteDetected(BlockState state) {
+        if (level == null) return;
+
+        // Play response sound
+        triggerNote(true);
+
+        if (isToggle) {
+            // Toggle mode - flip state
+            toggleState = !toggleState;
+            updateRedstone(state, toggleState);
+            setChanged();
+        } else {
+            // Pulse mode - emit signal for 10 ticks
+            redstoneSignal = 10;
+            updateRedstone(state, true);
         }
-        catch (Exception ex) {}
     }
-    
+
+    /**
+     * Update redstone output state.
+     */
+    private void updateRedstone(BlockState state, boolean powered) {
+        if (level == null) return;
+
+        Direction facing = getFacing().getOpposite();
+        
+        // Update block state if it has ENABLED property
+        if (state.hasProperty(BlockStateProperties.ENABLED)) {
+            boolean currentEnabled = state.getValue(BlockStateProperties.ENABLED);
+            if (currentEnabled != powered) {
+                level.setBlock(worldPosition, state.setValue(BlockStateProperties.ENABLED, powered), 3);
+            }
+        }
+
+        // Notify neighbors
+        level.updateNeighborsAt(worldPosition, state.getBlock());
+        level.updateNeighborsAt(worldPosition.relative(facing), state.getBlock());
+    }
+
+    // ==================== Configuration ====================
+
+    /**
+     * Cycle to the next note.
+     */
     public void changePitch() {
-        note = (byte)((note + 1) % 25);
-        markDirty();
+        note = (byte) ((note + 1) % (MAX_NOTE + 1));
+        setChanged();
     }
-    
-    public void triggerNote(World world, BlockPos pos, boolean sound) {
-        byte i = -1;
-        if (sound) {
-            EnumFacing facing = BlockStateUtils.getFacing(getBlockMetadata()).getOpposite();
-            IBlockState iblockstate = world.getBlockState(pos.offset(facing));
-            Material material = iblockstate.getMaterial();
-            i = 0;
-            if (material == Material.ROCK) {
-                i = 1;
-            }
-            if (material == Material.SAND) {
-                i = 2;
-            }
-            if (material == Material.GLASS) {
-                i = 3;
-            }
-            if (material == Material.WOOD) {
-                i = 4;
-            }
-            Block block = iblockstate.getBlock();
-            if (block == Blocks.CLAY) {
-                i = 5;
-            }
-            if (block == Blocks.GOLD_BLOCK) {
-                i = 6;
-            }
-            if (block == Blocks.WOOL) {
-                i = 7;
-            }
-            if (block == Blocks.PACKED_ICE) {
-                i = 8;
-            }
-            if (block == Blocks.BONE_BLOCK) {
-                i = 9;
-            }
+
+    /**
+     * Update the instrument based on the block behind the ear.
+     */
+    public void updateInstrument() {
+        if (level == null) return;
+
+        try {
+            Direction facing = getFacing().getOpposite();
+            BlockPos behindPos = worldPosition.relative(facing);
+            BlockState behindState = level.getBlockState(behindPos);
+            
+            // Determine instrument from block behind
+            instrument = getInstrumentFromBlock(behindState);
+            setChanged();
+        } catch (Exception e) {
+            // Ignore errors
         }
-        world.addBlockEvent(pos, getBlockType(), i, note);
     }
-    
-    static {
-        TileArcaneEar.noteBlockEvents = new WeakHashMap<Integer, ArrayList<Integer[]>>();
+
+    /**
+     * Map block to note block instrument ID.
+     */
+    private byte getInstrumentFromBlock(BlockState state) {
+        // In 1.20.1, we use NoteBlockInstrument
+        NoteBlockInstrument noteInstrument = state.instrument();
+        
+        // Map to legacy instrument IDs for compatibility
+        return switch (noteInstrument) {
+            case HARP -> 0;           // Default (air, most blocks)
+            case BASEDRUM -> 1;       // Stone
+            case SNARE -> 2;          // Sand
+            case HAT -> 3;            // Glass
+            case BASS -> 4;           // Wood
+            case FLUTE -> 5;          // Clay
+            case BELL -> 6;           // Gold
+            case GUITAR -> 7;         // Wool
+            case CHIME -> 8;          // Packed Ice
+            case XYLOPHONE -> 9;      // Bone Block
+            case IRON_XYLOPHONE -> 10;
+            case COW_BELL -> 11;
+            case DIDGERIDOO -> 12;
+            case BIT -> 13;
+            case BANJO -> 14;
+            case PLING -> 15;
+            default -> 0;
+        };
+    }
+
+    /**
+     * Play the note sound as feedback.
+     */
+    public void triggerNote(boolean playSound) {
+        if (level == null || !playSound) return;
+
+        Direction facing = getFacing().getOpposite();
+        BlockPos behindPos = worldPosition.relative(facing);
+        BlockState behindState = level.getBlockState(behindPos);
+        
+        // Get instrument for sound
+        byte soundInstrument = getInstrumentFromBlock(behindState);
+        
+        // Send block event to play sound
+        level.blockEvent(worldPosition, getBlockState().getBlock(), soundInstrument, note);
+    }
+
+    private Direction getFacing() {
+        BlockState state = getBlockState();
+        if (state.hasProperty(BlockStateProperties.FACING)) {
+            return state.getValue(BlockStateProperties.FACING);
+        }
+        return Direction.NORTH;
+    }
+
+    // ==================== Static Event Handling ====================
+
+    /**
+     * Called when a note block plays. Register the event for arcane ears to detect.
+     */
+    public static void registerNoteBlockEvent(Level level, BlockPos pos, int instrument, int note) {
+        ArrayList<int[]> events = noteBlockEvents.computeIfAbsent(level, k -> new ArrayList<>());
+        events.add(new int[] { pos.getX(), pos.getY(), pos.getZ(), instrument, note });
+    }
+
+    /**
+     * Clear note block events at end of tick.
+     */
+    public static void clearNoteBlockEvents(Level level) {
+        ArrayList<int[]> events = noteBlockEvents.get(level);
+        if (events != null) {
+            events.clear();
+        }
+    }
+
+    // ==================== Getters ====================
+
+    public byte getNote() {
+        return note;
+    }
+
+    public byte getInstrument() {
+        return instrument;
+    }
+
+    public boolean isToggleMode() {
+        return isToggle;
+    }
+
+    public void setToggleMode(boolean toggle) {
+        this.isToggle = toggle;
+        setChanged();
+    }
+
+    public boolean getToggleState() {
+        return toggleState;
+    }
+
+    /**
+     * Get redstone power output.
+     */
+    public int getRedstoneOutput() {
+        if (isToggle) {
+            return toggleState ? 15 : 0;
+        }
+        return redstoneSignal > 0 ? 15 : 0;
     }
 }

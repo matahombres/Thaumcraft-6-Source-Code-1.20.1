@@ -1,275 +1,381 @@
 package thaumcraft.common.entities.monster;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.FlyingMob;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import thaumcraft.api.aspects.Aspect;
+import thaumcraft.init.ModEntities;
+
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityFlying;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.monster.IMob;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.Item;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.EnumDifficulty;
-import net.minecraft.world.EnumSkyBlock;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.network.NetworkRegistry;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import thaumcraft.api.ThaumcraftApiHelper;
-import thaumcraft.api.aspects.Aspect;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.network.PacketHandler;
-import thaumcraft.common.lib.network.fx.PacketFXWispZap;
 
-
-public class EntityWisp extends EntityFlying implements IMob
-{
-    public int courseChangeCooldown;
-    public double waypointX;
-    public double waypointY;
-    public double waypointZ;
-    private int aggroCooldown;
-    public int prevAttackCounter;
-    public int attackCounter;
+/**
+ * EntityWisp - A flying magical creature associated with aspects.
+ * Spawns in dark areas and attacks players with magical zaps.
+ * Drops crystals of its aspect type on death.
+ */
+public class EntityWisp extends FlyingMob implements Enemy {
+    
+    private static final EntityDataAccessor<String> DATA_TYPE = 
+            SynchedEntityData.defineId(EntityWisp.class, EntityDataSerializers.STRING);
+    
     private BlockPos currentFlightTarget;
-    private static DataParameter<String> TYPE;
+    private int aggroCooldown = 0;
+    public int prevAttackCounter = 0;
+    public int attackCounter = 0;
     
-    public EntityWisp(World world) {
-        super(world);
-        courseChangeCooldown = 0;
-        aggroCooldown = 0;
-        prevAttackCounter = 0;
-        attackCounter = 0;
-        setSize(0.9f, 0.9f);
-        experienceValue = 5;
+    public EntityWisp(EntityType<? extends EntityWisp> type, Level level) {
+        super(type, level);
+        this.xpReward = 5;
     }
     
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(22.0);
-        getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(3.0);
+    public EntityWisp(Level level) {
+        super(ModEntities.WISP.get(), level);
+        this.xpReward = 5;
     }
     
-    protected boolean canTriggerWalking() {
-        return false;
+    public static AttributeSupplier.Builder createAttributes() {
+        return Mob.createMobAttributes()
+                .add(Attributes.MAX_HEALTH, 22.0)
+                .add(Attributes.ATTACK_DAMAGE, 3.0)
+                .add(Attributes.FLYING_SPEED, 0.5)
+                .add(Attributes.MOVEMENT_SPEED, 0.25);
     }
     
-    public int decreaseAirSupply(int par1) {
-        return par1;
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_TYPE, "");
     }
     
-    public boolean attackEntityFrom(DamageSource damagesource, float i) {
-        if (damagesource.getTrueSource() instanceof EntityLivingBase) {
-            setAttackTarget((EntityLivingBase)damagesource.getTrueSource());
+    public String getWispType() {
+        return this.entityData.get(DATA_TYPE);
+    }
+    
+    public void setWispType(String type) {
+        this.entityData.set(DATA_TYPE, type != null ? type : "");
+    }
+    
+    /**
+     * Gets the aspect associated with this wisp, or null if not set.
+     */
+    public Aspect getAspect() {
+        String type = getWispType();
+        if (type == null || type.isEmpty()) return null;
+        return Aspect.getAspect(type);
+    }
+    
+    /**
+     * Gets the color for rendering based on aspect type.
+     */
+    public int getColor() {
+        Aspect aspect = getAspect();
+        return aspect != null ? aspect.getColor() : 0xFFFFFF;
+    }
+    
+    @Override
+    protected boolean shouldDespawnInPeaceful() {
+        return true;
+    }
+    
+    @Override
+    public int getMaxAirSupply() {
+        return Integer.MAX_VALUE; // Can't drown
+    }
+    
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        if (source.getEntity() instanceof LivingEntity living) {
+            setTarget(living);
             aggroCooldown = 200;
         }
-        return super.attackEntityFrom(damagesource, i);
+        return super.hurt(source, amount);
     }
     
-    protected void entityInit() {
-        super.entityInit();
-        getDataManager().register(EntityWisp.TYPE, String.valueOf(""));
-    }
-    
-    public void onDeath(DamageSource par1DamageSource) {
-        super.onDeath(par1DamageSource);
-        if (world.isRemote) {
-            FXDispatcher.INSTANCE.burst(posX, posY + 0.44999998807907104, posZ, 1.0f);
+    @Override
+    public void die(DamageSource source) {
+        super.die(source);
+        
+        // Particle burst on death (client-side)
+        if (level().isClientSide) {
+            for (int i = 0; i < 20; i++) {
+                level().addParticle(ParticleTypes.WITCH,
+                        getX() + (random.nextDouble() - 0.5) * 0.9,
+                        getY() + 0.45 + (random.nextDouble() - 0.5) * 0.9,
+                        getZ() + (random.nextDouble() - 0.5) * 0.9,
+                        0, 0, 0);
+            }
         }
     }
     
-    public void onUpdate() {
-        super.onUpdate();
-        if (world.isRemote && ticksExisted <= 1) {
-            FXDispatcher.INSTANCE.burst(posX, posY, posZ, 10.0f);
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Initial spawn burst
+        if (level().isClientSide && tickCount <= 1) {
+            for (int i = 0; i < 30; i++) {
+                level().addParticle(ParticleTypes.WITCH,
+                        getX() + (random.nextDouble() - 0.5),
+                        getY() + (random.nextDouble() - 0.5),
+                        getZ() + (random.nextDouble() - 0.5),
+                        0, 0, 0);
+            }
         }
-        if (world.isRemote && world.rand.nextBoolean() && Aspect.getAspect(getType()) != null) {
-            FXDispatcher.INSTANCE.drawWispParticles(posX + (world.rand.nextFloat() - world.rand.nextFloat()) * 0.7f, posY + (world.rand.nextFloat() - world.rand.nextFloat()) * 0.7f, posZ + (world.rand.nextFloat() - world.rand.nextFloat()) * 0.7f, 0.0, 0.0, 0.0, Aspect.getAspect(getType()).getColor(), 0);
+        
+        // Ambient particles
+        if (level().isClientSide && random.nextBoolean()) {
+            Aspect aspect = getAspect();
+            if (aspect != null) {
+                // Spawn colored particles based on aspect
+                level().addParticle(ParticleTypes.WITCH,
+                        getX() + (random.nextFloat() - random.nextFloat()) * 0.7,
+                        getY() + (random.nextFloat() - random.nextFloat()) * 0.7,
+                        getZ() + (random.nextFloat() - random.nextFloat()) * 0.7,
+                        0, 0, 0);
+            }
         }
-        motionY *= 0.6000000238418579;
+        
+        // Reduce vertical movement
+        Vec3 motion = getDeltaMovement();
+        setDeltaMovement(motion.x, motion.y * 0.6, motion.z);
     }
     
-    public String getType() {
-        return (String) getDataManager().get((DataParameter)EntityWisp.TYPE);
-    }
-    
-    public void setType(String t) {
-        getDataManager().set(EntityWisp.TYPE, String.valueOf(t));
-    }
-    
-    public void onLivingUpdate() {
-        super.onLivingUpdate();
-        if (isServerWorld()) {
-            if (!world.isRemote && Aspect.getAspect(getType()) == null) {
-                if (world.rand.nextInt(10) != 0) {
-                    ArrayList<Aspect> as = Aspect.getPrimalAspects();
-                    setType(as.get(world.rand.nextInt(as.size())).getTag());
-                }
-                else {
-                    ArrayList<Aspect> as = Aspect.getCompoundAspects();
-                    setType(as.get(world.rand.nextInt(as.size())).getTag());
-                }
+    @Override
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        
+        // Initialize aspect type if not set
+        if (getWispType().isEmpty()) {
+            ArrayList<Aspect> aspects;
+            if (random.nextInt(10) != 0) {
+                aspects = Aspect.getPrimalAspects();
+            } else {
+                aspects = Aspect.getCompoundAspects();
             }
-            if (!world.isRemote && world.getDifficulty() == EnumDifficulty.PEACEFUL) {
-                setDead();
+            if (aspects != null && !aspects.isEmpty()) {
+                setWispType(aspects.get(random.nextInt(aspects.size())).getTag());
             }
-            prevAttackCounter = attackCounter;
-            double attackrange = 16.0;
-            if (getAttackTarget() == null || !canEntityBeSeen(getAttackTarget())) {
-                if (currentFlightTarget != null && (!world.isAirBlock(currentFlightTarget) || currentFlightTarget.getY() < 1 || currentFlightTarget.getY() > world.getPrecipitationHeight(currentFlightTarget).up(8).getY())) {
-                    currentFlightTarget = null;
-                }
-                if (currentFlightTarget == null || rand.nextInt(30) == 0 || getDistanceSqToCenter(currentFlightTarget) < 4.0) {
-                    currentFlightTarget = new BlockPos((int) posX + rand.nextInt(7) - rand.nextInt(7), (int) posY + rand.nextInt(6) - 2, (int) posZ + rand.nextInt(7) - rand.nextInt(7));
-                }
-                double var1 = currentFlightTarget.getX() + 0.5 - posX;
-                double var2 = currentFlightTarget.getY() + 0.1 - posY;
-                double var3 = currentFlightTarget.getZ() + 0.5 - posZ;
-                motionX += (Math.signum(var1) * 0.5 - motionX) * 0.10000000149011612;
-                motionY += (Math.signum(var2) * 0.699999988079071 - motionY) * 0.10000000149011612;
-                motionZ += (Math.signum(var3) * 0.5 - motionZ) * 0.10000000149011612;
-                float var4 = (float)(Math.atan2(motionZ, motionX) * 180.0 / 3.141592653589793) - 90.0f;
-                float var5 = MathHelper.wrapDegrees(var4 - rotationYaw);
-                moveForward = 0.15f;
-                rotationYaw += var5;
+        }
+        
+        // Despawn in peaceful
+        if (level().getDifficulty() == Difficulty.PEACEFUL) {
+            discard();
+            return;
+        }
+        
+        prevAttackCounter = attackCounter;
+        double attackRange = 16.0;
+        
+        LivingEntity target = getTarget();
+        
+        if (target == null || !hasLineOfSight(target)) {
+            // Wander behavior
+            if (currentFlightTarget != null && 
+                    (!level().isEmptyBlock(currentFlightTarget) || 
+                     currentFlightTarget.getY() < 1 || 
+                     currentFlightTarget.getY() > level().getHeightmapPos(
+                             net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, 
+                             currentFlightTarget).above(8).getY())) {
+                currentFlightTarget = null;
             }
-            else if (getDistanceSq(getAttackTarget()) > attackrange * attackrange / 2.0 && canEntityBeSeen(getAttackTarget())) {
-                double var1 = getAttackTarget().posX - posX;
-                double var2 = getAttackTarget().posY + getAttackTarget().getEyeHeight() * 0.66f - posY;
-                double var3 = getAttackTarget().posZ - posZ;
-                motionX += (Math.signum(var1) * 0.5 - motionX) * 0.10000000149011612;
-                motionY += (Math.signum(var2) * 0.699999988079071 - motionY) * 0.10000000149011612;
-                motionZ += (Math.signum(var3) * 0.5 - motionZ) * 0.10000000149011612;
-                float var4 = (float)(Math.atan2(motionZ, motionX) * 180.0 / 3.141592653589793) - 90.0f;
-                float var5 = MathHelper.wrapDegrees(var4 - rotationYaw);
-                moveForward = 0.5f;
-                rotationYaw += var5;
+            
+            if (currentFlightTarget == null || random.nextInt(30) == 0 || 
+                    currentFlightTarget.distSqr(blockPosition()) < 4.0) {
+                currentFlightTarget = new BlockPos(
+                        (int)getX() + random.nextInt(7) - random.nextInt(7),
+                        (int)getY() + random.nextInt(6) - 2,
+                        (int)getZ() + random.nextInt(7) - random.nextInt(7));
             }
-            if (getAttackTarget() instanceof EntityPlayer && ((EntityPlayer) getAttackTarget()).capabilities.disableDamage) {
-                setAttackTarget(null);
+            
+            flyToward(currentFlightTarget.getX() + 0.5, currentFlightTarget.getY() + 0.1, currentFlightTarget.getZ() + 0.5, 0.15f);
+        } else if (distanceToSqr(target) > attackRange * attackRange / 2.0 && hasLineOfSight(target)) {
+            // Chase target
+            flyToward(target.getX(), target.getEyeY() * 0.66 + target.getY() * 0.34, target.getZ(), 0.5f);
+        }
+        
+        // Clear target if in creative
+        if (target instanceof Player player && player.getAbilities().invulnerable) {
+            setTarget(null);
+        }
+        
+        // Clear dead targets
+        if (target != null && !target.isAlive()) {
+            setTarget(null);
+        }
+        
+        // Aggro cooldown
+        aggroCooldown--;
+        
+        // Randomly acquire targets
+        if (random.nextInt(1000) == 0 && (target == null || aggroCooldown <= 0)) {
+            Player nearestPlayer = level().getNearestPlayer(this, 16.0);
+            if (nearestPlayer != null) {
+                setTarget(nearestPlayer);
+                aggroCooldown = 50;
             }
-            if (getAttackTarget() != null && getAttackTarget().isDead) {
-                setAttackTarget(null);
-            }
-            --aggroCooldown;
-            if (world.rand.nextInt(1000) == 0 && (getAttackTarget() == null || aggroCooldown-- <= 0)) {
-                setAttackTarget(world.getClosestPlayerToEntity(this, 16.0));
-                if (getAttackTarget() != null) {
-                    aggroCooldown = 50;
-                }
-            }
-            if (isEntityAlive() && getAttackTarget() != null && getAttackTarget().getDistanceSq(this) < attackrange * attackrange) {
-                double d5 = getAttackTarget().posX - posX;
-                double d6 = getAttackTarget().getEntityBoundingBox().minY + getAttackTarget().height / 2.0f - (posY + height / 2.0f);
-                double d7 = getAttackTarget().posZ - posZ;
-                float n = -(float)Math.atan2(d5, d7) * 180.0f / 3.141593f;
-                rotationYaw = n;
-                renderYawOffset = n;
-                if (canEntityBeSeen(getAttackTarget())) {
-                    ++attackCounter;
-                    if (attackCounter == 20) {
-                        playSound(SoundsTC.zap, 1.0f, 1.1f);
-                        PacketHandler.INSTANCE.sendToAllAround(new PacketFXWispZap(getEntityId(), getAttackTarget().getEntityId()), new NetworkRegistry.TargetPoint(world.provider.getDimension(), posX, posY, posZ, 32.0));
-                        float damage = (float) getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue();
-                        if (Math.abs(getAttackTarget().motionX) > 0.10000000149011612 || Math.abs(getAttackTarget().motionY) > 0.10000000149011612 || Math.abs(getAttackTarget().motionZ) > 0.10000000149011612) {
-                            if (world.rand.nextFloat() < 0.4f) {
-                                getAttackTarget().attackEntityFrom(DamageSource.causeMobDamage(this), damage);
-                            }
+        }
+        
+        // Attack logic
+        target = getTarget();
+        if (isAlive() && target != null && distanceToSqr(target) < attackRange * attackRange) {
+            // Face target
+            double dx = target.getX() - getX();
+            double dz = target.getZ() - getZ();
+            float targetYaw = -(float)Math.atan2(dx, dz) * Mth.RAD_TO_DEG;
+            setYRot(targetYaw);
+            yBodyRot = targetYaw;
+            
+            if (hasLineOfSight(target)) {
+                attackCounter++;
+                
+                if (attackCounter == 20) {
+                    // Zap attack!
+                    // TODO: Play zap sound via SoundsTC.zap when implemented
+                    playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.1f);
+                    
+                    // TODO: Send zap visual packet when networking is implemented
+                    
+                    // Damage calculation - moving targets are harder to hit
+                    float damage = (float)getAttributeValue(Attributes.ATTACK_DAMAGE);
+                    Vec3 targetMotion = target.getDeltaMovement();
+                    
+                    if (Math.abs(targetMotion.x) > 0.1 || Math.abs(targetMotion.y) > 0.1 || Math.abs(targetMotion.z) > 0.1) {
+                        // Moving target - 40% hit chance
+                        if (random.nextFloat() < 0.4f) {
+                            target.hurt(damageSources().mobAttack(this), damage);
                         }
-                        else if (world.rand.nextFloat() < 0.66f) {
-                            getAttackTarget().attackEntityFrom(DamageSource.causeMobDamage(this), damage + 1.0f);
+                    } else {
+                        // Stationary target - 66% hit chance, bonus damage
+                        if (random.nextFloat() < 0.66f) {
+                            target.hurt(damageSources().mobAttack(this), damage + 1.0f);
                         }
-                        attackCounter = -20 + world.rand.nextInt(20);
                     }
+                    
+                    // Reset attack counter with some randomness
+                    attackCounter = -20 + random.nextInt(20);
                 }
-                else if (attackCounter > 0) {
-                    --attackCounter;
-                }
+            } else if (attackCounter > 0) {
+                attackCounter--;
             }
         }
     }
     
+    private void flyToward(double x, double y, double z, float speed) {
+        double dx = x - getX();
+        double dy = y - getY();
+        double dz = z - getZ();
+        
+        Vec3 motion = getDeltaMovement();
+        setDeltaMovement(
+                motion.x + (Math.signum(dx) * 0.5 - motion.x) * 0.1,
+                motion.y + (Math.signum(dy) * 0.7 - motion.y) * 0.1,
+                motion.z + (Math.signum(dz) * 0.5 - motion.z) * 0.1);
+        
+        float yaw = (float)(Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0f;
+        float yawDiff = Mth.wrapDegrees(yaw - getYRot());
+        zza = speed;
+        setYRot(getYRot() + yawDiff);
+    }
+    
+    @Override
     protected SoundEvent getAmbientSound() {
-        return SoundsTC.wisplive;
+        // TODO: Return SoundsTC.wisplive when implemented
+        return SoundEvents.AMETHYST_BLOCK_CHIME;
     }
     
-    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-        return SoundEvents.BLOCK_LAVA_EXTINGUISH;
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return SoundEvents.LAVA_EXTINGUISH;
     }
     
+    @Override
     protected SoundEvent getDeathSound() {
-        return SoundsTC.wispdead;
+        // TODO: Return SoundsTC.wispdead when implemented
+        return SoundEvents.LAVA_EXTINGUISH;
     }
     
-    protected Item getDropItem() {
-        return Item.getItemById(0);
-    }
-    
-    protected void dropFewItems(boolean flag, int i) {
-        if (Aspect.getAspect(getType()) != null) {
-            entityDropItem(ThaumcraftApiHelper.makeCrystal(Aspect.getAspect(getType())), 0.0f);
-        }
-    }
-    
+    @Override
     protected float getSoundVolume() {
         return 0.25f;
     }
     
-    protected boolean canDespawn() {
-        return true;
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
+        super.dropCustomDeathLoot(source, lootingLevel, wasRecentlyHit);
+        
+        // Drop crystal of wisp's aspect type
+        Aspect aspect = getAspect();
+        if (aspect != null) {
+            // TODO: Drop crystal essence of aspect type when ThaumcraftApiHelper.makeCrystal is implemented
+            // this.spawnAtLocation(ThaumcraftApiHelper.makeCrystal(aspect));
+        }
     }
     
-    public boolean getCanSpawnHere() {
+    @Override
+    public boolean checkSpawnRules(net.minecraft.world.level.LevelAccessor level, MobSpawnType spawnType) {
+        // Check spawn density
         int count = 0;
         try {
-            List l = world.getEntitiesWithinAABB(EntityWisp.class, getEntityBoundingBox().grow(16.0, 16.0, 16.0));
-            if (l != null) {
-                count = l.size();
-            }
-        }
-        catch (Exception ex) {}
-        return count < 8 && world.getDifficulty() != EnumDifficulty.PEACEFUL && isValidLightLevel() && super.getCanSpawnHere();
+            List<EntityWisp> nearby = level.getEntitiesOfClass(EntityWisp.class, 
+                    getBoundingBox().inflate(16.0));
+            count = nearby.size();
+        } catch (Exception ignored) {}
+        
+        if (count >= 8) return false;
+        if (level.getDifficulty() == Difficulty.PEACEFUL) return false;
+        
+        return isValidLightLevel(level) && super.checkSpawnRules(level, spawnType);
     }
     
-    protected boolean isValidLightLevel() {
-        BlockPos blockpos = new BlockPos(posX, getEntityBoundingBox().minY, posZ);
-        if (world.getLightFor(EnumSkyBlock.SKY, blockpos) > rand.nextInt(32)) {
+    private boolean isValidLightLevel(net.minecraft.world.level.LevelAccessor level) {
+        BlockPos pos = new BlockPos((int)getX(), (int)getBoundingBox().minY, (int)getZ());
+        
+        // Check sky light
+        if (level.getBrightness(LightLayer.SKY, pos) > random.nextInt(32)) {
             return false;
         }
-        int i = world.getLightFromNeighbors(blockpos);
-        if (world.isThundering()) {
-            int j = world.getSkylightSubtracted();
-            world.setSkylightSubtracted(10);
-            i = world.getLightFromNeighbors(blockpos);
-            world.setSkylightSubtracted(j);
-        }
-        return i <= rand.nextInt(8);
+        
+        // Check overall light level
+        int lightLevel = level.getMaxLocalRawBrightness(pos);
+        return lightLevel <= random.nextInt(8);
     }
     
-    public void writeEntityToNBT(NBTTagCompound nbttagcompound) {
-        super.writeEntityToNBT(nbttagcompound);
-        nbttagcompound.setString("Type", getType());
-    }
-    
-    public void readEntityFromNBT(NBTTagCompound nbttagcompound) {
-        super.readEntityFromNBT(nbttagcompound);
-        setType(nbttagcompound.getString("Type"));
-    }
-    
-    public int getMaxSpawnedInChunk() {
+    @Override
+    public int getMaxSpawnClusterSize() {
         return 2;
     }
     
-    static {
-        TYPE = EntityDataManager.createKey(EntityWisp.class, DataSerializers.STRING);
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putString("WispType", getWispType());
+    }
+    
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setWispType(tag.getString("WispType"));
     }
 }

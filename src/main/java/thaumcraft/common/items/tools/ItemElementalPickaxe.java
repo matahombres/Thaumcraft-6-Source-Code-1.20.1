@@ -1,83 +1,72 @@
 package thaumcraft.common.items.tools;
-import com.google.common.collect.ImmutableSet;
-import java.util.Set;
-import net.minecraft.client.renderer.ItemMeshDefinition;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemPickaxe;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.NonNullList;
-import net.minecraftforge.fml.common.FMLCommonHandler;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.IThaumcraftItems;
-import thaumcraft.common.lib.enchantment.EnumInfusionEnchantment;
 
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.PickaxeItem;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import thaumcraft.api.ThaumcraftMaterials;
+import thaumcraft.init.ModItems;
 
-public class ItemElementalPickaxe extends ItemPickaxe implements IThaumcraftItems
-{
-    public ItemElementalPickaxe(Item.ToolMaterial enumtoolmaterial) {
-        super(enumtoolmaterial);
-        setCreativeTab(ConfigItems.TABTC);
-        setRegistryName("elemental_pick");
-        setUnlocalizedName("elemental_pick");
-        ConfigItems.ITEM_VARIANT_HOLDERS.add(this);
+import javax.annotation.Nullable;
+import java.util.List;
+
+/**
+ * Pickaxe of the Core - Fire elemental pickaxe.
+ * Sets entities on fire when hit.
+ * Has built-in Refining and Sounding infusion enchantments.
+ */
+public class ItemElementalPickaxe extends PickaxeItem {
+
+    public ItemElementalPickaxe() {
+        super(ThaumcraftMaterials.TOOLMAT_ELEMENTAL,
+                1,  // attack damage bonus
+                -2.8f,  // attack speed
+                new Item.Properties()
+                        .rarity(Rarity.RARE));
     }
-    
-    public Item getItem() {
-        return this;
+
+    @Override
+    public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+        return repair.is(ModItems.THAUMIUM_INGOT.get()) || super.isValidRepairItem(toRepair, repair);
     }
-    
-    public String[] getVariantNames() {
-        return new String[] { "normal" };
-    }
-    
-    public int[] getVariantMeta() {
-        return new int[] { 0 };
-    }
-    
-    public ItemMeshDefinition getCustomMesh() {
-        return null;
-    }
-    
-    public ModelResourceLocation getCustomModelResourceLocation(String variant) {
-        return new ModelResourceLocation("thaumcraft:" + variant);
-    }
-    
-    public Set<String> getToolClasses(ItemStack stack) {
-        return ImmutableSet.of("pickaxe");
-    }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.RARE;
-    }
-    
-    public boolean getIsRepairable(ItemStack stack1, ItemStack stack2) {
-        return stack2.isItemEqual(new ItemStack(ItemsTC.ingots, 1, 0)) || super.getIsRepairable(stack1, stack2);
-    }
-    
-    public boolean onLeftClickEntity(ItemStack stack, EntityPlayer player, Entity entity) {
-        if (!player.world.isRemote) {
-            if (!(entity instanceof EntityPlayer) || FMLCommonHandler.instance().getMinecraftServerInstance().isPVPEnabled()) {
-                entity.setFire(2);
+
+    /**
+     * Sets entities on fire when hit with the pickaxe.
+     */
+    @Override
+    public boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
+        if (!player.level().isClientSide()) {
+            // Check if PvP is enabled for player targets
+            if (!(entity instanceof Player) || isPvPEnabled(player)) {
+                entity.setSecondsOnFire(2);
             }
         }
         return super.onLeftClickEntity(stack, player, entity);
     }
-    
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
-        if (tab == ConfigItems.TABTC || tab == CreativeTabs.SEARCH) {
-            ItemStack w1 = new ItemStack(this);
-            EnumInfusionEnchantment.addInfusionEnchantment(w1, EnumInfusionEnchantment.REFINING, 1);
-            EnumInfusionEnchantment.addInfusionEnchantment(w1, EnumInfusionEnchantment.SOUNDING, 2);
-            items.add(w1);
+
+    /**
+     * Check if PvP is enabled on the server.
+     */
+    private boolean isPvPEnabled(Player player) {
+        if (player.level().getServer() != null) {
+            return player.level().getServer().isPvpAllowed();
         }
-        else {
-            super.getSubItems(tab, items);
-        }
+        return true; // Default to true if we can't check
+    }
+
+    @Override
+    @OnlyIn(Dist.CLIENT)
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("enchantment.thaumcraft.refining").withStyle(style -> style.withColor(0xFFD700)));
+        tooltip.add(Component.translatable("enchantment.thaumcraft.sounding").withStyle(style -> style.withColor(0xFFD700)));
+        super.appendHoverText(stack, level, tooltip, flag);
     }
 }

@@ -1,74 +1,63 @@
 package thaumcraft.common.items.tools;
-import com.google.common.collect.ImmutableSet;
-import java.util.Set;
-import net.minecraft.client.renderer.ItemMeshDefinition;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemSpade;
-import net.minecraft.item.ItemStack;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.FMLCommonHandler;
+
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.ShovelItem;
+import net.minecraft.world.level.Level;
+import thaumcraft.api.ThaumcraftMaterials;
 import thaumcraft.api.items.IWarpingGear;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.IThaumcraftItems;
+import thaumcraft.init.ModItems;
 
-
-public class ItemVoidShovel extends ItemSpade implements IWarpingGear, IThaumcraftItems
-{
-    public ItemVoidShovel(Item.ToolMaterial enumtoolmaterial) {
-        super(enumtoolmaterial);
-        setCreativeTab(ConfigItems.TABTC);
-        setRegistryName("void_shovel");
-        setUnlocalizedName("void_shovel");
-        ConfigItems.ITEM_VARIANT_HOLDERS.add(this);
+/**
+ * Void Metal Shovel - Powerful but warping shovel that applies weakness and self-repairs.
+ */
+public class ItemVoidShovel extends ShovelItem implements IWarpingGear {
+    
+    public ItemVoidShovel() {
+        super(ThaumcraftMaterials.TOOLMAT_VOID, 1.5F, -3.0F, 
+                new Item.Properties().rarity(Rarity.RARE));
     }
     
-    public Item getItem() {
-        return this;
+    @Override
+    public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+        return repair.is(ModItems.VOID_METAL_INGOT.get()) || super.isValidRepairItem(toRepair, repair);
     }
     
-    public String[] getVariantNames() {
-        return new String[] { "normal" };
-    }
-    
-    public int[] getVariantMeta() {
-        return new int[] { 0 };
-    }
-    
-    public ItemMeshDefinition getCustomMesh() {
-        return null;
-    }
-    
-    public ModelResourceLocation getCustomModelResourceLocation(String variant) {
-        return new ModelResourceLocation("thaumcraft:" + variant);
-    }
-    
-    public Set<String> getToolClasses(ItemStack stack) {
-        return ImmutableSet.of("shovel");
-    }
-    
-    public void onUpdate(ItemStack stack, World world, Entity entity, int p_77663_4_, boolean p_77663_5_) {
-        super.onUpdate(stack, world, entity, p_77663_4_, p_77663_5_);
-        if (stack.isItemDamaged() && entity != null && entity.ticksExisted % 20 == 0 && entity instanceof EntityLivingBase) {
-            stack.damageItem(-1, (EntityLivingBase)entity);
+    @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
+        super.inventoryTick(stack, level, entity, slotId, isSelected);
+        // Self-repair: repair 1 durability every second (20 ticks)
+        if (stack.isDamaged() && entity != null && entity.tickCount % 20 == 0 && entity instanceof LivingEntity) {
+            stack.setDamageValue(stack.getDamageValue() - 1);
         }
     }
     
-    public boolean onLeftClickEntity(ItemStack stack, EntityPlayer player, Entity entity) {
-        if (!player.world.isRemote && entity instanceof EntityLivingBase) {
-            if (!(entity instanceof EntityPlayer) || FMLCommonHandler.instance().getMinecraftServerInstance().isPVPEnabled()) {
-                ((EntityLivingBase)entity).addPotionEffect(new PotionEffect(MobEffects.WEAKNESS, 80));
+    @Override
+    public boolean hurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+        // Apply weakness effect on hit
+        if (!attacker.level().isClientSide()) {
+            if (!(target instanceof Player) || isPvPEnabled(attacker.level())) {
+                target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 80, 0));
             }
         }
-        return super.onLeftClickEntity(stack, player, entity);
+        return super.hurtEnemy(stack, target, attacker);
     }
     
-    public int getWarp(ItemStack itemstack, EntityPlayer player) {
+    private boolean isPvPEnabled(Level level) {
+        if (level.getServer() != null) {
+            return level.getServer().isPvpAllowed();
+        }
+        return true;
+    }
+    
+    @Override
+    public int getWarp(ItemStack itemstack, Player player) {
         return 1;
     }
 }

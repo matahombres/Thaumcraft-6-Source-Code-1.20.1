@@ -1,51 +1,23 @@
 package thaumcraft.common.items.tools;
-import com.google.common.collect.ImmutableSet;
-import java.util.Set;
-import net.minecraft.client.renderer.ItemMeshDefinition;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemAxe;
-import net.minecraft.item.ItemStack;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.IThaumcraftItems;
 
+import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import thaumcraft.api.ThaumcraftMaterials;
+import thaumcraft.init.ModItems;
 
-public class ItemThaumiumAxe extends ItemAxe implements IThaumcraftItems
-{
-    public ItemThaumiumAxe(Item.ToolMaterial enumtoolmaterial) {
-        super(enumtoolmaterial, 8.0f, -3.0f);
-        setCreativeTab(ConfigItems.TABTC);
-        setRegistryName("thaumium_axe");
-        setUnlocalizedName("thaumium_axe");
-        ConfigItems.ITEM_VARIANT_HOLDERS.add(this);
+/**
+ * Thaumium Axe - Magic-infused iron axe with better stats.
+ */
+public class ItemThaumiumAxe extends AxeItem {
+    
+    public ItemThaumiumAxe() {
+        super(ThaumcraftMaterials.TOOLMAT_THAUMIUM, 6.0F, -3.1F, 
+                new Item.Properties());
     }
     
-    public Item getItem() {
-        return this;
-    }
-    
-    public String[] getVariantNames() {
-        return new String[] { "normal" };
-    }
-    
-    public int[] getVariantMeta() {
-        return new int[] { 0 };
-    }
-    
-    public ItemMeshDefinition getCustomMesh() {
-        return null;
-    }
-    
-    public ModelResourceLocation getCustomModelResourceLocation(String variant) {
-        return new ModelResourceLocation("thaumcraft:" + variant);
-    }
-    
-    public Set<String> getToolClasses(ItemStack stack) {
-        return ImmutableSet.of("axe");
-    }
-    
-    public boolean getIsRepairable(ItemStack stack1, ItemStack stack2) {
-        return stack2.isItemEqual(new ItemStack(ItemsTC.ingots, 1, 0)) || super.getIsRepairable(stack1, stack2);
+    @Override
+    public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+        return repair.is(ModItems.THAUMIUM_INGOT.get()) || super.isValidRepairItem(toRepair, repair);
     }
 }

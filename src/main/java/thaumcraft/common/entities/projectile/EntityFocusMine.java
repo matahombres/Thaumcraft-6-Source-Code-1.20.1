@@ -1,170 +1,262 @@
 package thaumcraft.common.entities.projectile;
-import io.netty.buffer.ByteBuf;
-import java.util.Iterator;
-import java.util.List;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.projectile.EntityThrowable;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.registry.IEntityAdditionalSpawnData;
-import thaumcraft.api.casters.FocusEffect;
-import thaumcraft.api.casters.FocusEngine;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.casters.FocusPackage;
 import thaumcraft.api.casters.Trajectory;
-import thaumcraft.common.lib.events.ServerEvents;
-import thaumcraft.common.lib.utils.EntityUtils;
-import thaumcraft.common.lib.utils.Utils;
+import thaumcraft.init.ModEntities;
 
+import javax.annotation.Nullable;
+import java.util.List;
 
-public class EntityFocusMine extends EntityThrowable implements IEntityAdditionalSpawnData
-{
-    FocusPackage focusPackage;
-    boolean friendly;
-    private static DataParameter<Boolean> ARMED;
-    public int counter;
-    FocusEffect[] effects;
+/**
+ * Focus Mine Entity - A proximity mine that triggers when entities approach.
+ * Can be configured to target enemies or friendlies.
+ */
+public class EntityFocusMine extends ThrowableProjectile {
     
-    public EntityFocusMine(World par1World) {
-        super(par1World);
-        friendly = false;
-        counter = 40;
-        effects = null;
-        setSize(0.15f, 0.15f);
+    private static final EntityDataAccessor<Boolean> DATA_ARMED = 
+            SynchedEntityData.defineId(EntityFocusMine.class, EntityDataSerializers.BOOLEAN);
+    
+    private FocusPackage focusPackage;
+    private boolean targetFriendly;
+    private int armingCountdown = 40; // Ticks before mine is active after landing
+    
+    public EntityFocusMine(EntityType<? extends EntityFocusMine> type, Level level) {
+        super(type, level);
     }
     
-    public EntityFocusMine(FocusPackage pack, Trajectory trajectory, boolean friendly) {
-        super(pack.world, pack.getCaster());
-        this.friendly = false;
-        counter = 40;
-        effects = null;
-        focusPackage = pack;
-        this.friendly = friendly;
-        setPosition(trajectory.source.x, trajectory.source.y, trajectory.source.z);
+    public EntityFocusMine(Level level, LivingEntity owner) {
+        super(ModEntities.FOCUS_MINE.get(), owner, level);
+    }
+    
+    /**
+     * Create a focus mine with full parameters.
+     */
+    public EntityFocusMine(FocusPackage pack, Trajectory trajectory, boolean targetFriendly) {
+        super(ModEntities.FOCUS_MINE.get(), pack.world);
+        
+        this.focusPackage = pack;
+        this.targetFriendly = targetFriendly;
+        
+        // Find owner from package
+        LivingEntity owner = findOwner(pack);
+        if (owner != null) {
+            setOwner(owner);
+        }
+        
+        setPos(trajectory.source.x, trajectory.source.y, trajectory.source.z);
+        
+        // Mines don't move much - just a slight drop
         shoot(trajectory.direction.x, trajectory.direction.y, trajectory.direction.z, 0.0f, 0.0f);
-        setSize(0.15f, 0.15f);
     }
     
-    public void entityInit() {
-        super.entityInit();
-        getDataManager().register(EntityFocusMine.ARMED, false);
+    @Override
+    protected void defineSynchedData() {
+        this.entityData.define(DATA_ARMED, false);
     }
     
-    public boolean getIsArmed() {
-        return (boolean) getDataManager().get((DataParameter)EntityFocusMine.ARMED);
+    public boolean isArmed() {
+        return this.entityData.get(DATA_ARMED);
     }
     
-    public void setIsArmed(boolean par1) {
-        getDataManager().set(EntityFocusMine.ARMED, par1);
+    public void setArmed(boolean armed) {
+        this.entityData.set(DATA_ARMED, armed);
+        if (armed) {
+            armingCountdown = 0;
+        }
     }
     
-    protected float getGravityVelocity() {
+    @Override
+    protected float getGravity() {
         return 0.01f;
     }
     
-    public void writeSpawnData(ByteBuf data) {
-        Utils.writeNBTTagCompoundToBuffer(data, focusPackage.serialize());
-    }
-    
-    public void readSpawnData(ByteBuf data) {
-        try {
-            (focusPackage = new FocusPackage()).deserialize(Utils.readNBTTagCompoundFromBuffer(data));
-        }
-        catch (Exception e) {
-            e.printStackTrace();
+    @Override
+    protected void onHit(HitResult result) {
+        if (result != null && getOwner() != null) {
+            // Mine lands and starts arming
+            setArmed(true);
+            
+            // Stop movement
+            setDeltaMovement(Vec3.ZERO);
         }
     }
     
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        nbt.setBoolean("armed", getIsArmed());
-        nbt.setTag("pack", focusPackage.serialize());
-        nbt.setBoolean("friendly", friendly);
+    @Override
+    protected void onHitEntity(EntityHitResult result) {
+        // Mines don't trigger on entity collision during flight
     }
     
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        friendly = nbt.getBoolean("friendly");
-        setIsArmed(nbt.getBoolean("armed"));
-        if (getIsArmed()) {
-            counter = 0;
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Push out of blocks
+        if (isInWall()) {
+            Vec3 pos = position();
+            Vec3 motion = getDeltaMovement();
+            setDeltaMovement(motion.scale(0.25));
         }
-        try {
-            (focusPackage = new FocusPackage()).deserialize(nbt.getCompoundTag("pack"));
+        
+        // Expire after 60 seconds
+        if (tickCount > 1200) {
+            discard();
+            return;
         }
-        catch (Exception ex) {}
-    }
-    
-    protected void onImpact(RayTraceResult mop) {
-        if (mop != null && getThrower() != null) {
-            setIsArmed(true);
+        
+        // Expire if owner is gone (server only)
+        if (!level().isClientSide && getOwner() == null) {
+            discard();
+            return;
         }
-    }
-    
-    public void onUpdate() {
-        super.onUpdate();
-        if (pushOutOfBlocks(posX, posY, posZ)) {
-            motionX *= 0.25;
-            motionY *= 0.25;
-            motionZ *= 0.25;
-        }
-        if (ticksExisted > 1200 || (!world.isRemote && getThrower() == null)) {
-            setDead();
-        }
-        if (isEntityAlive() && getIsArmed()) {
-            if (counter > 0) {
-                --counter;
+        
+        if (isAlive() && isArmed()) {
+            // Count down arming delay
+            if (armingCountdown > 0) {
+                armingCountdown--;
+                return;
             }
-            if (counter <= 0 && ticksExisted % 5 == 0) {
-                if (world.isRemote) {
-                    if (effects == null) {
-                        effects = focusPackage.getFocusEffects();
-                    }
-                    if (effects != null && effects.length > 0) {
-                        FocusEffect eff = effects[rand.nextInt(effects.length)];
-                        eff.renderParticleFX(world, posX + world.rand.nextGaussian() * 0.1, posY + world.rand.nextGaussian() * 0.1, posZ + world.rand.nextGaussian() * 0.1, world.rand.nextGaussian() * 0.009999999776482582, world.rand.nextGaussian() * 0.009999999776482582, world.rand.nextGaussian() * 0.009999999776482582);
-                    }
-                }
-                else {
-                    List<EntityLivingBase> list2 = EntityUtils.getEntitiesInRange(world, posX, posY, posZ, this, EntityLivingBase.class, 1.0);
-                    int d = 0;
-                    for (EntityLivingBase e : list2) {
-                        if (e.isDead) {
-                            continue;
-                        }
-                        if (friendly) {
-                            if (!EntityUtils.isFriendly(focusPackage.getCaster(), e)) {
-                                continue;
-                            }
-                        }
-                        else if (EntityUtils.isFriendly(focusPackage.getCaster(), e)) {
-                            continue;
-                        }
-                        Vec3d epv = e.getPositionVector().addVector(0.0, e.height / 2.0f, 0.0);
-                        ServerEvents.addRunnableServer(getEntityWorld(), new Runnable() {
-                            @Override
-                            public void run() {
-                                RayTraceResult ray = new RayTraceResult(e);
-                                ray.hitVec = e.getPositionVector().addVector(0.0, e.height / 2.0f, 0.0);
-                                FocusEngine.runFocusPackage(focusPackage.copy(getThrower()), new Trajectory[] { new Trajectory(getPositionVector(), epv.subtract(getPositionVector()).normalize()) }, new RayTraceResult[] { ray });
-                            }
-                        }, d++);
-                    }
-                    if (d > 0) {
-                        setDead();
-                    }
+            
+            // Check for targets every 5 ticks
+            if (tickCount % 5 == 0) {
+                if (level().isClientSide) {
+                    renderMineParticles();
+                } else {
+                    checkForTargets();
                 }
             }
         }
     }
     
-    static {
-        ARMED = EntityDataManager.createKey(EntityFocusMine.class, DataSerializers.BOOLEAN);
+    /**
+     * Render particles on the client when armed.
+     */
+    private void renderMineParticles() {
+        // TODO: Implement particle rendering
+        // Original called effect.renderParticleFX
+    }
+    
+    /**
+     * Check for valid targets in range and trigger if found.
+     */
+    private void checkForTargets() {
+        if (focusPackage == null) return;
+        
+        double triggerRange = 1.0;
+        AABB searchBox = getBoundingBox().inflate(triggerRange);
+        
+        List<Entity> entities = level().getEntities(this, searchBox, e -> {
+            if (e.isRemoved()) return false;
+            if (!(e instanceof LivingEntity living)) return false;
+            if (e == getOwner()) return false;
+            
+            boolean isFriendly = isFriendlyTo(living);
+            return targetFriendly ? isFriendly : !isFriendly;
+        });
+        
+        int triggered = 0;
+        for (Entity entity : entities) {
+            if (entity instanceof LivingEntity living) {
+                Vec3 entityPos = living.getBoundingBox().getCenter();
+                Vec3 direction = entityPos.subtract(position()).normalize();
+                
+                // TODO: Execute focus package
+                // Trajectory trajectory = new Trajectory(position(), direction);
+                // EntityHitResult hit = new EntityHitResult(living, entityPos);
+                // FocusEngine.runFocusPackage(focusPackage.copy(getOwner()),
+                //     new Trajectory[] { trajectory }, new HitResult[] { hit });
+                
+                triggered++;
+            }
+        }
+        
+        // Mine explodes after triggering
+        if (triggered > 0) {
+            discard();
+        }
+    }
+    
+    /**
+     * Check if an entity is friendly to the owner.
+     */
+    private boolean isFriendlyTo(LivingEntity target) {
+        Entity owner = getOwner();
+        if (owner == null) return false;
+        
+        // Same team = friendly
+        if (owner.isAlliedTo(target)) return true;
+        
+        // Same type = potentially friendly
+        if (owner.getType() == target.getType()) return true;
+        
+        // Check if target is owned by owner (pets, tamed animals)
+        if (target instanceof net.minecraft.world.entity.OwnableEntity ownable) {
+            if (owner.getUUID().equals(ownable.getOwnerUUID())) return true;
+        }
+        
+        return false;
+    }
+    
+    @Override
+    protected void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("armed", isArmed());
+        tag.putBoolean("friendly", targetFriendly);
+        if (focusPackage != null) {
+            tag.put("pack", focusPackage.serialize());
+        }
+    }
+    
+    @Override
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        targetFriendly = tag.getBoolean("friendly");
+        setArmed(tag.getBoolean("armed"));
+        if (isArmed()) {
+            armingCountdown = 0;
+        }
+        if (tag.contains("pack")) {
+            focusPackage = new FocusPackage();
+            focusPackage.deserialize(tag.getCompound("pack"));
+        }
+    }
+    
+    /**
+     * Find the owner LivingEntity from a FocusPackage.
+     */
+    @Nullable
+    private LivingEntity findOwner(FocusPackage pack) {
+        if (pack.getCasterUUID() == null || pack.world == null) return null;
+        
+        for (var player : pack.world.players()) {
+            if (player.getUUID().equals(pack.getCasterUUID())) {
+                return player;
+            }
+        }
+        return null;
+    }
+    
+    public FocusPackage getFocusPackage() {
+        return focusPackage;
+    }
+    
+    public void setFocusPackage(FocusPackage pack) {
+        this.focusPackage = pack;
+    }
+    
+    public boolean isTargetingFriendly() {
+        return targetFriendly;
     }
 }

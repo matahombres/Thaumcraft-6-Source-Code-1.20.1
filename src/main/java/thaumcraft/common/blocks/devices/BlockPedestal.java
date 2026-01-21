@@ -1,163 +1,142 @@
 package thaumcraft.common.blocks.devices;
-import java.util.Iterator;
-import java.util.Random;
-import net.minecraft.block.Block;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.block.state.BlockStateContainer;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.ItemStack;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.blocks.BlocksTC;
-import thaumcraft.api.crafting.IInfusionStabiliserExt;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.blocks.BlockTCTile;
-import thaumcraft.common.lib.utils.InventoryUtils;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.Containers;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import thaumcraft.common.blocks.BlockTC;
 import thaumcraft.common.tiles.crafting.TilePedestal;
 
+import javax.annotation.Nullable;
 
-public class BlockPedestal extends BlockTCTile implements IInfusionStabiliserExt
-{
-    public static BlockPedestal instance;
-    
-    public BlockPedestal(String name) {
-        super(Material.ROCK, TilePedestal.class, name);
-        setSoundType(SoundType.STONE);
-        BlockPedestal.instance = this;
-        IBlockState bs = blockState.getBaseState();
-        bs.withProperty((IProperty)BlockInlay.CHARGE, (Comparable)0);
-        setDefaultState(bs);
-    }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
-    }
-    
-    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face) {
-        return BlockFaceShape.UNDEFINED;
-    }
-    
-    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ) {
-        if (world.isRemote) {
-            return true;
+/**
+ * Pedestal block for displaying items and use in infusion crafting.
+ * Different variants (arcane, ancient, eldritch) provide different stability bonuses.
+ */
+public class BlockPedestal extends BlockTC implements EntityBlock {
+
+    public enum PedestalType {
+        ARCANE(0.0f),
+        ANCIENT(0.0f),
+        ELDRITCH(0.1f); // Eldritch provides stability bonus
+
+        private final float stabilityBonus;
+
+        PedestalType(float stabilityBonus) {
+            this.stabilityBonus = stabilityBonus;
         }
-        TileEntity tile = world.getTileEntity(pos);
-        if (tile != null && tile instanceof TilePedestal) {
-            TilePedestal ped = (TilePedestal)tile;
-            if (ped.getStackInSlot(0).isEmpty() && !player.inventory.getCurrentItem().isEmpty() && player.inventory.getCurrentItem().getCount() > 0) {
-                ItemStack i = player.getHeldItem(hand).copy();
-                i.setCount(1);
-                ped.setInventorySlotContents(0, i);
-                player.getHeldItem(hand).shrink(1);
-                if (player.getHeldItem(hand).getCount() == 0) {
-                    player.setHeldItem(hand, ItemStack.EMPTY);
+
+        public float getStabilityBonus() {
+            return stabilityBonus;
+        }
+    }
+
+    private static final VoxelShape SHAPE = Shapes.or(
+            Block.box(0.0, 0.0, 0.0, 16.0, 4.0, 16.0),   // Base
+            Block.box(3.0, 4.0, 3.0, 13.0, 10.0, 13.0),  // Middle
+            Block.box(1.0, 10.0, 1.0, 15.0, 14.0, 15.0)  // Top
+    );
+
+    private final PedestalType pedestalType;
+
+    public BlockPedestal(PedestalType type) {
+        super(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.STONE)
+                .strength(2.0f, 10.0f)
+                .sound(SoundType.STONE)
+                .noOcclusion());
+        this.pedestalType = type;
+    }
+
+    public PedestalType getPedestalType() {
+        return pedestalType;
+    }
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
+    }
+
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player,
+                                  InteractionHand hand, BlockHitResult hit) {
+        if (level.isClientSide) {
+            return InteractionResult.SUCCESS;
+        }
+
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof TilePedestal pedestal) {
+            ItemStack heldItem = player.getItemInHand(hand);
+            
+            if (pedestal.getDisplayedItem().isEmpty() && !heldItem.isEmpty()) {
+                // Place item on pedestal
+                pedestal.tryInsertItem(player, heldItem);
+            } else if (!pedestal.getDisplayedItem().isEmpty()) {
+                // Take item from pedestal
+                ItemStack taken = pedestal.tryTakeItem(player);
+                if (!taken.isEmpty()) {
+                    if (!player.getInventory().add(taken)) {
+                        player.drop(taken, false);
+                    }
                 }
-                player.inventory.markDirty();
-                world.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.2f, ((world.rand.nextFloat() - world.rand.nextFloat()) * 0.7f + 1.0f) * 1.6f);
-                return true;
-            }
-            if (!ped.getStackInSlot(0).isEmpty()) {
-                InventoryUtils.dropItemsAtEntity(world, pos, player);
-                world.playSound(null, pos, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 0.2f, ((world.rand.nextFloat() - world.rand.nextFloat()) * 0.7f + 1.0f) * 1.5f);
-                return true;
             }
         }
-        return super.onBlockActivated(world, pos, state, player, hand, side, hitX, hitY, hitZ);
+
+        return InteractionResult.CONSUME;
     }
-    
-    public IBlockState getStateFromMeta(int meta) {
-        return getDefaultState().withProperty((IProperty)BlockInlay.CHARGE, (Comparable)meta);
-    }
-    
-    public int getMetaFromState(IBlockState state) {
-        return (int)state.getValue((IProperty)BlockInlay.CHARGE);
-    }
-    
-    protected BlockStateContainer createBlockState() {
-        return new BlockStateContainer(this, BlockInlay.CHARGE);
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public void randomDisplayTick(IBlockState stateIn, World worldIn, BlockPos pos, Random rand) {
-        int charge = (int)stateIn.getValue((IProperty)BlockInlay.CHARGE);
-        if (charge > 0) {
-            FXDispatcher.INSTANCE.blockRunes2(pos.getX(), pos.getY() - 0.375, pos.getZ(), 1.0f, 0.0f, 0.0f, 10, 0.0f);
-        }
-    }
-    
-    public void onBlockAdded(World worldIn, BlockPos pos, IBlockState state) {
-        if (!worldIn.isRemote) {
-            BlockInlay.updateSurroundingInlay(worldIn, pos, state);
-            for (EnumFacing enumfacing1 : EnumFacing.Plane.HORIZONTAL) {
-                BlockInlay.notifyInlayNeighborsOfStateChange(worldIn, pos.offset(enumfacing1));
-            }
-        }
-    }
-    
+
     @Override
-    public void breakBlock(World worldIn, BlockPos pos, IBlockState state) {
-        super.breakBlock(worldIn, pos, state);
-        if (!worldIn.isRemote) {
-            for (EnumFacing enumfacing : EnumFacing.Plane.HORIZONTAL) {
-                worldIn.notifyNeighborsOfStateChange(pos.offset(enumfacing), this, false);
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (blockEntity instanceof TilePedestal pedestal) {
+                pedestal.dropContents();
             }
-            BlockInlay.updateSurroundingInlay(worldIn, pos, state);
-            for (EnumFacing enumfacing2 : EnumFacing.Plane.HORIZONTAL) {
-                BlockInlay.notifyInlayNeighborsOfStateChange(worldIn, pos.offset(enumfacing2));
-            }
+            super.onRemove(state, level, pos, newState, isMoving);
         }
     }
-    
-    public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos) {
-        if (!worldIn.isRemote) {
-            BlockInlay.updateSurroundingInlay(worldIn, pos, state);
-        }
-    }
-    
-    public boolean canStabaliseInfusion(World world, BlockPos pos) {
-        return true;
-    }
-    
+
+    @Nullable
     @Override
-    public float getStabilizationAmount(World world, BlockPos pos) {
-        Block b = world.getBlockState(pos).getBlock();
-        return (b == BlocksTC.pedestalEldritch) ? 0.1f : 0.0f;
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new TilePedestal(pos, state);
     }
-    
-    @Override
-    public boolean hasSymmetryPenalty(World world, BlockPos pos1, BlockPos pos2) {
-        TileEntity te1 = world.getTileEntity(pos1);
-        TileEntity te2 = world.getTileEntity(pos2);
-        if (world.isRemote) {
-            if (te1 != null && te2 != null && te1 instanceof TilePedestal && te2 instanceof TilePedestal) {
-                return ((TilePedestal)te1).getSyncedStackInSlot(0).isEmpty() != ((TilePedestal)te2).getSyncedStackInSlot(0).isEmpty();
-            }
-        }
-        else if (te1 != null && te2 != null && te1 instanceof TilePedestal && te2 instanceof TilePedestal) {
-            return ((TilePedestal)te1).getStackInSlot(0).isEmpty() != ((TilePedestal)te2).getStackInSlot(0).isEmpty();
-        }
-        return false;
+
+    /**
+     * Creates an arcane pedestal.
+     */
+    public static BlockPedestal createArcane() {
+        return new BlockPedestal(PedestalType.ARCANE);
     }
-    
-    @Override
-    public float getSymmetryPenalty(World world, BlockPos pos) {
-        return 0.1f;
+
+    /**
+     * Creates an ancient pedestal.
+     */
+    public static BlockPedestal createAncient() {
+        return new BlockPedestal(PedestalType.ANCIENT);
+    }
+
+    /**
+     * Creates an eldritch pedestal with stability bonus.
+     */
+    public static BlockPedestal createEldritch() {
+        return new BlockPedestal(PedestalType.ELDRITCH);
     }
 }

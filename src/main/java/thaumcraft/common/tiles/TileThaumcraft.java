@@ -1,99 +1,87 @@
 package thaumcraft.common.tiles;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+
 import javax.annotation.Nullable;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.NetworkManager;
-import net.minecraft.network.play.server.SPacketUpdateTileEntity;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.network.NetworkRegistry;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import thaumcraft.common.lib.network.PacketHandler;
-import thaumcraft.common.lib.network.tiles.PacketTileToClient;
-import thaumcraft.common.lib.network.tiles.PacketTileToServer;
 
+/**
+ * Base class for all Thaumcraft tile entities.
+ * Provides common functionality for NBT sync and client updates.
+ */
+public abstract class TileThaumcraft extends BlockEntity {
 
-public class TileThaumcraft extends TileEntity
-{
-    public void sendMessageToClient(NBTTagCompound nbt, @Nullable EntityPlayerMP player) {
-        if (player == null) {
-            if (getWorld() != null) {
-                PacketHandler.INSTANCE.sendToAllAround(new PacketTileToClient(getPos(), nbt), new NetworkRegistry.TargetPoint(getWorld().provider.getDimension(), pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 128.0));
-            }
-        }
-        else {
-            PacketHandler.INSTANCE.sendTo(new PacketTileToClient(getPos(), nbt), player);
-        }
+    public TileThaumcraft(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
-    
-    public void sendMessageToServer(NBTTagCompound nbt) {
-        PacketHandler.INSTANCE.sendToServer(new PacketTileToServer(getPos(), nbt));
+
+    // ==================== NBT Serialization ====================
+
+    @Override
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
+        writeSyncNBT(tag);
     }
-    
-    public void messageFromServer(NBTTagCompound nbt) {
+
+    @Override
+    public void load(CompoundTag tag) {
+        super.load(tag);
+        readSyncNBT(tag);
     }
-    
-    public void messageFromClient(NBTTagCompound nbt, EntityPlayerMP player) {
+
+    /**
+     * Write data that should be synced to clients.
+     * Override in subclasses to add custom data.
+     */
+    protected void writeSyncNBT(CompoundTag tag) {
+        // Override in subclasses
     }
-    
-    public void readFromNBT(NBTTagCompound nbt) {
-        super.readFromNBT(nbt);
-        readSyncNBT(nbt);
+
+    /**
+     * Read data synced from server.
+     * Override in subclasses to read custom data.
+     */
+    protected void readSyncNBT(CompoundTag tag) {
+        // Override in subclasses
     }
-    
-    public void readSyncNBT(NBTTagCompound nbt) {
+
+    // ==================== Client Sync ====================
+
+    @Override
+    public CompoundTag getUpdateTag() {
+        CompoundTag tag = super.getUpdateTag();
+        writeSyncNBT(tag);
+        return tag;
     }
-    
-    public NBTTagCompound writeToNBT(NBTTagCompound nbt) {
-        return writeSyncNBT(super.writeToNBT(nbt));
-    }
-    
-    public NBTTagCompound writeSyncNBT(NBTTagCompound nbt) {
-        return nbt;
-    }
-    
-    public void syncTile(boolean rerender) {
-        IBlockState state = world.getBlockState(pos);
-        world.notifyBlockUpdate(pos, state, state, 2 + (rerender ? 4 : 0));
-    }
-    
+
     @Nullable
-    public SPacketUpdateTileEntity getUpdatePacket() {
-        return new SPacketUpdateTileEntity(pos, -9, getUpdateTag());
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
     }
-    
-    public void onDataPacket(NetworkManager net, SPacketUpdateTileEntity pkt) {
-        readSyncNBT(pkt.getNbtCompound());
-    }
-    
-    public NBTTagCompound getUpdateTag() {
-        return writeSyncNBT(setupNbt());
-    }
-    
-    private NBTTagCompound setupNbt() {
-        NBTTagCompound nbt = super.writeToNBT(new NBTTagCompound());
-        nbt.removeTag("ForgeData");
-        nbt.removeTag("ForgeCaps");
-        return nbt;
-    }
-    
-    public boolean shouldRefresh(World world, BlockPos pos, IBlockState oldState, IBlockState newState) {
-        return oldState.getBlock() != newState.getBlock();
-    }
-    
-    public EnumFacing getFacing() {
-        try {
-            return EnumFacing.getFront(getBlockMetadata() & 0x7);
-        }
-        catch (Exception ex) {
-            return EnumFacing.UP;
+
+    /**
+     * Mark this tile entity as needing sync to clients.
+     */
+    public void syncTile(boolean rerender) {
+        if (level != null && !level.isClientSide) {
+            setChanged();
+            BlockState state = getBlockState();
+            level.sendBlockUpdated(worldPosition, state, state, rerender ? 3 : 2);
         }
     }
-    
-    public boolean gettingPower() {
-        return world.isBlockPowered(getPos());
+
+    /**
+     * Convenience method to mark dirty and sync.
+     */
+    public void markDirtyAndSync() {
+        setChanged();
+        syncTile(false);
     }
 }

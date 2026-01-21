@@ -1,470 +1,485 @@
 package thaumcraft.common.entities.construct;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import java.util.Collections;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.OwnableEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.ai.goal.RangedAttackGoal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.TargetGoal;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.scores.Team;
+import net.minecraftforge.server.ServerLifecycleHooks;
+
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.IEntityOwnable;
-import net.minecraft.entity.IRangedAttackMob;
-import net.minecraft.entity.MoverType;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.EntityAIAttackRanged;
-import net.minecraft.entity.ai.EntityAIBase;
-import net.minecraft.entity.ai.EntityAIHurtByTarget;
-import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
-import net.minecraft.entity.ai.EntityAITarget;
-import net.minecraft.entity.ai.attributes.IAttributeInstance;
-import net.minecraft.entity.monster.IMob;
-import net.minecraft.entity.passive.IAnimals;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.util.EntitySelectors;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.FMLCommonHandler;
-import org.apache.commons.lang3.StringUtils;
-import thaumcraft.Thaumcraft;
-import thaumcraft.api.blocks.BlocksTC;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.utils.Utils;
+import java.util.UUID;
+import java.util.function.Predicate;
 
-
-public class EntityTurretCrossbowAdvanced extends EntityTurretCrossbow
-{
-    private static DataParameter<Byte> FLAGS;
+/**
+ * EntityTurretCrossbowAdvanced - An advanced crossbow turret with targeting options.
+ * 
+ * Features:
+ * - All base turret features
+ * - Configurable targeting: animals, mobs, players, friendlies
+ * - Higher health and armor
+ * - Faster firing rate
+ */
+public class EntityTurretCrossbowAdvanced extends EntityTurretCrossbow {
     
-    public EntityTurretCrossbowAdvanced(World worldIn) {
-        super(worldIn);
-        setSize(0.95f, 1.5f);
-        stepHeight = 0.0f;
+    private static final EntityDataAccessor<Byte> DATA_FLAGS = 
+            SynchedEntityData.defineId(EntityTurretCrossbowAdvanced.class, EntityDataSerializers.BYTE);
+    
+    // Flag bits for targeting options
+    private static final byte FLAG_TARGET_ANIMAL = 0x01;
+    private static final byte FLAG_TARGET_MOB = 0x02;
+    private static final byte FLAG_TARGET_PLAYER = 0x04;
+    private static final byte FLAG_TARGET_FRIENDLY = 0x08;
+    
+    private int targetUnseenTicks = 0;
+    
+    public EntityTurretCrossbowAdvanced(EntityType<? extends EntityTurretCrossbowAdvanced> type, Level level) {
+        super(type, level);
+    }
+    
+    public EntityTurretCrossbowAdvanced(EntityType<? extends EntityTurretCrossbowAdvanced> type, Level level, BlockPos pos) {
+        super(type, level, pos);
     }
     
     @Override
-    protected void initEntityAI() {
-        tasks.taskEntries.clear();
-        targetTasks.taskEntries.clear();
-        tasks.addTask(1, new EntityAIAttackRanged(this, 0.0, 20, 40, 24.0f));
-        tasks.addTask(2, new EntityAIWatchTarget(this));
-        targetTasks.addTask(1, new EntityAIHurtByTarget(this, false));
-        targetTasks.addTask(2, new EntityAINearestValidTarget(this, EntityLivingBase.class, 5, true, false, null));
+    protected void registerGoals() {
+        this.goalSelector.removeAllGoals(g -> true);
+        this.targetSelector.removeAllGoals(g -> true);
+        
+        this.goalSelector.addGoal(1, new RangedAttackGoal(this, 0.0, 20, 40, 24.0f));
+        this.goalSelector.addGoal(2, new AdvancedWatchTargetGoal(this));
+        this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
+        this.targetSelector.addGoal(2, new AdvancedTargetGoal(this, LivingEntity.class, 5, true, false));
+        
+        // Default to targeting mobs
         setTargetMob(true);
     }
     
     @Override
-    public float getEyeHeight() {
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_FLAGS, (byte) 0);
+    }
+    
+    public static AttributeSupplier.Builder createAttributes() {
+        return EntityTurretCrossbow.createAttributes()
+                .add(Attributes.MAX_HEALTH, 40.0)
+                .add(Attributes.ARMOR, 8.0);
+    }
+    
+    @Override
+    protected float getStandingEyeHeight(net.minecraft.world.entity.Pose pose, net.minecraft.world.entity.EntityDimensions dimensions) {
         return 1.0f;
     }
     
-    public EntityTurretCrossbowAdvanced(World worldIn, BlockPos pos) {
-        this(worldIn);
-        setPositionAndRotation(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0.0f, 0.0f);
+    // ==================== Targeting Options ====================
+    
+    private byte getFlags() {
+        return this.entityData.get(DATA_FLAGS);
     }
     
-    @Override
-    protected void entityInit() {
-        super.entityInit();
-        getDataManager().register((DataParameter)EntityTurretCrossbowAdvanced.FLAGS, 0);
+    private void setFlags(byte flags) {
+        this.entityData.set(DATA_FLAGS, flags);
     }
     
-    public boolean canAttackClass(Class clazz) {
-        if (IAnimals.class.isAssignableFrom(clazz) && !IMob.class.isAssignableFrom(clazz) && getTargetAnimal()) {
-            return true;
+    private boolean getFlag(byte flag) {
+        return (getFlags() & flag) != 0;
+    }
+    
+    private void setFlag(byte flag, boolean value) {
+        byte flags = getFlags();
+        if (value) {
+            flags |= flag;
+        } else {
+            flags &= ~flag;
         }
-        if (IMob.class.isAssignableFrom(clazz) && getTargetMob()) {
-            return true;
-        }
-        if (!EntityPlayer.class.isAssignableFrom(clazz) || !getTargetPlayer()) {
-            return false;
-        }
-        if (!world.isRemote && !FMLCommonHandler.instance().getMinecraftServerInstance().isPVPEnabled() && !getTargetFriendly()) {
-            setTargetPlayer(false);
-            return false;
-        }
-        return true;
+        setFlags(flags);
+        setTarget(null); // Clear target when changing targeting options
     }
     
     public boolean getTargetAnimal() {
-        return Utils.getBit((byte) getDataManager().get((DataParameter)EntityTurretCrossbowAdvanced.FLAGS), 0);
+        return getFlag(FLAG_TARGET_ANIMAL);
     }
     
-    public void setTargetAnimal(boolean par1) {
-        byte var2 = (byte) getDataManager().get((DataParameter)EntityTurretCrossbowAdvanced.FLAGS);
-        if (par1) {
-            getDataManager().set(EntityTurretCrossbowAdvanced.FLAGS, (byte)Utils.setBit(var2, 0));
-        }
-        else {
-            getDataManager().set(EntityTurretCrossbowAdvanced.FLAGS, (byte)Utils.clearBit(var2, 0));
-        }
-        setAttackTarget(null);
+    public void setTargetAnimal(boolean value) {
+        setFlag(FLAG_TARGET_ANIMAL, value);
     }
     
     public boolean getTargetMob() {
-        return Utils.getBit((byte) getDataManager().get((DataParameter)EntityTurretCrossbowAdvanced.FLAGS), 1);
+        return getFlag(FLAG_TARGET_MOB);
     }
     
-    public void setTargetMob(boolean par1) {
-        byte var2 = (byte) getDataManager().get((DataParameter)EntityTurretCrossbowAdvanced.FLAGS);
-        if (par1) {
-            getDataManager().set(EntityTurretCrossbowAdvanced.FLAGS, (byte)Utils.setBit(var2, 1));
-        }
-        else {
-            getDataManager().set(EntityTurretCrossbowAdvanced.FLAGS, (byte)Utils.clearBit(var2, 1));
-        }
-        setAttackTarget(null);
+    public void setTargetMob(boolean value) {
+        setFlag(FLAG_TARGET_MOB, value);
     }
     
     public boolean getTargetPlayer() {
-        return Utils.getBit((byte) getDataManager().get((DataParameter)EntityTurretCrossbowAdvanced.FLAGS), 2);
+        return getFlag(FLAG_TARGET_PLAYER);
     }
     
-    public void setTargetPlayer(boolean par1) {
-        byte var2 = (byte) getDataManager().get((DataParameter)EntityTurretCrossbowAdvanced.FLAGS);
-        if (par1) {
-            getDataManager().set(EntityTurretCrossbowAdvanced.FLAGS, (byte)Utils.setBit(var2, 2));
-        }
-        else {
-            getDataManager().set(EntityTurretCrossbowAdvanced.FLAGS, (byte)Utils.clearBit(var2, 2));
-        }
-        setAttackTarget(null);
+    public void setTargetPlayer(boolean value) {
+        setFlag(FLAG_TARGET_PLAYER, value);
     }
     
     public boolean getTargetFriendly() {
-        return Utils.getBit((byte) getDataManager().get((DataParameter)EntityTurretCrossbowAdvanced.FLAGS), 3);
+        return getFlag(FLAG_TARGET_FRIENDLY);
     }
     
-    public void setTargetFriendly(boolean par1) {
-        byte var2 = (byte) getDataManager().get((DataParameter)EntityTurretCrossbowAdvanced.FLAGS);
-        if (par1) {
-            getDataManager().set(EntityTurretCrossbowAdvanced.FLAGS, (byte)Utils.setBit(var2, 3));
-        }
-        else {
-            getDataManager().set(EntityTurretCrossbowAdvanced.FLAGS, (byte)Utils.clearBit(var2, 3));
-        }
-        setAttackTarget(null);
+    public void setTargetFriendly(boolean value) {
+        setFlag(FLAG_TARGET_FRIENDLY, value);
     }
     
-    @Override
-    public Team getTeam() {
-        if (isOwned()) {
-            EntityLivingBase entitylivingbase = getOwnerEntity();
-            if (entitylivingbase != null) {
-                return entitylivingbase.getTeam();
+    /**
+     * Check if the turret can attack a specific entity class based on its targeting options
+     */
+    public boolean canAttackType(LivingEntity entity) {
+        // Animals (non-hostile creatures)
+        if (entity instanceof Animal && !(entity instanceof Enemy)) {
+            return getTargetAnimal();
+        }
+        
+        // Hostile mobs
+        if (entity instanceof Enemy) {
+            return getTargetMob();
+        }
+        
+        // Players
+        if (entity instanceof Player) {
+            if (!getTargetPlayer()) {
+                return false;
             }
-        }
-        return super.getTeam();
-    }
-    
-    @Override
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(40.0);
-    }
-    
-    @Override
-    public int getTotalArmorValue() {
-        return 8;
-    }
-    
-    @Override
-    public void onUpdate() {
-        super.onUpdate();
-        if (!world.isRemote && !FMLCommonHandler.instance().getMinecraftServerInstance().isPVPEnabled() && getAttackTarget() != null && getAttackTarget() instanceof EntityPlayer && getAttackTarget() != getOwnerEntity()) {
-            setAttackTarget(null);
-        }
-    }
-    
-    @Override
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        getDataManager().set(EntityTurretCrossbowAdvanced.FLAGS, nbt.getByte("targets"));
-    }
-    
-    @Override
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        nbt.setByte("targets", (byte) getDataManager().get((DataParameter)EntityTurretCrossbowAdvanced.FLAGS));
-    }
-    
-    @Override
-    public void knockBack(Entity p_70653_1_, float p_70653_2_, double p_70653_3_, double p_70653_5_) {
-        super.knockBack(p_70653_1_, p_70653_2_, p_70653_3_ / 10.0, p_70653_5_ / 10.0);
-    }
-    
-    @Override
-    protected boolean processInteract(EntityPlayer player, EnumHand hand) {
-        if (!world.isRemote && isOwner(player) && !isDead) {
-            if (player.isSneaking()) {
-                playSound(SoundsTC.zap, 1.0f, 1.0f);
-                dropAmmo();
-                entityDropItem(new ItemStack(ItemsTC.turretPlacer, 1, 1), 0.5f);
-                setDead();
-                player.swingArm(hand);
-            }
-            else {
-                player.openGui(Thaumcraft.instance, 17, world, getEntityId(), 0, 0);
+            // Check if PvP is enabled
+            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+            if (server != null && !server.isPvpAllowed()) {
+                setTargetPlayer(false);
+                return false;
             }
             return true;
         }
-        return super.processInteract(player, hand);
+        
+        return false;
+    }
+    
+    // ==================== Update ====================
+    
+    @Override
+    public void tick() {
+        super.tick();
+        
+        if (!level().isClientSide) {
+            // Check PvP and clear player targets if needed
+            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+            if (server != null && !server.isPvpAllowed() && getTarget() instanceof Player && getTarget() != getOwner()) {
+                setTarget(null);
+            }
+        }
     }
     
     @Override
-    public void move(MoverType t, double x, double y, double z) {
-        super.move(t, x / 15.0, y, z / 15.0);
+    public void move(MoverType type, Vec3 motion) {
+        // Even more reduced horizontal movement than base turret
+        super.move(type, new Vec3(motion.x / 15.0, motion.y, motion.z / 15.0));
+    }
+    
+    // ==================== Interaction ====================
+    
+    @Override
+    protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+        if (!level().isClientSide && isOwner(player) && !isRemoved()) {
+            if (player.isShiftKeyDown()) {
+                // Pick up turret
+                playSound(SoundEvents.ITEM_PICKUP, 1.0f, 1.0f);
+                dropAmmo();
+                // TODO: Drop advanced turret placer when implemented
+                // spawnAtLocation(new ItemStack(ItemsTC.turretPlacer, 1, 1), 0.5f);
+                discard();
+                player.swing(hand);
+                return InteractionResult.SUCCESS;
+            } else {
+                // Open GUI - show current targeting options
+                // TODO: Implement proper GUI
+                StringBuilder sb = new StringBuilder("Targeting: ");
+                if (getTargetMob()) sb.append("[Mobs] ");
+                if (getTargetAnimal()) sb.append("[Animals] ");
+                if (getTargetPlayer()) sb.append("[Players] ");
+                if (getTargetFriendly()) sb.append("[Friendly] ");
+                player.displayClientMessage(Component.literal(sb.toString()), true);
+                return InteractionResult.SUCCESS;
+            }
+        }
+        return InteractionResult.PASS;
+    }
+    
+    // ==================== Death ====================
+    
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int looting, boolean recentlyHit) {
+        float bonus = looting * 0.15f;
+        
+        // TODO: Drop Thaumcraft items when implemented
+        // Advanced turret drops more/better items
+        // if (random.nextFloat() < 0.2f + bonus) spawnAtLocation(new ItemStack(ItemsTC.mind, 1, 1));
+        // if (random.nextFloat() < 0.5f + bonus) spawnAtLocation(ItemsTC.mechanismSimple);
+        // if (random.nextFloat() < 0.5f + bonus) spawnAtLocation(BlocksTC.plankGreatwood);
+        // if (random.nextFloat() < 0.5f + bonus) spawnAtLocation(BlocksTC.plankGreatwood);
+        // if (random.nextFloat() < 0.3f + bonus) spawnAtLocation(new ItemStack(ItemsTC.plate, 1, 0));
+        // if (random.nextFloat() < 0.4f + bonus) spawnAtLocation(new ItemStack(ItemsTC.plate, 1, 1));
+        // if (random.nextFloat() < 0.4f + bonus) spawnAtLocation(new ItemStack(ItemsTC.plate, 1, 1));
+    }
+    
+    // ==================== NBT ====================
+    
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putByte("targets", getFlags());
     }
     
     @Override
-    protected void dropFewItems(boolean p_70628_1_, int p_70628_2_) {
-        float b = p_70628_2_ * 0.15f;
-        if (rand.nextFloat() < 0.2f + b) {
-            entityDropItem(new ItemStack(ItemsTC.mind, 1, 1), 0.5f);
-        }
-        if (rand.nextFloat() < 0.5f + b) {
-            entityDropItem(new ItemStack(ItemsTC.mechanismSimple), 0.5f);
-        }
-        if (rand.nextFloat() < 0.5f + b) {
-            entityDropItem(new ItemStack(BlocksTC.plankGreatwood), 0.5f);
-        }
-        if (rand.nextFloat() < 0.5f + b) {
-            entityDropItem(new ItemStack(BlocksTC.plankGreatwood), 0.5f);
-        }
-        if (rand.nextFloat() < 0.3f + b) {
-            entityDropItem(new ItemStack(ItemsTC.plate, 1, 0), 0.5f);
-        }
-        if (rand.nextFloat() < 0.4f + b) {
-            entityDropItem(new ItemStack(ItemsTC.plate, 1, 1), 0.5f);
-        }
-        if (rand.nextFloat() < 0.4f + b) {
-            entityDropItem(new ItemStack(ItemsTC.plate, 1, 1), 0.5f);
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains("targets")) {
+            setFlags(tag.getByte("targets"));
         }
     }
     
-    static {
-        FLAGS = EntityDataManager.createKey(EntityTurretCrossbowAdvanced.class, DataSerializers.BYTE);
-    }
+    // ==================== AI Goals ====================
     
-    protected class EntityAIWatchTarget extends EntityAIBase
-    {
-        protected EntityLiving theWatcher;
-        protected Entity closestEntity;
+    /**
+     * Advanced watch target goal with unseen timeout
+     */
+    protected class AdvancedWatchTargetGoal extends Goal {
+        protected final Mob watcher;
+        protected Entity target;
         private int lookTime;
         
-        public EntityAIWatchTarget(EntityLiving p_i1631_1_) {
-            theWatcher = p_i1631_1_;
-            setMutexBits(2);
+        public AdvancedWatchTargetGoal(Mob mob) {
+            this.watcher = mob;
+            this.setFlags(EnumSet.of(Goal.Flag.LOOK));
         }
         
-        public boolean shouldExecute() {
-            if (theWatcher.getAttackTarget() != null) {
-                closestEntity = theWatcher.getAttackTarget();
+        @Override
+        public boolean canUse() {
+            if (watcher.getTarget() != null) {
+                target = watcher.getTarget();
             }
-            return closestEntity != null;
+            return target != null;
         }
         
-        public boolean shouldContinueExecuting() {
-            float d = (float) getTargetDistance();
-            return closestEntity.isEntityAlive() && theWatcher.getDistanceSq(closestEntity) <= d * d && lookTime > 0;
+        @Override
+        public boolean canContinueToUse() {
+            if (target == null || !target.isAlive()) {
+                return false;
+            }
+            double range = getFollowDistance();
+            return watcher.distanceToSqr(target) <= range * range && lookTime > 0;
         }
         
-        public void startExecuting() {
-            lookTime = 40 + theWatcher.getRNG().nextInt(40);
+        @Override
+        public void start() {
+            lookTime = 40 + watcher.getRandom().nextInt(40);
         }
         
-        public void resetTask() {
-            closestEntity = null;
+        @Override
+        public void stop() {
+            target = null;
         }
         
-        public void updateTask() {
-            theWatcher.getLookHelper().setLookPosition(closestEntity.posX, closestEntity.posY + closestEntity.getEyeHeight(), closestEntity.posZ, 10.0f, (float) theWatcher.getVerticalFaceSpeed());
-            --lookTime;
+        @Override
+        public void tick() {
+            watcher.getLookControl().setLookAt(
+                target.getX(),
+                target.getY() + target.getEyeHeight(),
+                target.getZ(),
+                10.0f,
+                watcher.getMaxHeadXRot()
+            );
+            lookTime--;
         }
         
-        protected double getTargetDistance() {
-            IAttributeInstance iattributeinstance = theWatcher.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE);
-            return (iattributeinstance == null) ? 16.0 : iattributeinstance.getAttributeValue();
+        protected double getFollowDistance() {
+            AttributeInstance attr = watcher.getAttribute(Attributes.FOLLOW_RANGE);
+            return attr == null ? 16.0 : attr.getValue();
         }
     }
     
-    protected class EntityAINearestValidTarget extends EntityAITarget
-    {
-        protected Class<? extends EntityLivingBase> targetClass;
-        private int targetChance;
-        protected EntityAINearestAttackableTarget.Sorter theNearestAttackableTargetSorter;
-        protected Predicate<EntityLivingBase> targetEntitySelector;
-        protected EntityLivingBase targetEntity;
+    /**
+     * Advanced target goal with team and friendly-fire handling
+     */
+    protected class AdvancedTargetGoal extends TargetGoal {
+        protected final Class<? extends LivingEntity> targetClass;
+        protected final int randomInterval;
+        protected LivingEntity target;
         private int targetUnseenTicks;
         
-        /*public EntityAINearestValidTarget(EntityTurretCrossbowAdvanced this$0, EntityCreature p_i45878_1_, Class p_i45878_2_, boolean p_i45878_3_) {
-            this(this$0, p_i45878_1_, p_i45878_2_, p_i45878_3_, false);
+        public AdvancedTargetGoal(Mob mob, Class<? extends LivingEntity> targetClass, 
+                int interval, boolean mustSee, boolean mustReach) {
+            super(mob, mustSee, mustReach);
+            this.targetClass = targetClass;
+            this.randomInterval = interval;
+            this.setFlags(EnumSet.of(Goal.Flag.TARGET));
         }
         
-        public EntityAINearestValidTarget(EntityTurretCrossbowAdvanced this$0, EntityCreature p_i45879_1_, Class p_i45879_2_, boolean p_i45879_3_, boolean p_i45879_4_) {
-            this(this$0, p_i45879_1_, p_i45879_2_, 10, p_i45879_3_, p_i45879_4_, null);
-        }*/
-        
-        public EntityAINearestValidTarget(EntityCreature owner, Class<? extends EntityLivingBase> targetCls, int targetChance, boolean checkSight, boolean onlyNearby, Predicate<EntityLivingBase> tselector) {
-            super(owner, checkSight, onlyNearby);
-            targetClass = targetCls;
-            this.targetChance = targetChance;
-            theNearestAttackableTargetSorter = new EntityAINearestAttackableTarget.Sorter(owner);
-            setMutexBits(1);
-            targetEntitySelector = new Predicate<EntityLivingBase>() {
-                
-                public boolean applySelection(EntityLivingBase entity) {
-                    if (tselector != null && !tselector.apply(entity)) {
+        @Override
+        public boolean canUse() {
+            if (randomInterval > 0 && mob.getRandom().nextInt(randomInterval) != 0) {
+                return false;
+            }
+            
+            double range = getFollowDistance();
+            AABB searchBox = mob.getBoundingBox().inflate(range, 4.0, range);
+            
+            EntityTurretCrossbowAdvanced turret = (EntityTurretCrossbowAdvanced) mob;
+            
+            List<LivingEntity> targets = mob.level().getEntitiesOfClass(
+                LivingEntity.class,
+                searchBox,
+                entity -> {
+                    if (!targetClass.isInstance(entity)) return false;
+                    if (!entity.isAlive()) return false;
+                    if (entity == mob) return false;
+                    
+                    // Check targeting options
+                    if (!turret.canAttackType(entity)) return false;
+                    
+                    // Team checks
+                    Team ourTeam = mob.getTeam();
+                    Team theirTeam = entity.getTeam();
+                    
+                    if (ourTeam != null && theirTeam == ourTeam && !turret.getTargetFriendly()) {
                         return false;
                     }
-                    if (entity instanceof EntityPlayer) {
-                        double d0 = getTargetDistance();
-                        if (entity.isSneaking()) {
-                            d0 *= 0.800000011920929;
+                    if (ourTeam != null && theirTeam != ourTeam && turret.getTargetFriendly()) {
+                        return false;
+                    }
+                    
+                    // Owner checks
+                    if (turret.isOwned()) {
+                        UUID ownerUUID = turret.getOwnerUUID();
+                        
+                        // Don't attack owner (unless targeting friendly)
+                        if (entity == turret.getOwner() && !turret.getTargetFriendly()) {
+                            return false;
                         }
-                        if (entity.isInvisible()) {
-                            float f = ((EntityPlayer)entity).getArmorVisibility();
-                            if (f < 0.1f) {
-                                f = 0.1f;
+                        
+                        // Check for other owned entities
+                        if (entity instanceof OwnableEntity owned) {
+                            UUID theirOwner = owned.getOwnerUUID();
+                            if (ownerUUID != null && ownerUUID.equals(theirOwner) && !turret.getTargetFriendly()) {
+                                return false;
                             }
-                            d0 *= 0.7f * f;
-                        }
-                        if (entity.getDistance(taskOwner) > d0) {
+                            if (ownerUUID != null && !ownerUUID.equals(theirOwner) && turret.getTargetFriendly()) {
+                                return false;
+                            }
+                        } else if (!(entity instanceof Player) && turret.getTargetFriendly()) {
+                            // Non-ownable, non-player entities when targeting friendly only
                             return false;
                         }
                     }
-                    return isSuitableTarget(entity, false);
+                    
+                    // Player damage immunity check
+                    if (entity instanceof Player player) {
+                        if (player.getAbilities().invulnerable && !turret.getTargetFriendly()) {
+                            return false;
+                        }
+                    }
+                    
+                    // Sight check
+                    if (mustSee && !mob.getSensing().hasLineOfSight(entity)) {
+                        return false;
+                    }
+                    
+                    return true;
                 }
-                
-                public boolean apply(EntityLivingBase p_apply_1_) {
-                    return applySelection(p_apply_1_);
-                }
-            };
+            );
+            
+            if (targets.isEmpty()) {
+                return false;
+            }
+            
+            // Sort by distance
+            targets.sort(Comparator.comparingDouble(e -> mob.distanceToSqr(e)));
+            target = targets.get(0);
+            return true;
         }
         
-        public boolean shouldContinueExecuting() {
-            EntityLivingBase entitylivingbase = taskOwner.getAttackTarget();
-            if (entitylivingbase == null) {
+        @Override
+        public boolean canContinueToUse() {
+            LivingEntity currentTarget = mob.getTarget();
+            if (currentTarget == null || !currentTarget.isAlive()) {
                 return false;
             }
-            if (!entitylivingbase.isEntityAlive()) {
+            
+            EntityTurretCrossbowAdvanced turret = (EntityTurretCrossbowAdvanced) mob;
+            
+            // Team checks
+            Team ourTeam = mob.getTeam();
+            Team theirTeam = currentTarget.getTeam();
+            
+            if (ourTeam != null && theirTeam == ourTeam && !turret.getTargetFriendly()) {
                 return false;
             }
-            Team team = taskOwner.getTeam();
-            Team team2 = entitylivingbase.getTeam();
-            if (team != null && team2 == team && !((EntityTurretCrossbowAdvanced) taskOwner).getTargetFriendly()) {
+            if (ourTeam != null && theirTeam != ourTeam && turret.getTargetFriendly()) {
                 return false;
             }
-            if (team != null && team2 != team && ((EntityTurretCrossbowAdvanced) taskOwner).getTargetFriendly()) {
+            
+            // Range check
+            double range = getFollowDistance();
+            if (mob.distanceToSqr(currentTarget) > range * range) {
                 return false;
             }
-            double d0 = getTargetDistance();
-            if (taskOwner.getDistanceSq(entitylivingbase) > d0 * d0) {
-                return false;
-            }
-            if (shouldCheckSight) {
-                if (taskOwner.getEntitySenses().canSee(entitylivingbase)) {
+            
+            // Sight check with timeout
+            if (mustSee) {
+                if (mob.getSensing().hasLineOfSight(currentTarget)) {
                     targetUnseenTicks = 0;
-                }
-                else if (++targetUnseenTicks > 60) {
+                } else if (++targetUnseenTicks > 60) {
                     return false;
                 }
             }
+            
             return true;
         }
         
-        protected boolean isSuitableTarget(EntityLivingBase p_75296_1_, boolean p_75296_2_) {
-            return isGoodTarget(taskOwner, p_75296_1_, p_75296_2_, shouldCheckSight) && taskOwner.isWithinHomeDistanceFromPosition(new BlockPos(p_75296_1_));
-        }
-        
-        private boolean isGoodTarget(EntityLiving attacker, EntityLivingBase posTar, boolean p_179445_2_, boolean checkSight) {
-            if (posTar == null) {
-                return false;
-            }
-            if (posTar == attacker) {
-                return false;
-            }
-            if (!posTar.isEntityAlive()) {
-                return false;
-            }
-            if (!attacker.canAttackClass(posTar.getClass())) {
-                return false;
-            }
-            Team team = attacker.getTeam();
-            Team team2 = posTar.getTeam();
-            if (team != null && team2 == team && !((EntityTurretCrossbowAdvanced)attacker).getTargetFriendly()) {
-                return false;
-            }
-            if (team != null && team2 != team && ((EntityTurretCrossbowAdvanced)attacker).getTargetFriendly()) {
-                return false;
-            }
-            if (attacker instanceof IEntityOwnable && StringUtils.isNotEmpty(((IEntityOwnable)attacker).getOwnerId().toString())) {
-                if (posTar instanceof IEntityOwnable && ((IEntityOwnable)attacker).getOwnerId().equals(((IEntityOwnable)posTar).getOwnerId()) && !((EntityTurretCrossbowAdvanced)attacker).getTargetFriendly()) {
-                    return false;
-                }
-                if (!(posTar instanceof IEntityOwnable) && !(posTar instanceof EntityPlayer) && ((EntityTurretCrossbowAdvanced)attacker).getTargetFriendly()) {
-                    return false;
-                }
-                if (posTar instanceof IEntityOwnable && !((IEntityOwnable)attacker).getOwnerId().equals(((IEntityOwnable)posTar).getOwnerId()) && ((EntityTurretCrossbowAdvanced)attacker).getTargetFriendly()) {
-                    return false;
-                }
-                if (posTar == ((IEntityOwnable)attacker).getOwner() && !((EntityTurretCrossbowAdvanced)attacker).getTargetFriendly()) {
-                    return false;
-                }
-            }
-            else if (posTar instanceof EntityPlayer && !p_179445_2_ && ((EntityPlayer)posTar).capabilities.disableDamage && !((EntityTurretCrossbowAdvanced)attacker).getTargetFriendly()) {
-                return false;
-            }
-            return !checkSight || attacker.getEntitySenses().canSee(posTar);
-        }
-        
-        public boolean shouldExecute() {
-            if (targetChance > 0 && taskOwner.getRNG().nextInt(targetChance) != 0) {
-                return false;
-            }
-            double d0 = getTargetDistance();
-            List<EntityLivingBase> list = taskOwner.world.getEntitiesWithinAABB(targetClass, taskOwner.getEntityBoundingBox().grow(d0, 4.0, d0), Predicates.and(targetEntitySelector, EntitySelectors.NOT_SPECTATING));
-            Collections.sort(list, theNearestAttackableTargetSorter);
-            if (list.isEmpty()) {
-                return false;
-            }
-            targetEntity = list.get(0);
-            return true;
-        }
-        
-        public void startExecuting() {
-            taskOwner.setAttackTarget(targetEntity);
+        @Override
+        public void start() {
+            mob.setTarget(target);
             targetUnseenTicks = 0;
-            super.startExecuting();
+            super.start();
         }
-
         
-        public class Sorter implements Comparator
-        {
-            private Entity theEntity;
-            
-            public Sorter(Entity p_i1662_1_) {
-                theEntity = p_i1662_1_;
-            }
-            
-            public int compare(Entity p_compare_1_, Entity p_compare_2_) {
-                double d0 = theEntity.getDistanceSq(p_compare_1_);
-                double d2 = theEntity.getDistanceSq(p_compare_2_);
-                return (d0 < d2) ? -1 : ((d0 > d2) ? 1 : 0);
-            }
-            
-            @Override
-            public int compare(Object p_compare_1_, Object p_compare_2_) {
-                return compare((Entity)p_compare_1_, (Entity)p_compare_2_);
-            }
+        @Override
+        public void stop() {
+            target = null;
+            super.stop();
         }
     }
 }

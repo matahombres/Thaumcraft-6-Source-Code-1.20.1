@@ -1,100 +1,151 @@
 package thaumcraft.common.blocks.devices;
-import net.minecraft.block.Block;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import thaumcraft.common.blocks.BlockTCDevice;
-import thaumcraft.common.blocks.IBlockEnabled;
-import thaumcraft.common.blocks.IBlockFacing;
-import thaumcraft.common.lib.utils.BlockStateUtils;
-import thaumcraft.common.tiles.devices.TileLampArcane;
-import thaumcraft.common.tiles.devices.TileLampFertility;
-import thaumcraft.common.tiles.devices.TileLampGrowth;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class BlockLamp extends BlockTCDevice implements IBlockFacing, IBlockEnabled
-{
-    public BlockLamp(Class tc, String name) {
-        super(Material.IRON, tc, name);
-        setSoundType(SoundType.METAL);
-        setHardness(1.0f);
-        IBlockState bs = blockState.getBaseState();
-        bs.withProperty((IProperty)IBlockFacing.FACING, (Comparable)EnumFacing.DOWN);
-        bs.withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)true);
-        setDefaultState(bs);
+import javax.annotation.Nullable;
+
+/**
+ * Arcane lamp that provides magical light.
+ * Different variants:
+ * - Arcane: Creates invisible light blocks in dark areas
+ * - Growth: Speeds up plant growth
+ * - Fertility: Speeds up animal breeding
+ */
+public class BlockLamp extends Block implements EntityBlock {
+
+    public static final DirectionProperty FACING = BlockStateProperties.FACING;
+    public static final BooleanProperty ENABLED = BlockStateProperties.ENABLED;
+
+    private static final VoxelShape SHAPE = Block.box(4.0, 2.0, 4.0, 12.0, 14.0, 12.0);
+
+    public enum LampType {
+        ARCANE,
+        GROWTH,
+        FERTILITY
     }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
+
+    private final LampType lampType;
+
+    public BlockLamp(LampType type) {
+        super(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.METAL)
+                .strength(1.0f)
+                .sound(SoundType.METAL)
+                .noOcclusion()
+                .lightLevel(state -> state.getValue(ENABLED) ? 15 : 0));
+        this.lampType = type;
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(FACING, Direction.DOWN)
+                .setValue(ENABLED, false));
     }
-    
-    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face) {
-        return BlockFaceShape.UNDEFINED;
+
+    public LampType getLampType() {
+        return lampType;
     }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
-    }
-    
+
     @Override
-    public int damageDropped(IBlockState state) {
-        return 0;
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING, ENABLED);
     }
-    
-    public int getLightValue(IBlockState state, IBlockAccess world, BlockPos pos) {
-        return BlockStateUtils.isEnabled(world.getBlockState(pos).getBlock().getMetaFromState(world.getBlockState(pos))) ? 15 : super.getLightValue(state, world, pos);
-    }
-    
+
     @Override
-    public IBlockState getStateForPlacement(World worldIn, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ, int meta, EntityLivingBase placer) {
-        IBlockState bs = getDefaultState();
-        bs = bs.withProperty((IProperty)IBlockFacing.FACING, (Comparable)facing.getOpposite());
-        bs = bs.withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)false);
-        return bs;
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return this.defaultBlockState()
+                .setValue(FACING, context.getClickedFace().getOpposite())
+                .setValue(ENABLED, false);
     }
-    
+
     @Override
-    public void breakBlock(World worldIn, BlockPos pos, IBlockState state) {
-        TileEntity te = worldIn.getTileEntity(pos);
-        if (te != null && te instanceof TileLampArcane) {
-            ((TileLampArcane)te).removeLights();
-        }
-        super.breakBlock(worldIn, pos, state);
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
     }
-    
+
     @Override
-    public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos pos2) {
-        if (worldIn.isAirBlock(pos.offset(BlockStateUtils.getFacing(state)))) {
-            dropBlockAsItem(worldIn, pos, getDefaultState(), 0);
-            worldIn.setBlockToAir(pos);
-            return;
+    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+        Direction facing = state.getValue(FACING);
+        BlockPos attachedPos = pos.relative(facing);
+        return level.getBlockState(attachedPos).isFaceSturdy(level, attachedPos, facing.getOpposite());
+    }
+
+    @Override
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState,
+                                   LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+        Direction facing = state.getValue(FACING);
+        if (direction == facing && !canSurvive(state, level, pos)) {
+            return Blocks.AIR.defaultBlockState();
         }
-        TileEntity te = worldIn.getTileEntity(pos);
-        if (te != null && te instanceof TileLampArcane && BlockStateUtils.isEnabled(state) && worldIn.isBlockPowered(pos)) {
-            ((TileLampArcane)te).removeLights();
-        }
-        boolean checkUpdate = true;
-        if (te != null && te instanceof TileLampGrowth && ((TileLampGrowth)te).charges <= 0) {
-            checkUpdate = false;
-        }
-        if (te != null && te instanceof TileLampFertility && ((TileLampFertility)te).charges <= 0) {
-            checkUpdate = false;
-        }
-        if (checkUpdate) {
-            super.neighborChanged(state, worldIn, pos, blockIn, pos2);
+        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+    }
+
+    @Override
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
+        if (!level.isClientSide) {
+            boolean powered = level.hasNeighborSignal(pos);
+            boolean enabled = state.getValue(ENABLED);
+            
+            // Toggle based on redstone (inverted - redstone disables lamp)
+            if (powered && enabled) {
+                level.setBlock(pos, state.setValue(ENABLED, false), 3);
+            } else if (!powered && !enabled) {
+                level.setBlock(pos, state.setValue(ENABLED, true), 3);
+            }
         }
     }
-    
-    public AxisAlignedBB getBoundingBox(IBlockState state, IBlockAccess source, BlockPos pos) {
-        return new AxisAlignedBB(0.25, 0.125, 0.25, 0.75, 0.875, 0.75);
+
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        // TODO: Return appropriate TileLamp variant when implemented
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        // TODO: Return ticker when TileLamp is implemented
+        return null;
+    }
+
+    /**
+     * Create an arcane lamp (creates invisible light blocks).
+     */
+    public static BlockLamp createArcane() {
+        return new BlockLamp(LampType.ARCANE);
+    }
+
+    /**
+     * Create a growth lamp (speeds up plant growth).
+     */
+    public static BlockLamp createGrowth() {
+        return new BlockLamp(LampType.GROWTH);
+    }
+
+    /**
+     * Create a fertility lamp (speeds up animal breeding).
+     */
+    public static BlockLamp createFertility() {
+        return new BlockLamp(LampType.FERTILITY);
     }
 }

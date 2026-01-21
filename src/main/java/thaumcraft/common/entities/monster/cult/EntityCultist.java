@@ -1,120 +1,184 @@
 package thaumcraft.common.entities.monster.cult;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.IEntityLivingData;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.monster.EntityMob;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.Item;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.pathfinding.PathNavigateGround;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.World;
-import net.minecraft.world.storage.loot.LootTableList;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.entities.monster.boss.EntityCultistLeader;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
+import thaumcraft.init.ModEntities;
 
+import javax.annotation.Nullable;
 
-public class EntityCultist extends EntityMob
-{
-    public static ResourceLocation LOOT;
+/**
+ * EntityCultist - Base class for Crimson Cult members.
+ * These hostile humans worship the eldritch entities and attack players.
+ */
+public class EntityCultist extends Monster {
     
-    public EntityCultist(World p_i1745_1_) {
-        super(p_i1745_1_);
-        setSize(0.6f, 1.8f);
-        experienceValue = 10;
-        ((PathNavigateGround) getNavigator()).setBreakDoors(true);
-        setDropChance(EntityEquipmentSlot.CHEST, 0.05f);
-        setDropChance(EntityEquipmentSlot.FEET, 0.05f);
-        setDropChance(EntityEquipmentSlot.HEAD, 0.05f);
-        setDropChance(EntityEquipmentSlot.LEGS, 0.05f);
+    // Home position for restricting movement
+    private BlockPos homePos;
+    private int homeDistance;
+    
+    public EntityCultist(EntityType<? extends EntityCultist> type, Level level) {
+        super(type, level);
+        this.xpReward = 10;
+        ((GroundPathNavigation) getNavigation()).setCanOpenDoors(true);
+        
+        // Set equipment drop chances
+        setDropChance(EquipmentSlot.HEAD, 0.05f);
+        setDropChance(EquipmentSlot.CHEST, 0.05f);
+        setDropChance(EquipmentSlot.LEGS, 0.05f);
+        setDropChance(EquipmentSlot.FEET, 0.05f);
     }
     
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(32.0);
-        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.3);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(4.0);
+    public EntityCultist(Level level) {
+        this(ModEntities.CULTIST.get(), level);
     }
     
-    protected void entityInit() {
-        super.entityInit();
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.FOLLOW_RANGE, 32.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.3)
+                .add(Attributes.ATTACK_DAMAGE, 4.0)
+                .add(Attributes.MAX_HEALTH, 20.0);
     }
     
+    @Override
+    protected void registerGoals() {
+        // Subclasses will register their own goals
+    }
+    
+    @Override
     public boolean canPickUpLoot() {
         return false;
     }
     
-    protected boolean isValidLightLevel() {
-        return true;
+    /**
+     * Set equipment based on difficulty. Subclasses override this.
+     */
+    protected void setLoot(DifficultyInstance difficulty) {
+        // Override in subclasses
     }
     
-    protected Item getDropItem() {
-        return Item.getItemById(0);
+    /**
+     * Add enchantments based on difficulty. Subclasses override this.
+     */
+    protected void setEnchantmentBasedOnDifficulty(DifficultyInstance difficulty) {
+        // Override in subclasses
     }
     
-    protected ResourceLocation getLootTable() {
-        return EntityCultist.LOOT;
+    @Nullable
+    @Override
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
+            MobSpawnType spawnType, @Nullable SpawnGroupData spawnData, @Nullable CompoundTag tag) {
+        
+        spawnData = super.finalizeSpawn(level, difficulty, spawnType, spawnData, tag);
+        setLoot(difficulty);
+        setEnchantmentBasedOnDifficulty(difficulty);
+        return spawnData;
     }
     
-    protected void setLoot(DifficultyInstance diff) {
+    // ==================== Home Position ====================
+    
+    public void setHomePos(BlockPos pos, int distance) {
+        this.homePos = pos;
+        this.homeDistance = distance;
+        restrictTo(pos, distance);
     }
     
-    protected void setEnchantmentBasedOnDifficulty(DifficultyInstance diff) {
+    public BlockPos getHomePos() {
+        return homePos;
     }
     
-    public IEntityLivingData onInitialSpawn(DifficultyInstance diff, IEntityLivingData data) {
-        setLoot(diff);
-        setEnchantmentBasedOnDifficulty(diff);
-        return super.onInitialSpawn(diff, data);
+    public int getHomeDistance() {
+        return homeDistance;
     }
     
-    protected boolean canDespawn() {
-        return true;
+    public boolean hasHome() {
+        return homePos != null && homeDistance > 0;
     }
     
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        if (nbt.hasKey("HomeD")) {
-            setHomePosAndDistance(new BlockPos(nbt.getInteger("HomeX"), nbt.getInteger("HomeY"), nbt.getInteger("HomeZ")), nbt.getInteger("HomeD"));
+    // ==================== Team Logic ====================
+    
+    @Override
+    public boolean isAlliedTo(Entity entity) {
+        // Allied with other cultists
+        if (entity instanceof EntityCultist) {
+            return true;
         }
+        // TODO: Also allied with EntityCultistLeader when implemented
+        return super.isAlliedTo(entity);
     }
     
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        if (getHomePosition() != null && getMaximumHomeDistance() > 0.0f) {
-            nbt.setInteger("HomeD", (int) getMaximumHomeDistance());
-            nbt.setInteger("HomeX", getHomePosition().getX());
-            nbt.setInteger("HomeY", getHomePosition().getY());
-            nbt.setInteger("HomeZ", getHomePosition().getZ());
+    @Override
+    public boolean canAttack(net.minecraft.world.entity.LivingEntity target) {
+        // Don't attack other cultists
+        if (target instanceof EntityCultist) {
+            return false;
         }
+        return super.canAttack(target);
     }
     
-    public boolean isOnSameTeam(Entity el) {
-        return el instanceof EntityCultist || el instanceof EntityCultistLeader;
-    }
-    
-    public boolean canAttackClass(Class clazz) {
-        return clazz != EntityCultistCleric.class && clazz != EntityCultistLeader.class && clazz != EntityCultistKnight.class && super.canAttackClass(clazz);
-    }
+    // ==================== Spawn Particles ====================
     
     public void spawnExplosionParticle() {
-        if (world.isRemote) {
+        if (level().isClientSide) {
+            // TODO: FXDispatcher.INSTANCE.cultistSpawn particles
             for (int i = 0; i < 20; ++i) {
-                double d0 = rand.nextGaussian() * 0.05;
-                double d2 = rand.nextGaussian() * 0.05;
-                double d3 = rand.nextGaussian() * 0.05;
-                double d4 = 2.0;
-                FXDispatcher.INSTANCE.cultistSpawn(posX + rand.nextFloat() * width * 2.0f - width + d0 * d4, posY + rand.nextFloat() * height + d2 * d4, posZ + rand.nextFloat() * width * 2.0f - width + d3 * d4, d0, d2, d3);
+                double dx = random.nextGaussian() * 0.05;
+                double dy = random.nextGaussian() * 0.05;
+                double dz = random.nextGaussian() * 0.05;
+                level().addParticle(net.minecraft.core.particles.ParticleTypes.SMOKE,
+                        getX() + random.nextFloat() * getBbWidth() * 2.0f - getBbWidth() + dx * 2.0,
+                        getY() + random.nextFloat() * getBbHeight() + dy * 2.0,
+                        getZ() + random.nextFloat() * getBbWidth() * 2.0f - getBbWidth() + dz * 2.0,
+                        dx, dy, dz);
             }
-        }
-        else {
-            world.setEntityState(this, (byte)20);
+        } else {
+            level().broadcastEntityEvent(this, (byte) 20);
         }
     }
     
-    static {
-        LOOT = LootTableList.register(new ResourceLocation("thaumcraft", "cultist"));
+    @Override
+    public void handleEntityEvent(byte id) {
+        if (id == 20) {
+            spawnExplosionParticle();
+        } else {
+            super.handleEntityEvent(id);
+        }
+    }
+    
+    // ==================== NBT ====================
+    
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        if (homePos != null && homeDistance > 0) {
+            tag.putInt("HomeD", homeDistance);
+            tag.putInt("HomeX", homePos.getX());
+            tag.putInt("HomeY", homePos.getY());
+            tag.putInt("HomeZ", homePos.getZ());
+        }
+    }
+    
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains("HomeD")) {
+            setHomePos(new BlockPos(
+                    tag.getInt("HomeX"),
+                    tag.getInt("HomeY"),
+                    tag.getInt("HomeZ")),
+                    tag.getInt("HomeD"));
+        }
     }
 }

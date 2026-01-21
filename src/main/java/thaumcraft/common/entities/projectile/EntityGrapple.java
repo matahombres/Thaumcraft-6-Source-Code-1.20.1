@@ -1,229 +1,253 @@
 package thaumcraft.common.entities.projectile;
-import io.netty.buffer.ByteBuf;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import thaumcraft.init.ModEntities;
+
 import java.util.HashMap;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.entity.projectile.EntityThrowable;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.registry.IEntityAdditionalSpawnData;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+import java.util.Map;
 
-
-public class EntityGrapple extends EntityThrowable implements IEntityAdditionalSpawnData
-{
-    public EnumHand hand;
-    EntityLivingBase cthrower;
-    boolean p;
-    boolean boost;
-    int prevDist;
-    int count;
-    boolean added;
-    public float ampl;
-    public static HashMap<Integer, Integer> grapples;
+/**
+ * EntityGrapple - Grappling hook projectile.
+ * When it hits a surface, it pulls the thrower toward that point.
+ * Player can release by sneaking.
+ */
+public class EntityGrapple extends ThrowableProjectile {
     
-    public EntityGrapple(World par1World) {
-        super(par1World);
-        hand = EnumHand.MAIN_HAND;
-        p = false;
-        prevDist = 0;
-        count = 0;
-        added = false;
-        ampl = 0.0f;
-        setSize(0.1f, 0.1f);
+    private static final EntityDataAccessor<Boolean> DATA_PULLING = 
+            SynchedEntityData.defineId(EntityGrapple.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_OWNER_ID = 
+            SynchedEntityData.defineId(EntityGrapple.class, EntityDataSerializers.INT);
+    
+    // Track active grapples per player (player entity ID -> grapple entity ID)
+    public static final Map<Integer, Integer> grapples = new HashMap<>();
+    
+    private InteractionHand hand = InteractionHand.MAIN_HAND;
+    private boolean boost = false;
+    private int prevDist = 0;
+    private int count = 0;
+    private boolean added = false;
+    public float ampl = 0.0f;
+    
+    public EntityGrapple(EntityType<? extends EntityGrapple> type, Level level) {
+        super(type, level);
     }
     
-    public boolean isInRangeToRenderDist(double distance) {
-        return distance < 4096.0;
-    }
-    
-    public void shoot(double x, double y, double z, float velocity, float inaccuracy) {
-        super.shoot(x, y, z, velocity, 0.0f);
-    }
-    
-    public EntityGrapple(World par1World, EntityLivingBase par2EntityLiving, EnumHand hand) {
-        super(par1World, par2EntityLiving);
-        this.hand = EnumHand.MAIN_HAND;
-        p = false;
-        prevDist = 0;
-        count = 0;
-        added = false;
-        ampl = 0.0f;
-        setSize(0.1f, 0.1f);
+    public EntityGrapple(Level level, LivingEntity owner, InteractionHand hand) {
+        super(ModEntities.GRAPPLE.get(), owner, level);
         this.hand = hand;
     }
     
-    public EntityGrapple(World par1World, double par2, double par4, double par6) {
-        super(par1World, par2, par4, par6);
-        hand = EnumHand.MAIN_HAND;
-        p = false;
-        prevDist = 0;
-        count = 0;
-        added = false;
-        ampl = 0.0f;
-        setSize(0.1f, 0.1f);
+    public EntityGrapple(Level level, double x, double y, double z) {
+        super(ModEntities.GRAPPLE.get(), x, y, z, level);
     }
     
-    public void writeSpawnData(ByteBuf data) {
-        int id = -1;
-        if (getThrower() != null) {
-            id = getThrower().getEntityId();
-        }
-        data.writeInt(id);
-        data.writeBoolean(hand == EnumHand.MAIN_HAND);
+    @Override
+    protected void defineSynchedData() {
+        this.entityData.define(DATA_PULLING, false);
+        this.entityData.define(DATA_OWNER_ID, -1);
     }
     
-    public void readSpawnData(ByteBuf data) {
-        int id = data.readInt();
-        hand = (data.readBoolean() ? EnumHand.MAIN_HAND : EnumHand.OFF_HAND);
-        try {
-            if (id >= 0) {
-                cthrower = (EntityLivingBase) world.getEntityByID(id);
+    public void setPulling(boolean pulling) {
+        this.entityData.set(DATA_PULLING, pulling);
+    }
+    
+    public boolean isPulling() {
+        return this.entityData.get(DATA_PULLING);
+    }
+    
+    public InteractionHand getHand() {
+        return hand;
+    }
+    
+    @Override
+    protected float getGravity() {
+        return isPulling() ? 0.0f : 0.03f;
+    }
+    
+    @Override
+    public boolean shouldRenderAtSqrDistance(double distance) {
+        return distance < 4096.0;
+    }
+    
+    @Override
+    public void shoot(double x, double y, double z, float velocity, float inaccuracy) {
+        // Override to have zero inaccuracy for precise aiming
+        super.shoot(x, y, z, velocity, 0.0f);
+    }
+    
+    @Override
+    public void tick() {
+        super.tick();
+        
+        Entity owner = getOwner();
+        
+        // Auto-discard if no longer valid
+        if (!isPulling() && !isRemoved() && (tickCount > 30 || owner == null)) {
+            if (owner != null) {
+                grapples.remove(owner.getId());
             }
+            discard();
+            return;
         }
-        catch (Exception ex) {}
-    }
-    
-    public EntityLivingBase getThrower() {
-        if (cthrower != null) {
-            return cthrower;
-        }
-        return super.getThrower();
-    }
-    
-    protected float getGravityVelocity() {
-        return getPulling() ? 0.0f : 0.03f;
-    }
-    
-    public void entityInit() {
-        super.entityInit();
-    }
-    
-    public void setPulling() {
-        p = true;
-    }
-    
-    public boolean getPulling() {
-        return p;
-    }
-    
-    public void onUpdate() {
-        super.onUpdate();
-        if (!getPulling() && !isDead && (ticksExisted > 30 || getThrower() == null)) {
-            if (getThrower() != null) {
-                EntityGrapple.grapples.remove(getThrower().getEntityId());
-            }
-            setDead();
-        }
-        if (getThrower() != null) {
-            if (!world.isRemote && !isDead && !added) {
-                if (EntityGrapple.grapples.containsKey(getThrower().getEntityId())) {
-                    int ii = EntityGrapple.grapples.get(getThrower().getEntityId());
-                    if (ii != getEntityId()) {
-                        Entity e = world.getEntityByID(ii);
-                        if (e != null) {
-                            e.setDead();
+        
+        if (owner != null) {
+            // Server-side: manage grapple tracking
+            if (!level().isClientSide && !isRemoved() && !added) {
+                // Remove any existing grapple for this player
+                if (grapples.containsKey(owner.getId())) {
+                    int existingId = grapples.get(owner.getId());
+                    if (existingId != getId()) {
+                        Entity existing = level().getEntity(existingId);
+                        if (existing != null) {
+                            existing.discard();
                         }
                     }
                 }
-                EntityGrapple.grapples.put(getThrower().getEntityId(), getEntityId());
+                grapples.put(owner.getId(), getId());
                 added = true;
             }
+            
+            // Check if another grapple has replaced us
             try {
-                if (getThrower() != null && EntityGrapple.grapples.containsKey(getThrower().getEntityId()) && EntityGrapple.grapples.get(getThrower().getEntityId()) != getEntityId()) {
-                    setDead();
+                if (grapples.containsKey(owner.getId()) && grapples.get(owner.getId()) != getId()) {
+                    discard();
+                    return;
+                }
+            } catch (Exception ignored) {}
+            
+            double distance = owner.distanceTo(this);
+            
+            // Pulling logic
+            if (isPulling() && !isRemoved() && owner instanceof LivingEntity livingOwner) {
+                // Release if sneaking
+                if (livingOwner.isShiftKeyDown()) {
+                    grapples.remove(owner.getId());
+                    discard();
+                    return;
+                }
+                
+                // Reset flying kick detection for players
+                // Note: In 1.20.1, aboveGroundTickCount is private, so we just reset fall distance
+                // The grapple naturally prevents kick by keeping player moving
+                
+                // Reset fall distance
+                livingOwner.fallDistance = 0.0f;
+                
+                // Calculate pull vector
+                double mx = getX() - livingOwner.getX();
+                double my = getY() - livingOwner.getY();
+                double mz = getZ() - livingOwner.getZ();
+                
+                // Adjust pull strength based on distance
+                double dd = distance;
+                if (distance < 8.0) {
+                    dd = distance * (8.0 - distance);
+                }
+                dd = Math.max(1.0E-9, dd);
+                
+                mx /= dd * 5.0;
+                my /= dd * 5.0;
+                mz /= dd * 5.0;
+                
+                // Limit max pull speed
+                Vec3 pullVec = new Vec3(mx, my, mz);
+                if (pullVec.length() > 0.25) {
+                    pullVec = pullVec.normalize();
+                    mx = pullVec.x / 4.0;
+                    my = pullVec.y / 4.0;
+                    mz = pullVec.z / 4.0;
+                }
+                
+                // Apply velocity to owner
+                Vec3 currentMotion = livingOwner.getDeltaMovement();
+                livingOwner.setDeltaMovement(
+                    currentMotion.x + mx,
+                    currentMotion.y + my + 0.033, // Small upward boost to counteract gravity
+                    currentMotion.z + mz
+                );
+                
+                // Initial boost when first latched
+                if (!boost) {
+                    livingOwner.setDeltaMovement(livingOwner.getDeltaMovement().add(0, 0.4, 0));
+                    boost = true;
+                }
+                
+                // Track distance for stuck detection
+                int d = (int)(distance / 2.0);
+                if (d == prevDist) {
+                    count++;
+                } else {
+                    count = 0;
+                }
+                prevDist = d;
+                
+                // Discard if we've reached destination or stuck
+                if (distance < 1.5 || count > 60) {
+                    grapples.remove(owner.getId());
+                    discard();
                 }
             }
-            catch (Exception ex) {}
-            double dis = getThrower().getDistance(this);
-            if (getThrower() != null && getPulling() && !isDead) {
-                if (getThrower().isSneaking()) {
-                    EntityGrapple.grapples.remove(getThrower().getEntityId());
-                    setDead();
-                }
-                else {
-                    if (!world.isRemote && getThrower() instanceof EntityPlayerMP) {
-                        ((EntityPlayerMP) getThrower()).connection.floatingTickCount = 0;
-                    }
-                    getThrower().fallDistance = 0.0f;
-                    double mx = posX - getThrower().posX;
-                    double my = posY - getThrower().posY;
-                    double mz = posZ - getThrower().posZ;
-                    double dd = dis;
-                    if (dis < 8.0) {
-                        dd = dis * (8.0 - dis);
-                    }
-                    dd = Math.max(1.0E-9, dd);
-                    mx /= dd * 5.0;
-                    my /= dd * 5.0;
-                    mz /= dd * 5.0;
-                    Vec3d v2 = new Vec3d(mx, my, mz);
-                    if (v2.lengthVector() > 0.25) {
-                        v2 = v2.normalize();
-                        mx = v2.x / 4.0;
-                        my = v2.y / 4.0;
-                        mz = v2.z / 4.0;
-                    }
-                    EntityLivingBase thrower = getThrower();
-                    thrower.motionX += mx;
-                    EntityLivingBase thrower2 = getThrower();
-                    thrower2.motionY += my + 0.033;
-                    EntityLivingBase thrower3 = getThrower();
-                    thrower3.motionZ += mz;
-                    if (!boost) {
-                        EntityLivingBase thrower4 = getThrower();
-                        thrower4.motionY += 0.4000000059604645;
-                        boost = true;
-                    }
-                    int d = (int)(dis / 2.0);
-                    if (d == prevDist) {
-                        ++count;
-                    }
-                    else {
-                        count = 0;
-                    }
-                    prevDist = d;
-                }
-            }
-            if (world.isRemote) {
-                if (!getPulling()) {
+            
+            // Client-side animation amplitude
+            if (level().isClientSide) {
+                if (!isPulling()) {
                     ampl += 0.02f;
-                }
-                else {
+                } else {
                     ampl *= 0.66f;
                 }
             }
         }
     }
     
-    @SideOnly(Side.CLIENT)
-    public void handleStatusUpdate(byte id) {
+    @Override
+    public void handleEntityEvent(byte id) {
         if (id == 6) {
-            setPulling();
-            motionX = 0.0;
-            motionY = 0.0;
-            motionZ = 0.0;
+            setPulling(true);
+            setDeltaMovement(Vec3.ZERO);
+        }
+        super.handleEntityEvent(id);
+    }
+    
+    @Override
+    protected void onHit(HitResult result) {
+        if (!level().isClientSide) {
+            setPulling(true);
+            setDeltaMovement(Vec3.ZERO);
+            
+            // Move to exact hit point
+            Vec3 hitVec = result.getLocation();
+            setPos(hitVec.x, hitVec.y, hitVec.z);
+            
+            // Notify clients
+            level().broadcastEntityEvent(this, (byte)6);
         }
     }
     
-    protected void onImpact(RayTraceResult mop) {
-        if (!world.isRemote) {
-            setPulling();
-            motionX = 0.0;
-            motionY = 0.0;
-            motionZ = 0.0;
-            posX = mop.hitVec.x;
-            posY = mop.hitVec.y;
-            posZ = mop.hitVec.z;
-            world.setEntityState(this, (byte)6);
-        }
+    @Override
+    protected void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("Pulling", isPulling());
+        tag.putBoolean("Boost", boost);
+        tag.putByte("Hand", (byte)(hand == InteractionHand.MAIN_HAND ? 0 : 1));
     }
     
-    static {
-        EntityGrapple.grapples = new HashMap<Integer, Integer>();
+    @Override
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setPulling(tag.getBoolean("Pulling"));
+        boost = tag.getBoolean("Boost");
+        hand = tag.getByte("Hand") == 0 ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
     }
 }

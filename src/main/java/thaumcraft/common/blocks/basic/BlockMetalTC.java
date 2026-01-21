@@ -1,21 +1,41 @@
 package thaumcraft.common.blocks.basic;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
+
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.material.MapColor;
 import thaumcraft.common.blocks.BlockTC;
 
+/**
+ * Metal blocks used in Thaumcraft (brass, thaumium, void metal, etc.)
+ */
+public class BlockMetalTC extends BlockTC {
 
-public class BlockMetalTC extends BlockTC
-{
-    public BlockMetalTC(String name) {
-        super(Material.IRON, name);
-        setHardness(4.0f);
-        setResistance(10.0f);
-        setSoundType(SoundType.METAL);
+    public BlockMetalTC(Properties properties) {
+        super(properties);
     }
-    
-    public boolean isBeaconBase(IBlockAccess world, BlockPos pos, BlockPos beacon) {
-        return true;
+
+    /**
+     * Creates a standard metal block.
+     */
+    public static BlockMetalTC create() {
+        return new BlockMetalTC(
+            Properties.of()
+                .mapColor(MapColor.METAL)
+                .strength(5.0f, 6.0f)
+                .sound(SoundType.METAL)
+                .requiresCorrectToolForDrops()
+        );
+    }
+
+    /**
+     * Creates a metal block with custom color.
+     */
+    public static BlockMetalTC create(MapColor color) {
+        return new BlockMetalTC(
+            Properties.of()
+                .mapColor(color)
+                .strength(5.0f, 6.0f)
+                .sound(SoundType.METAL)
+                .requiresCorrectToolForDrops()
+        );
     }
 }

@@ -1,59 +1,84 @@
 package thaumcraft.common.blocks.devices;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.util.EnumBlockRenderType;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import thaumcraft.common.blocks.BlockTCDevice;
-import thaumcraft.common.blocks.IBlockEnabled;
-import thaumcraft.common.blocks.IBlockFacing;
-import thaumcraft.common.tiles.devices.TileBellows;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class BlockBellows extends BlockTCDevice implements IBlockFacing, IBlockEnabled
-{
+import javax.annotation.Nullable;
+
+/**
+ * Bellows that speed up adjacent furnaces and alchemical furnaces.
+ * Animated block that pumps air into furnaces.
+ */
+public class BlockBellows extends Block implements EntityBlock {
+
+    public static final DirectionProperty FACING = BlockStateProperties.FACING;
+    public static final BooleanProperty ENABLED = BlockStateProperties.ENABLED;
+
+    private static final VoxelShape SHAPE = Block.box(1.0, 0.0, 1.0, 15.0, 10.0, 15.0);
+
     public BlockBellows() {
-        super(Material.WOOD, TileBellows.class, "bellows");
-        setSoundType(SoundType.WOOD);
-        setHardness(1.0f);
+        super(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.WOOD)
+                .strength(1.0f)
+                .sound(SoundType.WOOD)
+                .noOcclusion());
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(FACING, Direction.NORTH)
+                .setValue(ENABLED, true));
     }
-    
+
     @Override
-    public int damageDropped(IBlockState state) {
-        return 0;
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING, ENABLED);
     }
-    
-    public BlockFaceShape getBlockFaceShape(IBlockAccess worldIn, IBlockState state, BlockPos pos, EnumFacing face) {
-        return BlockFaceShape.UNDEFINED;
-    }
-    
-    public boolean isOpaqueCube(IBlockState state) {
-        return false;
-    }
-    
-    public boolean isFullCube(IBlockState state) {
-        return false;
-    }
-    
-    public EnumBlockRenderType getRenderType(IBlockState state) {
-        return EnumBlockRenderType.INVISIBLE;
-    }
-    
+
     @Override
-    public IBlockState getStateForPlacement(World worldIn, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ, int meta, EntityLivingBase placer) {
-        IBlockState bs = getDefaultState();
-        if (this instanceof IBlockFacing) {
-            bs = bs.withProperty((IProperty)IBlockFacing.FACING, (Comparable)facing.getOpposite());
-        }
-        if (this instanceof IBlockEnabled) {
-            bs = bs.withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)true);
-        }
-        return bs;
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return this.defaultBlockState()
+                .setValue(FACING, context.getClickedFace().getOpposite())
+                .setValue(ENABLED, true);
+    }
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
+    }
+
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        // Bellows is rendered by tile entity special renderer (animated)
+        return RenderShape.INVISIBLE;
+    }
+
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        // TODO: Return TileBellows when implemented
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(net.minecraft.world.level.Level level, BlockState state, BlockEntityType<T> type) {
+        // TODO: Return ticker when TileBellows is implemented
+        return null;
     }
 }

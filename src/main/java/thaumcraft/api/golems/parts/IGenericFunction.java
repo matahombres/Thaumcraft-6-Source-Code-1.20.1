@@ -1,8 +1,8 @@
 package thaumcraft.api.golems.parts;
-import thaumcraft.api.golems.IGolemAPI;
 
-
-public interface IGenericFunction
-{
-    void onUpdateTick(IGolemAPI p0);
+/**
+ * Base marker interface for golem part functions.
+ * Extended by specific part function interfaces.
+ */
+public interface IGenericFunction {
 }

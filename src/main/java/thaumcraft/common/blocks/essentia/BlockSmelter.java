@@ -1,140 +1,144 @@
 package thaumcraft.common.blocks.essentia;
-import java.util.Random;
-import net.minecraft.block.Block;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.Container;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.EnumParticleTypes;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.Thaumcraft;
-import thaumcraft.api.aura.AuraHelper;
-import thaumcraft.common.blocks.BlockTCDevice;
-import thaumcraft.common.blocks.IBlockEnabled;
-import thaumcraft.common.blocks.IBlockFacingHorizontal;
-import thaumcraft.common.lib.utils.BlockStateUtils;
-import thaumcraft.common.tiles.essentia.TileSmelter;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.Containers;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.BlockHitResult;
 
-public class BlockSmelter extends BlockTCDevice implements IBlockEnabled, IBlockFacingHorizontal
-{
-    public BlockSmelter(String name) {
-        super(Material.IRON, TileSmelter.class, name);
-        setSoundType(SoundType.METAL);
-        IBlockState bs = blockState.getBaseState();
-        bs.withProperty((IProperty)IBlockFacingHorizontal.FACING, (Comparable)EnumFacing.NORTH);
-        bs.withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)false);
-        setDefaultState(bs);
+import javax.annotation.Nullable;
+
+/**
+ * Essentia smelter (alchemical furnace) that breaks down items into essentia.
+ * The main block of the smelter multiblock - connects with bellows and alembics.
+ */
+public class BlockSmelter extends Block implements EntityBlock {
+
+    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    public static final BooleanProperty LIT = BlockStateProperties.LIT;
+
+    public BlockSmelter() {
+        super(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.METAL)
+                .strength(3.0f)
+                .sound(SoundType.METAL)
+                .lightLevel(state -> state.getValue(LIT) ? 13 : 0)
+                .requiresCorrectToolForDrops());
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(FACING, Direction.NORTH)
+                .setValue(LIT, false));
     }
-    
+
     @Override
-    public void onBlockAdded(World worldIn, BlockPos pos, IBlockState state) {
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(FACING, LIT);
     }
-    
+
     @Override
-    public IBlockState getStateForPlacement(World worldIn, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ, int meta, EntityLivingBase placer) {
-        IBlockState bs = getDefaultState();
-        bs = bs.withProperty((IProperty)IBlockFacingHorizontal.FACING, (Comparable)placer.getHorizontalFacing().getOpposite());
-        bs = bs.withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)false);
-        return bs;
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return this.defaultBlockState()
+                .setValue(FACING, context.getHorizontalDirection().getOpposite())
+                .setValue(LIT, false);
     }
-    
+
     @Override
-    public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos pos2) {
-        TileEntity te = worldIn.getTileEntity(pos);
-        if (te != null && te instanceof TileSmelter) {
-            ((TileSmelter)te).checkNeighbours();
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player,
+                                  InteractionHand hand, BlockHitResult hit) {
+        if (level.isClientSide) {
+            return InteractionResult.SUCCESS;
+        }
+
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        // TODO: Open smelter GUI when TileSmelter is implemented
+        // player.openMenu((MenuProvider) blockEntity);
+
+        return InteractionResult.CONSUME;
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            // TODO: Drop inventory and release vis as flux when TileSmelter is implemented
+            super.onRemove(state, level, pos, newState, isMoving);
         }
     }
-    
-    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ) {
-        if (!world.isRemote && !player.isSneaking()) {
-            player.openGui(Thaumcraft.instance, 9, world, pos.getX(), pos.getY(), pos.getZ());
+
+    @Override
+    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
+        if (state.getValue(LIT)) {
+            Direction facing = state.getValue(FACING);
+            double x = pos.getX() + 0.5;
+            double y = pos.getY() + 0.2 + random.nextFloat() * 0.3;
+            double z = pos.getZ() + 0.5;
+            
+            double offset = 0.52;
+            double spread = random.nextFloat() * 0.5 - 0.25;
+            
+            switch (facing) {
+                case WEST -> {
+                    level.addParticle(ParticleTypes.SMOKE, x - offset, y, z + spread, 0.0, 0.0, 0.0);
+                    level.addParticle(ParticleTypes.FLAME, x - offset, y, z + spread, 0.0, 0.0, 0.0);
+                }
+                case EAST -> {
+                    level.addParticle(ParticleTypes.SMOKE, x + offset, y, z + spread, 0.0, 0.0, 0.0);
+                    level.addParticle(ParticleTypes.FLAME, x + offset, y, z + spread, 0.0, 0.0, 0.0);
+                }
+                case NORTH -> {
+                    level.addParticle(ParticleTypes.SMOKE, x + spread, y, z - offset, 0.0, 0.0, 0.0);
+                    level.addParticle(ParticleTypes.FLAME, x + spread, y, z - offset, 0.0, 0.0, 0.0);
+                }
+                case SOUTH -> {
+                    level.addParticle(ParticleTypes.SMOKE, x + spread, y, z + offset, 0.0, 0.0, 0.0);
+                    level.addParticle(ParticleTypes.FLAME, x + spread, y, z + offset, 0.0, 0.0, 0.0);
+                }
+            }
         }
+    }
+
+    @Override
+    public boolean hasAnalogOutputSignal(BlockState state) {
         return true;
     }
-    
-    public int getLightValue(IBlockState state, IBlockAccess world, BlockPos pos) {
-        return BlockStateUtils.isEnabled(world.getBlockState(pos).getBlock().getMetaFromState(world.getBlockState(pos))) ? 13 : super.getLightValue(state, world, pos);
-    }
-    
-    public boolean hasComparatorInputOverride(IBlockState state) {
-        return true;
-    }
-    
+
     @Override
-    public int damageDropped(IBlockState state) {
+    public int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos) {
+        // TODO: Return inventory fill level when TileSmelter is implemented
         return 0;
     }
-    
-    public int getComparatorInputOverride(IBlockState state, World world, BlockPos pos) {
-        TileEntity te = world.getTileEntity(pos);
-        if (te != null && te instanceof IInventory) {
-            return Container.calcRedstoneFromInventory((IInventory)te);
-        }
-        return 0;
-    }
-    
-    public static void setFurnaceState(World world, BlockPos pos, boolean state) {
-        if (state == BlockStateUtils.isEnabled(world.getBlockState(pos).getBlock().getMetaFromState(world.getBlockState(pos)))) {
-            return;
-        }
-        TileEntity tileentity = world.getTileEntity(pos);
-        BlockSmelter.keepInventory = true;
-        world.setBlockState(pos, world.getBlockState(pos).withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)state), 3);
-        world.setBlockState(pos, world.getBlockState(pos).withProperty((IProperty)IBlockEnabled.ENABLED, (Comparable)state), 3);
-        if (tileentity != null) {
-            tileentity.validate();
-            world.setTileEntity(pos, tileentity);
-        }
-        BlockSmelter.keepInventory = false;
-    }
-    
+
+    @Nullable
     @Override
-    public void breakBlock(World worldIn, BlockPos pos, IBlockState state) {
-        TileEntity tileentity = worldIn.getTileEntity(pos);
-        if (tileentity instanceof TileSmelter && !worldIn.isRemote && ((TileSmelter)tileentity).vis > 0) {
-            int ess = ((TileSmelter)tileentity).vis;
-            AuraHelper.polluteAura(worldIn, pos, (float)ess, true);
-        }
-        super.breakBlock(worldIn, pos, state);
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        // TODO: Return TileSmelter when implemented
+        return null;
     }
-    
-    @SideOnly(Side.CLIENT)
-    public void randomDisplayTick(IBlockState state, World w, BlockPos pos, Random r) {
-        if (BlockStateUtils.isEnabled(state)) {
-            float f = pos.getX() + 0.5f;
-            float f2 = pos.getY() + 0.2f + r.nextFloat() * 5.0f / 16.0f;
-            float f3 = pos.getZ() + 0.5f;
-            float f4 = 0.52f;
-            float f5 = r.nextFloat() * 0.5f - 0.25f;
-            if (BlockStateUtils.getFacing(state) == EnumFacing.WEST) {
-                w.spawnParticle(EnumParticleTypes.SMOKE_NORMAL, f - f4, f2, f3 + f5, 0.0, 0.0, 0.0);
-                w.spawnParticle(EnumParticleTypes.FLAME, f - f4, f2, f3 + f5, 0.0, 0.0, 0.0);
-            }
-            if (BlockStateUtils.getFacing(state) == EnumFacing.EAST) {
-                w.spawnParticle(EnumParticleTypes.SMOKE_NORMAL, f + f4, f2, f3 + f5, 0.0, 0.0, 0.0);
-                w.spawnParticle(EnumParticleTypes.FLAME, f + f4, f2, f3 + f5, 0.0, 0.0, 0.0);
-            }
-            if (BlockStateUtils.getFacing(state) == EnumFacing.NORTH) {
-                w.spawnParticle(EnumParticleTypes.SMOKE_NORMAL, f + f5, f2, f3 - f4, 0.0, 0.0, 0.0);
-                w.spawnParticle(EnumParticleTypes.FLAME, f + f5, f2, f3 - f4, 0.0, 0.0, 0.0);
-            }
-            if (BlockStateUtils.getFacing(state) == EnumFacing.SOUTH) {
-                w.spawnParticle(EnumParticleTypes.SMOKE_NORMAL, f + f5, f2, f3 + f4, 0.0, 0.0, 0.0);
-                w.spawnParticle(EnumParticleTypes.FLAME, f + f5, f2, f3 + f4, 0.0, 0.0, 0.0);
-            }
-        }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        // TODO: Return ticker when TileSmelter is implemented
+        return null;
     }
 }

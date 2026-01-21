@@ -1,263 +1,291 @@
 package thaumcraft.common.entities.monster.boss;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.IEntityLivingData;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.attributes.IAttributeInstance;
-import net.minecraft.entity.monster.EntityMob;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.init.MobEffects;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.EnumParticleTypes;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.BossInfo;
-import net.minecraft.world.BossInfoServer;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerBossEvent;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.BossEvent;
 import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.World;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
 import thaumcraft.api.entities.IEldritchMob;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.common.lib.utils.EntityUtils;
 
+import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.Map;
 
-public class EntityThaumcraftBoss extends EntityMob
-{
-    protected BossInfoServer bossInfo;
-    private static DataParameter<Integer> AGGRO;
-    HashMap<Integer, Integer> aggro;
-    int spawnTimer;
+/**
+ * EntityThaumcraftBoss - Base class for Thaumcraft boss entities.
+ * Provides boss bar, damage cap, enrage mechanic, and aggro tracking.
+ */
+public abstract class EntityThaumcraftBoss extends Monster {
     
-    public EntityThaumcraftBoss(World world) {
-        super(world);
-        bossInfo = (BossInfoServer)new BossInfoServer(getDisplayName(), BossInfo.Color.PURPLE, BossInfo.Overlay.PROGRESS).setDarkenSky(true);
-        aggro = new HashMap<Integer, Integer>();
-        spawnTimer = 0;
-        experienceValue = 50;
+    private static final EntityDataAccessor<Integer> DATA_ANGER = 
+            SynchedEntityData.defineId(EntityThaumcraftBoss.class, EntityDataSerializers.INT);
+    
+    protected final ServerBossEvent bossEvent;
+    private final Map<Integer, Integer> aggro = new HashMap<>();
+    protected int spawnTimer = 0;
+    
+    // Home position
+    private BlockPos homePos;
+    private int homeDistance;
+    
+    public EntityThaumcraftBoss(EntityType<? extends EntityThaumcraftBoss> type, Level level) {
+        super(type, level);
+        this.xpReward = 50;
+        this.bossEvent = new ServerBossEvent(getDisplayName(), BossEvent.BossBarColor.PURPLE, BossEvent.BossBarOverlay.PROGRESS);
+        this.bossEvent.setDarkenScreen(true);
     }
     
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        if (nbt.hasKey("HomeD")) {
-            setHomePosAndDistance(new BlockPos(nbt.getInteger("HomeX"), nbt.getInteger("HomeY"), nbt.getInteger("HomeZ")), nbt.getInteger("HomeD"));
-        }
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_ANGER, 0);
     }
     
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        if (getHomePosition() != null && getMaximumHomeDistance() > 0.0f) {
-            nbt.setInteger("HomeD", (int) getMaximumHomeDistance());
-            nbt.setInteger("HomeX", getHomePosition().getX());
-            nbt.setInteger("HomeY", getHomePosition().getY());
-            nbt.setInteger("HomeZ", getHomePosition().getZ());
-        }
+    public static AttributeSupplier.Builder createBossAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.KNOCKBACK_RESISTANCE, 0.95)
+                .add(Attributes.FOLLOW_RANGE, 40.0);
     }
     
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE).setBaseValue(0.95);
-        getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(40.0);
-    }
-    
-    protected void entityInit() {
-        super.entityInit();
-        getDataManager().register(EntityThaumcraftBoss.AGGRO, 0);
-    }
-    
-    protected void updateAITasks() {
-        if (getSpawnTimer() == 0) {
-            super.updateAITasks();
-        }
-        if (getAttackTarget() != null && getAttackTarget().isDead) {
-            setAttackTarget(null);
-        }
-        bossInfo.setPercent(getHealth() / getMaxHealth());
-    }
-    
-    public void removeTrackingPlayer(EntityPlayerMP player) {
-        super.removeTrackingPlayer(player);
-        bossInfo.removePlayer(player);
-    }
-    
-    public void addTrackingPlayer(EntityPlayerMP player) {
-        super.addTrackingPlayer(player);
-        bossInfo.addPlayer(player);
-    }
-    
-    public boolean isNonBoss() {
-        return false;
-    }
-    
-    public IEntityLivingData onInitialSpawn(DifficultyInstance diff, IEntityLivingData data) {
-        setHomePosAndDistance(getPosition(), 24);
-        generateName();
-        bossInfo.setName(getDisplayName());
-        return data;
-    }
+    // ==================== Anger/Enrage System ====================
     
     public int getAnger() {
-        return (int) getDataManager().get((DataParameter)EntityThaumcraftBoss.AGGRO);
+        return this.entityData.get(DATA_ANGER);
     }
     
-    public void setAnger(int par1) {
-        getDataManager().set(EntityThaumcraftBoss.AGGRO, par1);
+    public void setAnger(int anger) {
+        this.entityData.set(DATA_ANGER, anger);
     }
     
     public int getSpawnTimer() {
         return spawnTimer;
     }
     
-    public void onUpdate() {
-        super.onUpdate();
-        if (getSpawnTimer() > 0) {
+    // ==================== Home Position ====================
+    
+    public void setHomePos(BlockPos pos, int distance) {
+        this.homePos = pos;
+        this.homeDistance = distance;
+        restrictTo(pos, distance);
+    }
+    
+    public boolean hasHome() {
+        return homePos != null && homeDistance > 0;
+    }
+    
+    // ==================== Boss Bar ====================
+    
+    @Override
+    public void startSeenByPlayer(ServerPlayer player) {
+        super.startSeenByPlayer(player);
+        this.bossEvent.addPlayer(player);
+    }
+    
+    @Override
+    public void stopSeenByPlayer(ServerPlayer player) {
+        super.stopSeenByPlayer(player);
+        this.bossEvent.removePlayer(player);
+    }
+    
+    // ==================== Update Logic ====================
+    
+    @Override
+    protected void customServerAiStep() {
+        if (spawnTimer == 0) {
+            super.customServerAiStep();
+        }
+        
+        if (getTarget() != null && !getTarget().isAlive()) {
+            setTarget(null);
+        }
+        
+        this.bossEvent.setProgress(getHealth() / getMaxHealth());
+    }
+    
+    @Override
+    public void tick() {
+        super.tick();
+        
+        if (spawnTimer > 0) {
             --spawnTimer;
         }
+        
         if (getAnger() > 0) {
             setAnger(getAnger() - 1);
         }
-        if (world.isRemote && rand.nextInt(15) == 0 && getAnger() > 0) {
-            double d0 = rand.nextGaussian() * 0.02;
-            double d2 = rand.nextGaussian() * 0.02;
-            double d3 = rand.nextGaussian() * 0.02;
-            world.spawnParticle(EnumParticleTypes.VILLAGER_ANGRY, posX + rand.nextFloat() * width - width / 2.0, getEntityBoundingBox().minY + height + rand.nextFloat() * 0.5, posZ + rand.nextFloat() * width - width / 2.0, d0, d2, d3);
+        
+        // Angry particles on client
+        if (level().isClientSide && random.nextInt(15) == 0 && getAnger() > 0) {
+            double dx = random.nextGaussian() * 0.02;
+            double dy = random.nextGaussian() * 0.02;
+            double dz = random.nextGaussian() * 0.02;
+            level().addParticle(ParticleTypes.ANGRY_VILLAGER,
+                    getX() + random.nextFloat() * getBbWidth() - getBbWidth() / 2.0,
+                    getBoundingBox().minY + getBbHeight() + random.nextFloat() * 0.5,
+                    getZ() + random.nextFloat() * getBbWidth() - getBbWidth() / 2.0,
+                    dx, dy, dz);
         }
-        if (!world.isRemote) {
-            if (ticksExisted % 30 == 0) {
-                heal(1.0f);
+        
+        // Slow regeneration
+        if (!level().isClientSide && tickCount % 30 == 0) {
+            heal(1.0f);
+        }
+    }
+    
+    // ==================== Damage Handling ====================
+    
+    @Override
+    public boolean isInvulnerableTo(DamageSource source) {
+        return super.isInvulnerableTo(source) || spawnTimer > 0;
+    }
+    
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        if (!level().isClientSide) {
+            // Track aggro
+            if (source.getEntity() instanceof LivingEntity living) {
+                int targetId = living.getId();
+                int currentAggro = aggro.getOrDefault(targetId, 0);
+                aggro.put(targetId, currentAggro + (int) amount);
             }
-            if (getAttackTarget() != null && ticksExisted % 20 == 0) {
-                ArrayList<Integer> dl = new ArrayList<Integer>();
-                int players = 0;
-                int hei = getAttackTarget().getEntityId();
-                int ld;
-                int ad = ld = (aggro.containsKey(hei) ? aggro.get(hei) : 0);
-                Entity newTarget = null;
-                for (Integer ei : aggro.keySet()) {
-                    int ca = aggro.get(ei);
-                    if (ca > ad + 25 && ca > ad * 1.1 && ca > ld) {
-                        newTarget = world.getEntityByID(hei);
-                        if (newTarget == null || newTarget.isDead || getDistanceSq(newTarget) > 16384.0) {
-                            dl.add(ei);
-                        }
-                        else {
-                            hei = ei;
-                            ld = ei;
-                            if (!(newTarget instanceof EntityPlayer)) {
-                                continue;
-                            }
-                            ++players;
-                        }
+            
+            // Damage cap with enrage
+            if (amount > 35.0f) {
+                if (getAnger() == 0) {
+                    // Enrage!
+                    try {
+                        addEffect(new MobEffectInstance(MobEffects.REGENERATION, 200, (int)(amount / 15.0f)));
+                        addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 200, (int)(amount / 10.0f)));
+                        addEffect(new MobEffectInstance(MobEffects.DIG_SPEED, 200, (int)(amount / 40.0f)));
+                    } catch (Exception ignored) {}
+                    setAnger(200);
+                    
+                    // Notify attacker
+                    if (source.getEntity() instanceof Player player) {
+                        player.displayClientMessage(
+                                Component.translatable("tc.boss.enrage", getDisplayName()), true);
                     }
                 }
-                for (Integer ei : dl) {
-                    aggro.remove(ei);
-                }
-                if (newTarget != null && hei != getAttackTarget().getEntityId()) {
-                    setAttackTarget((EntityLivingBase)newTarget);
-                }
-                float om = getMaxHealth();
-                IAttributeInstance iattributeinstance = getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
-                IAttributeInstance iattributeinstance2 = getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
-                for (int a = 0; a < 5; ++a) {
-                    iattributeinstance2.removeModifier(EntityUtils.DMGBUFF[a]);
-                    iattributeinstance.removeModifier(EntityUtils.HPBUFF[a]);
-                }
-                for (int a = 0; a < Math.min(5, players - 1); ++a) {
-                    iattributeinstance.applyModifier(EntityUtils.HPBUFF[a]);
-                    iattributeinstance2.applyModifier(EntityUtils.DMGBUFF[a]);
-                }
-                double mm = getMaxHealth() / om;
-                setHealth((float)(getHealth() * mm));
+                amount = 35.0f;
             }
         }
+        return super.hurt(source, amount);
     }
     
-    public boolean isEntityInvulnerable(DamageSource ds) {
-        return super.isEntityInvulnerable(ds) || getSpawnTimer() > 0;
+    // ==================== Spawn ====================
+    
+    @Nullable
+    @Override
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
+            MobSpawnType spawnType, @Nullable SpawnGroupData spawnData, @Nullable CompoundTag tag) {
+        
+        setHomePos(blockPosition(), 24);
+        generateName();
+        this.bossEvent.setName(getDisplayName());
+        return spawnData;
     }
     
+    /**
+     * Override to generate a custom boss name.
+     */
+    public void generateName() {
+        // Subclasses can override
+    }
+    
+    // ==================== Immunities ====================
+    
+    @Override
     public boolean canBreatheUnderwater() {
         return true;
     }
     
-    public boolean canBePushed() {
-        return super.canBePushed() && !isEntityInvulnerable(DamageSource.STARVE);
-    }
-    
+    @Override
     protected int decreaseAirSupply(int air) {
         return air;
     }
     
-    public void setInWeb() {
+    @Override
+    public void makeStuckInBlock(net.minecraft.world.level.block.state.BlockState state, net.minecraft.world.phys.Vec3 motion) {
+        // Immune to webs
     }
     
+    @Override
     public boolean canPickUpLoot() {
         return false;
     }
     
-    protected void setEnchantmentBasedOnDifficulty(DifficultyInstance diff) {
-    }
-    
-    protected boolean canDespawn() {
+    @Override
+    public boolean removeWhenFarAway(double distance) {
         return false;
     }
     
-    public boolean isOnSameTeam(Entity el) {
-        return el instanceof IEldritchMob;
+    @Override
+    public boolean isPushable() {
+        return !isInvulnerableTo(damageSources().starve());
     }
     
-    protected void dropFewItems(boolean flag, int fortune) {
-        EntityUtils.entityDropSpecialItem(this, new ItemStack(ItemsTC.primordialPearl), height / 2.0f);
-        entityDropItem(new ItemStack(ItemsTC.lootBag, 1, 2), 1.5f);
-    }
+    // ==================== Team Logic ====================
     
-    public boolean attackEntityFrom(DamageSource source, float damage) {
-        if (!world.isRemote) {
-            if (source.getTrueSource() != null && source.getTrueSource() instanceof EntityLivingBase) {
-                int target = source.getTrueSource().getEntityId();
-                int ad = (int)damage;
-                if (aggro.containsKey(target)) {
-                    ad += aggro.get(target);
-                }
-                aggro.put(target, ad);
-            }
-            if (damage > 35.0f) {
-                if (getAnger() == 0) {
-                    try {
-                        try {
-                            addPotionEffect(new PotionEffect(MobEffects.REGENERATION, 200, (int)(damage / 15.0f)));
-                            addPotionEffect(new PotionEffect(MobEffects.STRENGTH, 200, (int)(damage / 10.0f)));
-                            addPotionEffect(new PotionEffect(MobEffects.HASTE, 200, (int)(damage / 40.0f)));
-                        }
-                        catch (Exception ex) {}
-                        setAnger(200);
-                    }
-                    catch (Exception ex2) {}
-                    if (source.getTrueSource() != null && source.getTrueSource() instanceof EntityPlayer) {
-                        ((EntityPlayer)source.getTrueSource()).sendStatusMessage(new TextComponentTranslation(getName() + " " + I18n.translateToLocal("tc.boss.enrage")), true);
-                    }
-                }
-                damage = 35.0f;
-            }
+    @Override
+    public boolean isAlliedTo(Entity entity) {
+        if (entity instanceof IEldritchMob) {
+            return true;
         }
-        return super.attackEntityFrom(source, damage);
+        return super.isAlliedTo(entity);
     }
     
-    public void generateName() {
+    // ==================== NBT ====================
+    
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        if (homePos != null && homeDistance > 0) {
+            tag.putInt("HomeD", homeDistance);
+            tag.putInt("HomeX", homePos.getX());
+            tag.putInt("HomeY", homePos.getY());
+            tag.putInt("HomeZ", homePos.getZ());
+        }
     }
     
-    static {
-        AGGRO = EntityDataManager.createKey(EntityThaumcraftBoss.class, DataSerializers.VARINT);
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains("HomeD")) {
+            setHomePos(new BlockPos(
+                    tag.getInt("HomeX"),
+                    tag.getInt("HomeY"),
+                    tag.getInt("HomeZ")),
+                    tag.getInt("HomeD"));
+        }
+        
+        if (hasCustomName()) {
+            this.bossEvent.setName(getDisplayName());
+        }
+    }
+    
+    @Override
+    public void setCustomName(@Nullable Component name) {
+        super.setCustomName(name);
+        this.bossEvent.setName(getDisplayName());
     }
 }

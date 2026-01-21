@@ -1,232 +1,329 @@
 package thaumcraft.common.entities.monster.cult;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import thaumcraft.init.ModEntities;
+
 import java.util.List;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.IEntityLivingData;
-import net.minecraft.entity.MoverType;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.monster.EntityMob;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3i;
-import net.minecraft.world.EnumDifficulty;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.utils.EntityUtils;
 
-
-public class EntityCultistPortalLesser extends EntityMob
-{
-    private static DataParameter<Boolean> ACTIVE;
-    int stagecounter;
-    public int activeCounter;
-    public int pulse;
+/**
+ * EntityCultistPortalLesser - A stationary portal that spawns cultists when players are nearby.
+ * The portal activates when a player comes within 32 blocks and periodically spawns
+ * cultist knights or clerics. The portal takes damage each time it spawns a cultist.
+ * It damages players that get too close and creates an explosion when destroyed.
+ */
+public class EntityCultistPortalLesser extends Monster {
     
-    public EntityCultistPortalLesser(World par1World) {
-        super(par1World);
-        stagecounter = 100;
-        activeCounter = 0;
-        pulse = 0;
-        isImmuneToFire = true;
-        experienceValue = 10;
-        setSize(1.5f, 3.0f);
+    private static final EntityDataAccessor<Boolean> DATA_ACTIVE = 
+            SynchedEntityData.defineId(EntityCultistPortalLesser.class, EntityDataSerializers.BOOLEAN);
+    
+    private int stageCounter = 100;
+    public int activeCounter = 0;
+    public int pulse = 0;
+    
+    public EntityCultistPortalLesser(EntityType<? extends EntityCultistPortalLesser> type, Level level) {
+        super(type, level);
+        this.xpReward = 10;
+        this.setNoGravity(true);
     }
     
-    public int getTotalArmorValue() {
-        return 4;
+    public EntityCultistPortalLesser(Level level) {
+        this(ModEntities.CULTIST_PORTAL_LESSER.get(), level);
     }
     
-    protected void entityInit() {
-        super.entityInit();
-        getDataManager().register(EntityCultistPortalLesser.ACTIVE, false);
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_ACTIVE, false);
     }
     
     public boolean isActive() {
-        return (boolean) getDataManager().get((DataParameter)EntityCultistPortalLesser.ACTIVE);
+        return this.entityData.get(DATA_ACTIVE);
     }
     
     public void setActive(boolean active) {
-        getDataManager().set(EntityCultistPortalLesser.ACTIVE, active);
+        this.entityData.set(DATA_ACTIVE, active);
     }
     
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(100.0);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(0.0);
-        getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE).setBaseValue(1.0);
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 100.0)
+                .add(Attributes.ATTACK_DAMAGE, 0.0)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0)
+                .add(Attributes.ARMOR, 4.0);
     }
     
-    protected boolean canDespawn() {
+    @Override
+    protected void registerGoals() {
+        // No AI goals - this is a stationary entity
+    }
+    
+    @Override
+    public boolean removeWhenFarAway(double distance) {
         return false;
     }
     
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        nbt.setBoolean("active", isActive());
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("active", isActive());
     }
     
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        setActive(nbt.getBoolean("active"));
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setActive(tag.getBoolean("active"));
     }
     
-    public boolean canBeCollidedWith() {
+    @Override
+    public boolean isPickable() {
         return true;
     }
     
-    public boolean canBePushed() {
+    @Override
+    public boolean isPushable() {
         return false;
     }
     
-    public void move(MoverType mt, double par1, double par3, double par5) {
+    @Override
+    public void move(MoverType type, Vec3 movement) {
+        // Stationary entity - don't move
     }
     
-    public void onLivingUpdate() {
+    @Override
+    protected void customServerAiStep() {
+        // Override to prevent default AI behavior
     }
     
-    public boolean isInRangeToRenderDist(double par1) {
-        return par1 < 4096.0;
+    @Override
+    public boolean shouldRenderAtSqrDistance(double distance) {
+        return distance < 4096.0;
     }
     
-    @SideOnly(Side.CLIENT)
-    public int getBrightnessForRender() {
-        return 15728880;
+    @Override
+    public float getLightLevelDependentMagicValue() {
+        return 1.0f; // Always fully bright
     }
     
-    public float getBrightness() {
-        return 1.0f;
-    }
-    
-    public void onUpdate() {
-        super.onUpdate();
+    @Override
+    public void tick() {
+        super.tick();
+        
         if (isActive()) {
             ++activeCounter;
         }
-        if (!world.isRemote) {
+        
+        if (!level().isClientSide) {
             if (!isActive()) {
-                if (ticksExisted % 10 == 0) {
-                    EntityPlayer p = world.getClosestPlayerToEntity(this, 32.0);
-                    if (p != null) {
+                // Check for nearby player every 10 ticks
+                if (tickCount % 10 == 0) {
+                    Player player = level().getNearestPlayer(this, 32.0);
+                    if (player != null) {
                         setActive(true);
-                        playSound(SoundsTC.craftstart, 1.0f, 1.0f);
+                        // TODO: Play SoundsTC.craftstart when implemented
+                        playSound(SoundEvents.BEACON_ACTIVATE, 1.0f, 1.0f);
                     }
                 }
-            }
-            else if (stagecounter-- <= 0) {
-                EntityPlayer p = world.getClosestPlayerToEntity(this, 32.0);
-                if (p != null && canEntityBeSeen(p)) {
-                    int count = (world.getDifficulty() == EnumDifficulty.HARD) ? 6 : ((world.getDifficulty() == EnumDifficulty.NORMAL) ? 4 : 2);
+            } else if (stageCounter-- <= 0) {
+                // Try to spawn cultists if player is in range and visible
+                Player player = level().getNearestPlayer(this, 32.0);
+                if (player != null && hasLineOfSight(player)) {
+                    // Determine max cultists based on difficulty
+                    int maxCount;
+                    if (level().getDifficulty() == Difficulty.HARD) {
+                        maxCount = 6;
+                    } else if (level().getDifficulty() == Difficulty.NORMAL) {
+                        maxCount = 4;
+                    } else {
+                        maxCount = 2;
+                    }
+                    
+                    // Count existing cultists nearby
                     try {
-                        List l = world.getEntitiesWithinAABB(EntityCultist.class, getEntityBoundingBox().grow(32.0, 32.0, 32.0));
-                        if (l != null) {
-                            count -= l.size();
+                        AABB searchBox = getBoundingBox().inflate(32.0, 32.0, 32.0);
+                        List<EntityCultist> existingCultists = level().getEntitiesOfClass(EntityCultist.class, searchBox);
+                        if (existingCultists != null) {
+                            maxCount -= existingCultists.size();
                         }
-                    }
-                    catch (Exception ex) {}
-                    if (count > 0) {
-                        world.setEntityState(this, (byte)16);
-                        spawnMinions();
+                    } catch (Exception ignored) {}
+                    
+                    if (maxCount > 0) {
+                        // Trigger pulse effect on client
+                        level().broadcastEntityEvent(this, (byte) 16);
+                        spawnMinion();
                     }
                 }
-                stagecounter = 50 + rand.nextInt(50);
+                stageCounter = 50 + random.nextInt(50);
             }
         }
+        
+        // Decay pulse effect
         if (pulse > 0) {
             --pulse;
         }
+        
+        // Client-side visual effects
+        if (level().isClientSide && isActive()) {
+            // Portal particles
+            if (random.nextInt(3) == 0) {
+                double dx = (random.nextDouble() - 0.5) * getBbWidth();
+                double dz = (random.nextDouble() - 0.5) * getBbWidth();
+                level().addParticle(ParticleTypes.PORTAL,
+                        getX() + dx, getY() + random.nextDouble() * getBbHeight(), getZ() + dz,
+                        dx * 0.5, random.nextDouble() * 0.5, dz * 0.5);
+            }
+            // Enchant particles
+            if (random.nextInt(5) == 0) {
+                level().addParticle(ParticleTypes.ENCHANT,
+                        getX() + (random.nextDouble() - 0.5) * 2.0,
+                        getY() + random.nextDouble() * getBbHeight(),
+                        getZ() + (random.nextDouble() - 0.5) * 2.0,
+                        0, 0.5, 0);
+            }
+        }
     }
     
-    int getTiming() {
-        List<Entity> l = EntityUtils.getEntitiesInRange(world, posX, posY, posZ, this, EntityCultist.class, 32.0);
-        return l.size() * 20;
-    }
-    
-    void spawnMinions() {
-        EntityCultist cultist = null;
-        if (rand.nextFloat() > 0.33) {
-            cultist = new EntityCultistKnight(world);
+    /**
+     * Spawns a cultist minion at the portal's location.
+     */
+    private void spawnMinion() {
+        EntityCultist cultist;
+        if (random.nextFloat() > 0.33f) {
+            cultist = new EntityCultistKnight(level());
+        } else {
+            cultist = new EntityCultistCleric(level());
         }
-        else {
-            cultist = new EntityCultistCleric(world);
-        }
-        cultist.setPosition(posX + rand.nextFloat() - rand.nextFloat(), posY + 0.25, posZ + rand.nextFloat() - rand.nextFloat());
-        cultist.onInitialSpawn(world.getDifficultyForLocation(new BlockPos(cultist.getPosition())), null);
-        world.spawnEntity(cultist);
+        
+        // Position near the portal
+        cultist.moveTo(
+                getX() + random.nextFloat() - random.nextFloat(),
+                getY() + 0.25,
+                getZ() + random.nextFloat() - random.nextFloat(),
+                random.nextFloat() * 360.0f, 0.0f);
+        
+        // Initialize the cultist
+        cultist.finalizeSpawn(
+                (net.minecraft.world.level.ServerLevelAccessor) level(),
+                level().getCurrentDifficultyAt(new BlockPos((int) cultist.getX(), (int) cultist.getY(), (int) cultist.getZ())),
+                net.minecraft.world.entity.MobSpawnType.SPAWNER,
+                null, null);
+        
+        level().addFreshEntity(cultist);
         cultist.spawnExplosionParticle();
-        cultist.playSound(SoundsTC.wandfail, 1.0f, 1.0f);
-        attackEntityFrom(DamageSource.OUT_OF_WORLD, (float)(5 + rand.nextInt(5)));
+        
+        // TODO: Play SoundsTC.wandfail when implemented
+        cultist.playSound(SoundEvents.EVOKER_CAST_SPELL, 1.0f, 1.0f);
+        
+        // Portal takes damage when spawning
+        hurt(damageSources().magic(), 5 + random.nextInt(5));
     }
     
-    protected boolean isValidLightLevel() {
-        return true;
-    }
-    
-    public void onCollideWithPlayer(EntityPlayer p) {
-        if (getDistanceSq(p) < 3.0 && p.attackEntityFrom(DamageSource.causeIndirectMagicDamage(this, this), 4.0f)) {
-            playSound(SoundsTC.zap, 1.0f, (rand.nextFloat() - rand.nextFloat()) * 0.1f + 1.0f);
+    @Override
+    public void playerTouch(Player player) {
+        // Damage players that get too close
+        if (distanceToSqr(player) < 3.0) {
+            if (player.hurt(damageSources().indirectMagic(this, this), 4.0f)) {
+                // TODO: Play SoundsTC.zap when implemented
+                playSound(SoundEvents.GENERIC_BURN, 1.0f, (random.nextFloat() - random.nextFloat()) * 0.1f + 1.0f);
+            }
         }
     }
     
+    @Override
     protected float getSoundVolume() {
         return 0.75f;
     }
     
-    public int getTalkInterval() {
+    @Override
+    public int getAmbientSoundInterval() {
         return 540;
     }
     
+    @Override
     protected SoundEvent getAmbientSound() {
-        return SoundsTC.monolith;
+        // TODO: Return SoundsTC.monolith when implemented
+        return SoundEvents.AMBIENT_CAVE.value();
     }
     
-    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-        return SoundsTC.zap;
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        // TODO: Return SoundsTC.zap when implemented
+        return SoundEvents.GENERIC_BURN;
     }
     
+    @Override
     protected SoundEvent getDeathSound() {
-        return SoundsTC.shock;
+        // TODO: Return SoundsTC.shock when implemented
+        return SoundEvents.GENERIC_EXPLODE;
     }
     
-    protected Item getDropItem() {
-        return Item.getItemById(0);
+    @Override
+    protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
+        // No drops
     }
     
-    protected void dropFewItems(boolean flag, int fortune) {
-    }
-    
-    @SideOnly(Side.CLIENT)
-    public void handleStatusUpdate(byte msg) {
-        if (msg == 16) {
+    @Override
+    public void handleEntityEvent(byte id) {
+        if (id == 16) {
             pulse = 10;
+            // Spawn pulse particles
+            for (int i = 0; i < 10; i++) {
+                double dx = (random.nextDouble() - 0.5) * 2.0;
+                double dy = random.nextDouble() * getBbHeight();
+                double dz = (random.nextDouble() - 0.5) * 2.0;
+                level().addParticle(ParticleTypes.WITCH,
+                        getX() + dx, getY() + dy, getZ() + dz,
+                        dx * 0.2, 0.2, dz * 0.2);
+            }
+        } else {
+            super.handleEntityEvent(id);
         }
-        else {
-            super.handleStatusUpdate(msg);
+    }
+    
+    @Override
+    public boolean addEffect(MobEffectInstance effect, Entity source) {
+        // Immune to potion effects
+        return false;
+    }
+    
+    @Override
+    public boolean causeFallDamage(float distance, float multiplier, DamageSource source) {
+        // Immune to fall damage
+        return false;
+    }
+    
+    @Override
+    public void die(DamageSource source) {
+        if (!level().isClientSide) {
+            // Create explosion on death
+            level().explode(this, getX(), getY(), getZ(), 1.5f, Level.ExplosionInteraction.NONE);
         }
+        super.die(source);
     }
     
-    public void addPotionEffect(PotionEffect p_70690_1_) {
-    }
+
     
-    public void fall(float distance, float damageMultiplier) {
-    }
-    
-    public void onDeath(DamageSource p_70645_1_) {
-        if (!world.isRemote) {
-            world.newExplosion(this, posX, posY, posZ, 1.5f, false, false);
-        }
-        super.onDeath(p_70645_1_);
-    }
-    
-    static {
-        ACTIVE = EntityDataManager.createKey(EntityCultistPortalLesser.class, DataSerializers.BOOLEAN);
+    @Override
+    public boolean fireImmune() {
+        return true;
     }
 }

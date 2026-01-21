@@ -1,216 +1,282 @@
 package thaumcraft.common.entities.monster.boss;
-import java.util.Iterator;
-import java.util.List;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.IEntityLivingData;
-import net.minecraft.entity.IRangedAttackMob;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.EntityAIAttackMelee;
-import net.minecraft.entity.ai.EntityAIBase;
-import net.minecraft.entity.ai.EntityAILookIdle;
-import net.minecraft.entity.ai.EntityAIMoveTowardsRestriction;
-import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
-import net.minecraft.entity.ai.EntityAISwimming;
-import net.minecraft.entity.ai.EntityAIWander;
-import net.minecraft.entity.ai.EntityAIWatchClosest;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.text.translation.I18n;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.EnumDifficulty;
-import net.minecraft.world.World;
-import thaumcraft.api.ThaumcraftApiHelper;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.entities.ai.combat.AICultistHurtByTarget;
-import thaumcraft.common.entities.ai.combat.AILongRangeAttack;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.SpawnGroupData;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.MoveTowardsRestrictionGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.RangedAttackGoal;
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.monster.RangedAttackMob;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import thaumcraft.common.entities.monster.cult.EntityCultist;
 import thaumcraft.common.entities.monster.cult.EntityCultistCleric;
 import thaumcraft.common.entities.monster.cult.EntityCultistKnight;
-import thaumcraft.common.entities.monster.mods.ChampionModifier;
 import thaumcraft.common.entities.projectile.EntityGolemOrb;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.utils.EntityUtils;
+import thaumcraft.init.ModEntities;
 
+import javax.annotation.Nullable;
+import java.util.List;
 
-public class EntityCultistLeader extends EntityThaumcraftBoss implements IRangedAttackMob
-{
-    private static DataParameter<Byte> NAME;
-    String[] titles;
+/**
+ * EntityCultistLeader - The boss of the Crimson Cult.
+ * A powerful cultist that leads other cult members in battle.
+ * Has both ranged (orb projectile) and melee attacks.
+ * Provides regeneration to nearby cultists.
+ */
+public class EntityCultistLeader extends EntityThaumcraftBoss implements RangedAttackMob {
     
-    public EntityCultistLeader(World p_i1745_1_) {
-        super(p_i1745_1_);
-        titles = new String[] { "Alberic", "Anselm", "Bastian", "Beturian", "Chabier", "Chorache", "Chuse", "Dodorol", "Ebardo", "Ferrando", "Fertus", "Guillen", "Larpe", "Obano", "Zelipe" };
-        setSize(0.75f, 2.25f);
-        experienceValue = 40;
+    private static final EntityDataAccessor<Byte> DATA_TITLE = 
+            SynchedEntityData.defineId(EntityCultistLeader.class, EntityDataSerializers.BYTE);
+    
+    private static final String[] TITLES = {
+            "Alberic", "Anselm", "Bastian", "Beturian", "Chabier",
+            "Chorache", "Chuse", "Dodorol", "Ebardo", "Ferrando",
+            "Fertus", "Guillen", "Larpe", "Obano", "Zelipe"
+    };
+    
+    public EntityCultistLeader(EntityType<? extends EntityCultistLeader> type, Level level) {
+        super(type, level);
+        this.xpReward = 40;
     }
     
-    protected void initEntityAI() {
-        tasks.addTask(0, new EntityAISwimming(this));
-        tasks.addTask(2, new AILongRangeAttack(this, 16.0, 1.0, 30, 40, 24.0f));
-        tasks.addTask(3, new EntityAIAttackMelee(this, 1.1, false));
-        tasks.addTask(6, new EntityAIMoveTowardsRestriction(this, 0.8));
-        tasks.addTask(7, new EntityAIWander(this, 0.8));
-        tasks.addTask(8, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0f));
-        tasks.addTask(8, new EntityAILookIdle(this));
-        targetTasks.addTask(1, new AICultistHurtByTarget(this, true));
-        targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityPlayer.class, true));
+    public EntityCultistLeader(Level level) {
+        this(ModEntities.CULTIST_LEADER.get(), level);
     }
     
     @Override
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.32);
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(150.0);
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(5.0);
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_TITLE, (byte) 0);
     }
     
     @Override
-    protected void entityInit() {
-        super.entityInit();
-        getDataManager().register((DataParameter)EntityCultistLeader.NAME, 0);
+    protected void registerGoals() {
+        this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.goalSelector.addGoal(2, new RangedAttackGoal(this, 1.0, 30, 40, 24.0f));
+        this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.1, false));
+        this.goalSelector.addGoal(6, new MoveTowardsRestrictionGoal(this, 0.8));
+        this.goalSelector.addGoal(7, new WaterAvoidingRandomStrollGoal(this, 0.8));
+        this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
+        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+        
+        this.targetSelector.addGoal(1, new HurtByTargetGoal(this, EntityCultist.class, EntityCultistLeader.class));
+        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
+    }
+    
+    public static AttributeSupplier.Builder createAttributes() {
+        return EntityThaumcraftBoss.createBossAttributes()
+                .add(Attributes.MAX_HEALTH, 150.0)
+                .add(Attributes.ATTACK_DAMAGE, 5.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.32)
+                .add(Attributes.ARMOR, 8.0);
     }
     
     @Override
     public void generateName() {
-        int t = (int) getEntityAttribute(ThaumcraftApiHelper.CHAMPION_MOD).getAttributeValue();
-        if (t >= 0) {
-            setCustomNameTag(String.format(I18n.translateToLocal("entity.Thaumcraft.CultistLeader.name.custom"), getTitle(), ChampionModifier.mods[t].getModNameLocalized()));
+        // TODO: Add champion modifier name when implemented
+        setCustomName(net.minecraft.network.chat.Component.literal(getTitle() + " the Crimson Praetor"));
+    }
+    
+    public String getTitle() {
+        return TITLES[this.entityData.get(DATA_TITLE) % TITLES.length];
+    }
+    
+    public void setTitle(int title) {
+        this.entityData.set(DATA_TITLE, (byte) (title % TITLES.length));
+    }
+    
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putByte("title", this.entityData.get(DATA_TITLE));
+    }
+    
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        setTitle(tag.getByte("title"));
+    }
+    
+    /**
+     * Set up equipment based on difficulty.
+     */
+    protected void setLoot(DifficultyInstance difficulty) {
+        // TODO: Use actual Thaumcraft items when implemented
+        // For now, use vanilla equivalents
+        setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.NETHERITE_HELMET));
+        setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.NETHERITE_CHESTPLATE));
+        setItemSlot(EquipmentSlot.LEGS, new ItemStack(Items.NETHERITE_LEGGINGS));
+        setItemSlot(EquipmentSlot.FEET, new ItemStack(Items.NETHERITE_BOOTS));
+        
+        if (level().getDifficulty() == Difficulty.EASY) {
+            setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_SWORD));
+        } else {
+            setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.NETHERITE_SWORD));
+        }
+        
+        // No drops from equipment
+        setDropChance(EquipmentSlot.HEAD, 0.0f);
+        setDropChance(EquipmentSlot.CHEST, 0.0f);
+        setDropChance(EquipmentSlot.LEGS, 0.0f);
+        setDropChance(EquipmentSlot.FEET, 0.0f);
+        setDropChance(EquipmentSlot.MAINHAND, 0.0f);
+    }
+    
+    /**
+     * Add enchantments based on difficulty.
+     */
+    protected void setEnchantmentBasedOnDifficulty(DifficultyInstance difficulty) {
+        float diff = difficulty.getSpecialMultiplier();
+        ItemStack weapon = getMainHandItem();
+        if (!weapon.isEmpty() && random.nextFloat() < 0.5f * diff) {
+            EnchantmentHelper.enchantItem(random, weapon, (int)(7.0f + diff * random.nextInt(22)), false);
         }
     }
     
-    private String getTitle() {
-        return titles[(byte) getDataManager().get((DataParameter)EntityCultistLeader.NAME)];
-    }
-    
-    private void setTitle(int title) {
-        getDataManager().set(EntityCultistLeader.NAME, (byte)title);
-    }
+    // ==================== Team Logic ====================
     
     @Override
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        nbt.setByte("title", (byte) getDataManager().get((DataParameter)EntityCultistLeader.NAME));
-    }
-    
-    @Override
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        setTitle(nbt.getByte("title"));
-    }
-    
-    protected void setEquipmentBasedOnDifficulty(DifficultyInstance difficulty) {
-        setItemStackToSlot(EntityEquipmentSlot.HEAD, new ItemStack(ItemsTC.crimsonPraetorHelm));
-        setItemStackToSlot(EntityEquipmentSlot.CHEST, new ItemStack(ItemsTC.crimsonPraetorChest));
-        setItemStackToSlot(EntityEquipmentSlot.LEGS, new ItemStack(ItemsTC.crimsonPraetorLegs));
-        setItemStackToSlot(EntityEquipmentSlot.FEET, new ItemStack(ItemsTC.crimsonBoots));
-        if (world.getDifficulty() == EnumDifficulty.EASY) {
-            setHeldItem(getActiveHand(), new ItemStack(ItemsTC.voidSword));
+    public boolean isAlliedTo(Entity entity) {
+        if (entity instanceof EntityCultist || entity instanceof EntityCultistLeader) {
+            return true;
         }
-        else {
-            setHeldItem(getActiveHand(), new ItemStack(ItemsTC.crimsonBlade));
+        return super.isAlliedTo(entity);
+    }
+    
+    @Override
+    public boolean canAttack(LivingEntity target) {
+        if (target instanceof EntityCultist || target instanceof EntityCultistLeader) {
+            return false;
         }
+        return super.canAttack(target);
     }
+    
+    // ==================== Spawn ====================
+    
+    @Nullable
+    @Override
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
+            MobSpawnType spawnType, @Nullable SpawnGroupData spawnData, @Nullable CompoundTag tag) {
+        
+        setLoot(difficulty);
+        setEnchantmentBasedOnDifficulty(difficulty);
+        setTitle(random.nextInt(TITLES.length));
+        return super.finalizeSpawn(level, difficulty, spawnType, spawnData, tag);
+    }
+    
+    // ==================== AI Updates ====================
     
     @Override
-    protected void setEnchantmentBasedOnDifficulty(DifficultyInstance diff) {
-        float f = diff.getClampedAdditionalDifficulty();
-        if (getHeldItemMainhand() != null && rand.nextFloat() < 0.5f * f) {
-            EnchantmentHelper.addRandomEnchantment(rand, getHeldItemMainhand(), (int)(7.0f + f * rand.nextInt(22)), false);
-        }
-    }
-    
-    @Override
-    public boolean isOnSameTeam(Entity el) {
-        return el instanceof EntityCultist || el instanceof EntityCultistLeader;
-    }
-    
-    public boolean canAttackClass(Class clazz) {
-        return clazz != EntityCultistCleric.class && clazz != EntityCultistLeader.class && clazz != EntityCultistKnight.class && super.canAttackClass(clazz);
-    }
-    
-    protected Item getDropItem() {
-        return Item.getItemById(0);
-    }
-    
-    @Override
-    protected void dropFewItems(boolean flag, int i) {
-        entityDropItem(new ItemStack(ItemsTC.lootBag, 1, 2), 1.5f);
-    }
-    
-    @Override
-    public IEntityLivingData onInitialSpawn(DifficultyInstance diff, IEntityLivingData data) {
-        setEquipmentBasedOnDifficulty(diff);
-        setEnchantmentBasedOnDifficulty(diff);
-        setTitle(rand.nextInt(titles.length));
-        return super.onInitialSpawn(diff, data);
-    }
-    
-    @Override
-    protected void updateAITasks() {
-        super.updateAITasks();
-        List<Entity> list = EntityUtils.getEntitiesInRange(world, posX, posY, posZ, this, EntityCultist.class, 8.0);
-        for (Entity e : list) {
-            try {
-                if (!(e instanceof EntityCultist) || ((EntityCultist)e).isPotionActive(MobEffects.REGENERATION)) {
-                    continue;
-                }
-                ((EntityCultist)e).addPotionEffect(new PotionEffect(MobEffects.REGENERATION, 60, 1));
+    protected void customServerAiStep() {
+        super.customServerAiStep();
+        
+        // Provide regeneration to nearby cultists
+        if (tickCount % 20 == 0) {
+            AABB searchBox = getBoundingBox().inflate(8.0);
+            List<EntityCultist> nearbyCultists = level().getEntitiesOfClass(EntityCultist.class, searchBox);
+            
+            for (EntityCultist cultist : nearbyCultists) {
+                try {
+                    if (!cultist.hasEffect(MobEffects.REGENERATION)) {
+                        cultist.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 60, 1));
+                    }
+                } catch (Exception ignored) {}
             }
-            catch (Exception ex) {}
         }
     }
     
-    public void attackEntityWithRangedAttack(EntityLivingBase entitylivingbase, float f) {
-        if (canEntityBeSeen(entitylivingbase)) {
-            swingArm(getActiveHand());
-            getLookHelper().setLookPosition(entitylivingbase.posX, entitylivingbase.getEntityBoundingBox().minY + entitylivingbase.height / 2.0f, entitylivingbase.posZ, 30.0f, 30.0f);
-            EntityGolemOrb entityGolemOrb;
-            EntityGolemOrb blast = entityGolemOrb = new EntityGolemOrb(world, this, entitylivingbase, true);
-            entityGolemOrb.posX += blast.motionX / 2.0;
-            EntityGolemOrb entityGolemOrb2 = blast;
-            entityGolemOrb2.posZ += blast.motionZ / 2.0;
-            blast.setPosition(blast.posX, blast.posY, blast.posZ);
-            double d0 = entitylivingbase.posX - posX;
-            double d2 = entitylivingbase.getEntityBoundingBox().minY + entitylivingbase.height / 2.0f - (posY + height / 2.0f);
-            double d3 = entitylivingbase.posZ - posZ;
-            blast.shoot(d0, d2 + 2.0, d3, 0.66f, 3.0f);
-            playSound(SoundsTC.egattack, 1.0f, 1.0f + rand.nextFloat() * 0.1f);
-            world.spawnEntity(blast);
+    // ==================== Ranged Attack ====================
+    
+    @Override
+    public void performRangedAttack(LivingEntity target, float power) {
+        if (hasLineOfSight(target)) {
+            swing(InteractionHand.MAIN_HAND);
+            getLookControl().setLookAt(target, 30.0f, 30.0f);
+            
+            // Create and fire the orb projectile (red = true for boss)
+            EntityGolemOrb orb = new EntityGolemOrb(level(), this, target, true);
+            
+            // Calculate aim direction
+            double dx = target.getX() - getX();
+            double dy = target.getY(0.5) - getY(0.5);
+            double dz = target.getZ() - getZ();
+            
+            // Offset projectile position slightly forward
+            Vec3 forward = new Vec3(dx, 0, dz).normalize().scale(0.5);
+            orb.setPos(orb.getX() + forward.x, orb.getY(), orb.getZ() + forward.z);
+            
+            // Shoot with some vertical adjustment
+            orb.shoot(dx, dy + 2.0, dz, 0.66f, 3.0f);
+            
+            // TODO: Play SoundsTC.egattack when implemented
+            playSound(SoundEvents.EVOKER_CAST_SPELL, 1.0f, 1.0f + random.nextFloat() * 0.1f);
+            level().addFreshEntity(orb);
         }
     }
+    
+    // ==================== Spawn Particles ====================
     
     public void spawnExplosionParticle() {
-        if (world.isRemote) {
+        if (level().isClientSide) {
             for (int i = 0; i < 20; ++i) {
-                double d0 = rand.nextGaussian() * 0.05;
-                double d2 = rand.nextGaussian() * 0.05;
-                double d3 = rand.nextGaussian() * 0.05;
-                double d4 = 2.0;
-                FXDispatcher.INSTANCE.cultistSpawn(posX + rand.nextFloat() * width * 2.0f - width + d0 * d4, posY + rand.nextFloat() * height + d2 * d4, posZ + rand.nextFloat() * width * 2.0f - width + d3 * d4, d0, d2, d3);
+                double dx = random.nextGaussian() * 0.05;
+                double dy = random.nextGaussian() * 0.05;
+                double dz = random.nextGaussian() * 0.05;
+                level().addParticle(net.minecraft.core.particles.ParticleTypes.SMOKE,
+                        getX() + random.nextFloat() * getBbWidth() * 2.0f - getBbWidth() + dx * 2.0,
+                        getY() + random.nextFloat() * getBbHeight() + dy * 2.0,
+                        getZ() + random.nextFloat() * getBbWidth() * 2.0f - getBbWidth() + dz * 2.0,
+                        dx, dy, dz);
             }
-        }
-        else {
-            world.setEntityState(this, (byte)20);
+        } else {
+            level().broadcastEntityEvent(this, (byte) 20);
         }
     }
     
-    public void setSwingingArms(boolean swingingArms) {
+    @Override
+    public void handleEntityEvent(byte id) {
+        if (id == 20) {
+            spawnExplosionParticle();
+        } else {
+            super.handleEntityEvent(id);
+        }
     }
     
-    static {
-        NAME = EntityDataManager.createKey(EntityCultistLeader.class, DataSerializers.BYTE);
+    // ==================== Loot ====================
+    
+    @Override
+    protected void dropCustomDeathLoot(net.minecraft.world.damagesource.DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
+        super.dropCustomDeathLoot(source, lootingLevel, wasRecentlyHit);
+        // TODO: Drop ItemsTC.lootBag (tier 2) when implemented
+        // For now drop something placeholder
+        spawnAtLocation(new ItemStack(Items.ENCHANTED_GOLDEN_APPLE));
     }
 }

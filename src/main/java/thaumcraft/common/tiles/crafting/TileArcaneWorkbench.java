@@ -1,110 +1,198 @@
 package thaumcraft.common.tiles.crafting;
-import net.minecraft.inventory.Container;
-import net.minecraft.inventory.ItemStackHelper;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.NonNullList;
-import thaumcraft.api.blocks.BlocksTC;
-import thaumcraft.api.crafting.ContainerDummy;
-import thaumcraft.common.container.InventoryArcaneWorkbench;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import thaumcraft.api.aura.AuraHelper;
 import thaumcraft.common.tiles.TileThaumcraft;
-import thaumcraft.common.world.aura.AuraChunk;
-import thaumcraft.common.world.aura.AuraHandler;
+import thaumcraft.init.ModBlockEntities;
+import thaumcraft.init.ModBlocks;
 
+/**
+ * Arcane workbench tile entity - handles vis-based crafting.
+ * Stores the crafting grid contents and tracks available vis from the aura.
+ */
+public class TileArcaneWorkbench extends TileThaumcraft {
 
-public class TileArcaneWorkbench extends TileThaumcraft
-{
-    public InventoryArcaneWorkbench inventoryCraft;
-    public int auraVisServer;
-    public int auraVisClient;
+    // Crafting grid: 9 slots for 3x3 grid + 6 crystal slots
+    public static final int GRID_SIZE = 9;
+    public static final int CRYSTAL_SLOTS = 6;
+    public static final int TOTAL_SLOTS = GRID_SIZE + CRYSTAL_SLOTS;
+
+    private NonNullList<ItemStack> craftMatrix = NonNullList.withSize(TOTAL_SLOTS, ItemStack.EMPTY);
     
-    public TileArcaneWorkbench() {
-        auraVisServer = 0;
-        auraVisClient = 0;
-        inventoryCraft = new InventoryArcaneWorkbench(this, new ContainerDummy());
+    // Cached aura vis for crafting calculations
+    public int auraVisServer = 0;
+    public int auraVisClient = 0;
+
+    public TileArcaneWorkbench(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
-    
+
+    public TileArcaneWorkbench(BlockPos pos, BlockState state) {
+        this(ModBlockEntities.ARCANE_WORKBENCH.get(), pos, state);
+    }
+
+    // ==================== NBT ====================
+
     @Override
-    public void readFromNBT(NBTTagCompound nbtCompound) {
-        super.readFromNBT(nbtCompound);
-        NonNullList<ItemStack> stacks = NonNullList.withSize(inventoryCraft.getSizeInventory(), ItemStack.EMPTY);
-        ItemStackHelper.loadAllItems(nbtCompound, stacks);
-        for (int a = 0; a < stacks.size(); ++a) {
-            inventoryCraft.setInventorySlotContents(a, stacks.get(a));
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
+        ContainerHelper.saveAllItems(tag, craftMatrix);
+    }
+
+    @Override
+    public void load(CompoundTag tag) {
+        super.load(tag);
+        craftMatrix = NonNullList.withSize(TOTAL_SLOTS, ItemStack.EMPTY);
+        ContainerHelper.loadAllItems(tag, craftMatrix);
+    }
+
+    @Override
+    protected void writeSyncNBT(CompoundTag tag) {
+        // Don't sync crafting contents to all clients
+    }
+
+    @Override
+    protected void readSyncNBT(CompoundTag tag) {
+        // Don't sync crafting contents from server
+    }
+
+    // ==================== Crafting Matrix ====================
+
+    public ItemStack getStackInSlot(int slot) {
+        if (slot >= 0 && slot < TOTAL_SLOTS) {
+            return craftMatrix.get(slot);
+        }
+        return ItemStack.EMPTY;
+    }
+
+    public void setStackInSlot(int slot, ItemStack stack) {
+        if (slot >= 0 && slot < TOTAL_SLOTS) {
+            craftMatrix.set(slot, stack);
+            setChanged();
         }
     }
-    
-    @Override
-    public NBTTagCompound writeToNBT(NBTTagCompound nbtCompound) {
-        super.writeToNBT(nbtCompound);
-        NonNullList<ItemStack> stacks = NonNullList.withSize(inventoryCraft.getSizeInventory(), ItemStack.EMPTY);
-        for (int a = 0; a < stacks.size(); ++a) {
-            stacks.set(a, inventoryCraft.getStackInSlot(a));
+
+    public ItemStack removeStackFromSlot(int slot) {
+        if (slot >= 0 && slot < TOTAL_SLOTS) {
+            ItemStack stack = craftMatrix.get(slot);
+            craftMatrix.set(slot, ItemStack.EMPTY);
+            setChanged();
+            return stack;
         }
-        ItemStackHelper.saveAllItems(nbtCompound, stacks);
-        return nbtCompound;
+        return ItemStack.EMPTY;
     }
-    
-    @Override
-    public void readSyncNBT(NBTTagCompound nbtCompound) {
+
+    public void clearCraftMatrix() {
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            craftMatrix.set(i, ItemStack.EMPTY);
+        }
+        setChanged();
     }
-    
-    @Override
-    public NBTTagCompound writeSyncNBT(NBTTagCompound nbtCompound) {
-        return nbtCompound;
-    }
-    
-    public void getAura() {
-        if (!getWorld().isRemote) {
-            int t = 0;
-            if (world.getBlockState(getPos().up()).getBlock() == BlocksTC.arcaneWorkbenchCharger) {
-                int sx = pos.getX() >> 4;
-                int sz = pos.getZ() >> 4;
-                for (int xx = -1; xx <= 1; ++xx) {
-                    for (int zz = -1; zz <= 1; ++zz) {
-                        AuraChunk ac = AuraHandler.getAuraChunk(world.provider.getDimension(), sx + xx, sz + zz);
-                        if (ac != null) {
-                            t += (int)ac.getVis();
-                        }
-                    }
+
+    // ==================== Aura Interaction ====================
+
+    /**
+     * Update the cached aura vis amount.
+     * Called periodically or when crafting.
+     */
+    public void updateAura() {
+        if (level == null || level.isClientSide) return;
+
+        int totalVis = 0;
+        
+        // Check if there's a workbench charger above
+        BlockState above = level.getBlockState(worldPosition.above());
+        if (above.is(ModBlocks.ARCANE_WORKBENCH.get())) {
+            // TODO: Check for arcane workbench charger block when implemented
+            // If charger present, draw from 3x3 chunk area
+            int chunkX = worldPosition.getX() >> 4;
+            int chunkZ = worldPosition.getZ() >> 4;
+            
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    // Get vis from each chunk
+                    BlockPos chunkCenter = new BlockPos((chunkX + dx) << 4, worldPosition.getY(), (chunkZ + dz) << 4);
+                    totalVis += (int) AuraHelper.getVis(level, chunkCenter);
                 }
             }
-            else {
-                t = (int)AuraHandler.getVis(getWorld(), getPos());
-            }
-            auraVisServer = t;
+        } else {
+            // Just get vis from current chunk
+            totalVis = (int) AuraHelper.getVis(level, worldPosition);
         }
+
+        auraVisServer = totalVis;
     }
-    
-    public void spendAura(int vis) {
-        if (!getWorld().isRemote) {
-            if (world.getBlockState(getPos().up()).getBlock() == BlocksTC.arcaneWorkbenchCharger) {
-                int q = vis;
-                int z = Math.max(1, vis / 9);
-                int attempts = 0;
-            Label_0144:
-                while (q > 0) {
-                    ++attempts;
-                    for (int xx = -1; xx <= 1; ++xx) {
-                        for (int zz = -1; zz <= 1; ++zz) {
-                            if (z > q) {
-                                z = q;
-                            }
-                            q -= (int)AuraHandler.drainVis(getWorld(), getPos().add(xx * 16, 0, zz * 16), (float)z, false);
-                            if (q <= 0) {
-                                break Label_0144;
-                            }
-                            if (attempts > 1000) {
-                                break Label_0144;
-                            }
-                        }
+
+    /**
+     * Spend vis from the aura for crafting.
+     * 
+     * @param visCost The amount of vis to spend
+     */
+    public void spendAura(int visCost) {
+        if (level == null || level.isClientSide || visCost <= 0) return;
+
+        BlockState above = level.getBlockState(worldPosition.above());
+        // TODO: Check for charger block
+        boolean hasCharger = false;
+
+        if (hasCharger) {
+            // Distribute vis drain across 3x3 chunk area
+            int remaining = visCost;
+            int perChunk = Math.max(1, visCost / 9);
+            int attempts = 0;
+
+            while (remaining > 0 && attempts < 1000) {
+                for (int dx = -1; dx <= 1 && remaining > 0; dx++) {
+                    for (int dz = -1; dz <= 1 && remaining > 0; dz++) {
+                        int toDrain = Math.min(perChunk, remaining);
+                        BlockPos drainPos = worldPosition.offset(dx * 16, 0, dz * 16);
+                        int drained = (int) AuraHelper.drainVis(level, drainPos, toDrain, false);
+                        remaining -= drained;
                     }
                 }
+                attempts++;
             }
-            else {
-                AuraHandler.drainVis(getWorld(), getPos(), (float)vis, false);
-            }
+        } else {
+            // Drain from current chunk
+            AuraHelper.drainVis(level, worldPosition, visCost, false);
         }
+    }
+
+    // ==================== Drop Items ====================
+
+    /**
+     * Drop all items in the crafting matrix.
+     */
+    public void dropContents() {
+        if (level != null && !level.isClientSide) {
+            for (int i = 0; i < TOTAL_SLOTS; i++) {
+                ItemStack stack = craftMatrix.get(i);
+                if (!stack.isEmpty()) {
+                    net.minecraft.world.Containers.dropItemStack(level,
+                            worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), stack);
+                }
+            }
+            clearCraftMatrix();
+        }
+    }
+
+    // ==================== Container Access ====================
+
+    /**
+     * Check if player can interact with this workbench.
+     */
+    public boolean stillValid(Player player) {
+        if (level == null || level.getBlockEntity(worldPosition) != this) {
+            return false;
+        }
+        return player.distanceToSqr(worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5) <= 64.0;
     }
 }

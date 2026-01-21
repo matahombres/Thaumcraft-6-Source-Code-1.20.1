@@ -1,144 +1,113 @@
 package thaumcraft.common.items.tools;
-import com.google.common.collect.ImmutableSet;
-import java.util.Iterator;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import thaumcraft.api.ThaumcraftMaterials;
+import thaumcraft.init.ModItems;
+
+import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Set;
-import net.minecraft.client.renderer.ItemMeshDefinition;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.item.EntityItem;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.EnumAction;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemAxe;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
-import thaumcraft.api.items.ItemsTC;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.config.ConfigItems;
-import thaumcraft.common.items.IThaumcraftItems;
-import thaumcraft.common.lib.enchantment.EnumInfusionEnchantment;
-import thaumcraft.common.lib.utils.EntityUtils;
 
+/**
+ * Axe of the Stream - Water elemental axe.
+ * When held and used, draws nearby items towards the player.
+ * Has built-in Burrowing and Collector infusion enchantments.
+ */
+public class ItemElementalAxe extends AxeItem {
 
-public class ItemElementalAxe extends ItemAxe implements IThaumcraftItems
-{
-    public ItemElementalAxe(Item.ToolMaterial enumtoolmaterial) {
-        super(enumtoolmaterial, 8.0f, -3.0f);
-        setCreativeTab(ConfigItems.TABTC);
-        setRegistryName("elemental_axe");
-        setUnlocalizedName("elemental_axe");
-        ConfigItems.ITEM_VARIANT_HOLDERS.add(this);
+    public ItemElementalAxe() {
+        super(ThaumcraftMaterials.TOOLMAT_ELEMENTAL,
+                8.0f,  // attack damage bonus
+                -3.0f,  // attack speed
+                new Item.Properties()
+                        .rarity(Rarity.RARE));
     }
-    
-    public Item getItem() {
-        return this;
+
+    @Override
+    public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+        return repair.is(ModItems.THAUMIUM_INGOT.get()) || super.isValidRepairItem(toRepair, repair);
     }
-    
-    public String[] getVariantNames() {
-        return new String[] { "normal" };
+
+    @Override
+    public UseAnim getUseAnimation(ItemStack stack) {
+        return UseAnim.BOW;
     }
-    
-    public int[] getVariantMeta() {
-        return new int[] { 0 };
-    }
-    
-    public ItemMeshDefinition getCustomMesh() {
-        return null;
-    }
-    
-    public ModelResourceLocation getCustomModelResourceLocation(String variant) {
-        return new ModelResourceLocation("thaumcraft:" + variant);
-    }
-    
-    public Set<String> getToolClasses(ItemStack stack) {
-        return ImmutableSet.of("axe");
-    }
-    
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return EnumRarity.RARE;
-    }
-    
-    public boolean getIsRepairable(ItemStack stack1, ItemStack stack2) {
-        return stack2.isItemEqual(new ItemStack(ItemsTC.ingots, 1, 0)) || super.getIsRepairable(stack1, stack2);
-    }
-    
-    public EnumAction getItemUseAction(ItemStack itemstack) {
-        return EnumAction.BOW;
-    }
-    
-    public int getMaxItemUseDuration(ItemStack p_77626_1_) {
+
+    @Override
+    public int getUseDuration(ItemStack stack) {
         return 72000;
     }
-    
-    public ActionResult<ItemStack> onItemRightClick(World worldIn, EntityPlayer playerIn, EnumHand hand) {
-        playerIn.setActiveHand(hand);
-        return (ActionResult<ItemStack>)new ActionResult(EnumActionResult.SUCCESS, playerIn.getHeldItem(hand));
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        player.startUsingItem(hand);
+        return InteractionResultHolder.success(player.getItemInHand(hand));
     }
-    
-    public void onUsingTick(ItemStack stack, EntityLivingBase player, int count) {
-        List<EntityItem> stuff = EntityUtils.getEntitiesInRange(player.world, player.posX, player.posY, player.posZ, player, EntityItem.class, 10.0);
-        if (stuff != null && stuff.size() > 0) {
-            for (EntityItem e : stuff) {
-                if (!e.isDead) {
-                    double d6 = e.posX - player.posX;
-                    double d7 = e.posY - player.posY + player.height / 2.0f;
-                    double d8 = e.posZ - player.posZ;
-                    double d9 = MathHelper.sqrt(d6 * d6 + d7 * d7 + d8 * d8);
-                    d6 /= d9;
-                    d7 /= d9;
-                    d8 /= d9;
-                    double d10 = 0.3;
-                    EntityItem entityItem = e;
-                    entityItem.motionX -= d6 * d10;
-                    EntityItem entityItem2 = e;
-                    entityItem2.motionY -= d7 * d10 - 0.1;
-                    EntityItem entityItem3 = e;
-                    entityItem3.motionZ -= d8 * d10;
-                    if (e.motionX > 0.25) {
-                        e.motionX = 0.25;
-                    }
-                    if (e.motionX < -0.25) {
-                        e.motionX = -0.25;
-                    }
-                    if (e.motionY > 0.25) {
-                        e.motionY = 0.25;
-                    }
-                    if (e.motionY < -0.25) {
-                        e.motionY = -0.25;
-                    }
-                    if (e.motionZ > 0.25) {
-                        e.motionZ = 0.25;
-                    }
-                    if (e.motionZ < -0.25) {
-                        e.motionZ = -0.25;
-                    }
-                    if (!player.world.isRemote) {
-                        continue;
-                    }
-                    FXDispatcher.INSTANCE.crucibleBubble((float)e.posX + (player.world.rand.nextFloat() - player.world.rand.nextFloat()) * 0.2f, (float)e.posY + e.height + (player.world.rand.nextFloat() - player.world.rand.nextFloat()) * 0.2f, (float)e.posZ + (player.world.rand.nextFloat() - player.world.rand.nextFloat()) * 0.2f, 0.33f, 0.33f, 1.0f);
+
+    @Override
+    public void onUseTick(Level level, LivingEntity player, ItemStack stack, int remainingUseDuration) {
+        // Find all nearby item entities within 10 blocks
+        AABB searchBox = player.getBoundingBox().inflate(10.0);
+        List<ItemEntity> items = level.getEntitiesOfClass(ItemEntity.class, searchBox);
+
+        for (ItemEntity itemEntity : items) {
+            if (!itemEntity.isRemoved()) {
+                // Calculate direction from item to player
+                double dx = itemEntity.getX() - player.getX();
+                double dy = itemEntity.getY() - (player.getY() + player.getBbHeight() / 2.0);
+                double dz = itemEntity.getZ() - player.getZ();
+                double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                
+                if (distance > 0.1) {
+                    // Normalize and apply attraction force
+                    dx /= distance;
+                    dy /= distance;
+                    dz /= distance;
+
+                    double pullStrength = 0.3;
+
+                    // Pull item towards player
+                    Vec3 motion = itemEntity.getDeltaMovement();
+                    double newX = motion.x - dx * pullStrength;
+                    double newY = motion.y - dy * pullStrength + 0.1;
+                    double newZ = motion.z - dz * pullStrength;
+
+                    // Clamp velocity
+                    newX = Mth.clamp(newX, -0.25, 0.25);
+                    newY = Mth.clamp(newY, -0.25, 0.25);
+                    newZ = Mth.clamp(newZ, -0.25, 0.25);
+
+                    itemEntity.setDeltaMovement(newX, newY, newZ);
                 }
             }
         }
+
+        // TODO: Add particle effects on client side
+        // TODO: Add sound effects periodically
     }
-    
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
-        if (tab == ConfigItems.TABTC || tab == CreativeTabs.SEARCH) {
-            ItemStack w1 = new ItemStack(this);
-            EnumInfusionEnchantment.addInfusionEnchantment(w1, EnumInfusionEnchantment.BURROWING, 1);
-            EnumInfusionEnchantment.addInfusionEnchantment(w1, EnumInfusionEnchantment.COLLECTOR, 1);
-            items.add(w1);
-        }
-        else {
-            super.getSubItems(tab, items);
-        }
+
+    @Override
+    @OnlyIn(Dist.CLIENT)
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("enchantment.thaumcraft.burrowing").withStyle(style -> style.withColor(0x4169E1)));
+        tooltip.add(Component.translatable("enchantment.thaumcraft.collector").withStyle(style -> style.withColor(0x4169E1)));
+        tooltip.add(Component.translatable("item.thaumcraft.elemental_axe.desc").withStyle(style -> style.withColor(0x808080)));
+        super.appendHoverText(stack, level, tooltip, flag);
     }
 }

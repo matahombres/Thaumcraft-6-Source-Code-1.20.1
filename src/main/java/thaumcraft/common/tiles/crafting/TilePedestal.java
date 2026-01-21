@@ -1,98 +1,104 @@
 package thaumcraft.common.tiles.crafting;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.blocks.devices.BlockInlay;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import thaumcraft.common.tiles.TileThaumcraftInventory;
+import thaumcraft.init.ModBlockEntities;
 
+/**
+ * Tile entity for pedestals used in infusion crafting.
+ * Holds a single item that can be used in infusion recipes.
+ */
+public class TilePedestal extends TileThaumcraftInventory {
 
-public class TilePedestal extends TileThaumcraftInventory
-{
-    public TilePedestal() {
-        super(1);
-        syncedSlots = new int[] { 0 };
+    public TilePedestal(BlockPos pos, BlockState state) {
+        super(ModBlockEntities.PEDESTAL.get(), pos, state, 1);
+        this.syncedSlots = new int[]{0};
     }
-    
+
     @Override
-    public int getInventoryStackLimit() {
+    public int getMaxStackSize() {
         return 1;
     }
-    
-    @SideOnly(Side.CLIENT)
-    public AxisAlignedBB getRenderBoundingBox() {
-        return new AxisAlignedBB(getPos().getX(), getPos().getY(), getPos().getZ(), getPos().getX() + 1, getPos().getY() + 2, getPos().getZ() + 1);
-    }
-    
+
     @Override
-    public boolean isItemValidForSlot(int par1, ItemStack stack2) {
-        return stack2.isEmpty() || getStackInSlot(par1).isEmpty();
+    public boolean canPlaceItem(int slot, ItemStack stack) {
+        return stack.isEmpty() || getItem(slot).isEmpty();
     }
-    
-    public void setInventorySlotContentsFromInfusion(int par1, ItemStack stack2) {
-        setInventorySlotContents(par1, stack2);
-        markDirty();
-        if (!world.isRemote) {
+
+    /**
+     * Set the item on the pedestal, used during infusion crafting.
+     */
+    public void setItemFromInfusion(ItemStack stack) {
+        setItem(0, stack);
+        setChanged();
+        if (level != null && !level.isClientSide) {
             syncTile(false);
         }
     }
-    
-    public BlockPos findInstabilityMitigator() {
-        if (getBlockMetadata() > 0) {
-            BlockPos pp = seekSourceRecursive(pos, getBlockMetadata());
-            if (pp != null) {
-                return pp;
-            }
-        }
-        return null;
+
+    /**
+     * Get the displayed item on the pedestal.
+     */
+    public ItemStack getDisplayedItem() {
+        return getItem(0);
     }
-    
-    private BlockPos seekSourceRecursive(BlockPos pos, int lastCharge) {
-        for (EnumFacing face : EnumFacing.HORIZONTALS) {
-            BlockPos pp = pos.offset(face);
-            int ss = BlockInlay.getSourceStrengthAt(world, pp);
-            if (ss >= 5) {
-                return pp;
+
+    /**
+     * Try to insert an item held by the player.
+     * Returns true if successful.
+     */
+    public boolean tryInsertItem(Player player, ItemStack heldItem) {
+        ItemStack current = getItem(0);
+        
+        if (current.isEmpty() && !heldItem.isEmpty()) {
+            // Place item on pedestal
+            ItemStack toPlace = heldItem.copy();
+            toPlace.setCount(1);
+            setItem(0, toPlace);
+            heldItem.shrink(1);
+            
+            if (level != null) {
+                level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS,
+                        0.2f, ((level.random.nextFloat() - level.random.nextFloat()) * 0.7f + 1.0f) * 1.6f);
             }
-            IBlockState bs = world.getBlockState(pp);
-            if (bs.getProperties().containsKey(BlockInlay.CHARGE)) {
-                int charge = (int)bs.getValue((IProperty)BlockInlay.CHARGE);
-                if (charge > lastCharge) {
-                    BlockPos ob = seekSourceRecursive(pp, charge);
-                    if (ob != null) {
-                        return ob;
-                    }
-                }
-            }
+            syncTile(false);
+            return true;
         }
-        return null;
+        return false;
     }
-    
-    public boolean receiveClientEvent(int i, int j) {
-        if (i == 11) {
-            if (world.isRemote) {
-                FXDispatcher.INSTANCE.drawBamf(pos.up(), 0.75f, 0.0f, 0.5f, true, true, null);
+
+    /**
+     * Try to take the item from the pedestal.
+     * Returns the item if successful, empty stack otherwise.
+     */
+    public ItemStack tryTakeItem(Player player) {
+        ItemStack current = getItem(0);
+        
+        if (!current.isEmpty()) {
+            ItemStack taken = current.copy();
+            setItem(0, ItemStack.EMPTY);
+            
+            if (level != null) {
+                level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS,
+                        0.2f, ((level.random.nextFloat() - level.random.nextFloat()) * 0.7f + 1.0f) * 1.2f);
             }
-            return true;
+            syncTile(false);
+            return taken;
         }
-        if (i == 12) {
-            if (world.isRemote) {
-                FXDispatcher.INSTANCE.drawBamf(pos.up(), true, true, null);
-            }
-            return true;
-        }
-        if (i == 5) {
-            if (world.isRemote) {
-                FXDispatcher.INSTANCE.drawPedestalShield(pos);
-            }
-            return true;
-        }
-        return super.receiveClientEvent(i, j);
+        return ItemStack.EMPTY;
+    }
+
+    // ==================== Rendering ====================
+
+    @Override
+    public AABB getRenderBoundingBox() {
+        return new AABB(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(),
+                worldPosition.getX() + 1, worldPosition.getY() + 2, worldPosition.getZ() + 1);
     }
 }

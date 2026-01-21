@@ -1,99 +1,153 @@
 package thaumcraft.common.items.casters.foci;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.network.NetworkRegistry;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.casters.FocusEffect;
 import thaumcraft.api.casters.NodeSetting;
 import thaumcraft.api.casters.Trajectory;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.lib.SoundsTC;
-import thaumcraft.common.lib.network.PacketHandler;
-import thaumcraft.common.lib.network.fx.PacketFXFocusPartImpact;
 
+import javax.annotation.Nullable;
 
-public class FocusEffectAir extends FocusEffect
-{
+/**
+ * Air Focus Effect - Deals damage and applies knockback to targets.
+ */
+public class FocusEffectAir extends FocusEffect {
+
     @Override
     public String getResearch() {
         return "FOCUSELEMENTAL";
     }
-    
+
     @Override
     public String getKey() {
         return "thaumcraft.AIR";
     }
-    
+
     @Override
     public Aspect getAspect() {
         return Aspect.AIR;
     }
-    
+
     @Override
     public int getComplexity() {
         return getSettingValue("power") * 2;
     }
-    
+
     @Override
     public float getDamageForDisplay(float finalPower) {
         return (1 + getSettingValue("power")) * finalPower;
     }
-    
+
     @Override
-    public boolean execute(RayTraceResult target, Trajectory trajectory, float finalPower, int num) {
-        PacketHandler.INSTANCE.sendToAllAround(new PacketFXFocusPartImpact(target.hitVec.x, target.hitVec.y, target.hitVec.z, new String[] { getKey() }), new NetworkRegistry.TargetPoint(getPackage().world.provider.getDimension(), target.hitVec.x, target.hitVec.y, target.hitVec.z, 64.0));
-        getPackage().world.playSound(null, target.hitVec.x, target.hitVec.y, target.hitVec.z, SoundEvents.ENTITY_ENDERDRAGON_FLAP, SoundCategory.PLAYERS, 0.5f, 0.66f);
-        if (target.typeOfHit == RayTraceResult.Type.ENTITY && target.entityHit != null) {
+    public boolean execute(HitResult target, @Nullable Trajectory trajectory, float finalPower, int num) {
+        if (getPackage() == null || getPackage().world == null) {
+            return false;
+        }
+        
+        Level world = getPackage().world;
+        Vec3 hitPos = target.getLocation();
+        
+        // TODO: Send particle effect packet
+        // PacketHandler.sendToAllAround(new PacketFXFocusPartImpact(...))
+        
+        // Play wind sound at impact
+        world.playSound(null, hitPos.x, hitPos.y, hitPos.z, 
+            SoundEvents.ENDER_DRAGON_FLAP, SoundSource.PLAYERS, 0.5f, 0.66f);
+        
+        if (target.getType() == HitResult.Type.ENTITY && target instanceof EntityHitResult entityHit) {
+            Entity hitEntity = entityHit.getEntity();
+            
+            if (hitEntity == null) {
+                return false;
+            }
+            
             float damage = getDamageForDisplay(finalPower);
-            target.entityHit.attackEntityFrom(DamageSource.causeThrownDamage((target.entityHit != null) ? target.entityHit : getPackage().getCaster(), getPackage().getCaster()), damage);
-            if (target.entityHit instanceof EntityLivingBase) {
+            
+            // Create damage source
+            Entity caster = getCaster();
+            DamageSource damageSource;
+            if (caster != null) {
+                damageSource = world.damageSources().thrown(hitEntity, caster);
+            } else {
+                damageSource = world.damageSources().magic();
+            }
+            
+            hitEntity.hurt(damageSource, damage);
+            
+            // Apply knockback to living entities
+            if (hitEntity instanceof LivingEntity living) {
+                float knockbackStrength = damage * 0.25f;
+                
                 if (trajectory != null) {
-                    ((EntityLivingBase)target.entityHit).knockBack(getPackage().getCaster(), damage * 0.25f, -trajectory.direction.x, -trajectory.direction.z);
-                }
-                else {
-                    ((EntityLivingBase)target.entityHit).knockBack(getPackage().getCaster(), damage * 0.25f, -MathHelper.sin(target.entityHit.rotationYaw * 0.017453292f), MathHelper.cos(target.entityHit.rotationYaw * 0.017453292f));
+                    // Knockback in the direction the spell was traveling
+                    living.knockback(knockbackStrength, 
+                        -trajectory.direction.x, 
+                        -trajectory.direction.z);
+                } else {
+                    // Fallback: knockback based on entity rotation
+                    float yawRad = hitEntity.getYRot() * ((float) Math.PI / 180F);
+                    living.knockback(knockbackStrength, 
+                        -Mth.sin(yawRad), 
+                        Mth.cos(yawRad));
                 }
             }
+            
             return true;
         }
+        
         return false;
     }
-    
+
     @Override
     public NodeSetting[] createSettings() {
-        return new NodeSetting[] { new NodeSetting("power", "focus.common.power", new NodeSetting.NodeSettingIntRange(1, 5)) };
+        return new NodeSetting[] {
+            new NodeSetting("power", "focus.common.power", 
+                new NodeSetting.NodeSettingIntRange(1, 5))
+        };
     }
-    
-    @SideOnly(Side.CLIENT)
+
     @Override
-    public void renderParticleFX(World world, double posX, double posY, double posZ, double motionX, double motionY, double motionZ) {
-        FXDispatcher.GenPart pp = new FXDispatcher.GenPart();
-        pp.grav = -0.1f;
-        pp.age = 20 + world.rand.nextInt(10);
-        pp.alpha = new float[] { 0.5f, 0.0f };
-        pp.grid = 32;
-        pp.partStart = 337;
-        pp.partInc = 1;
-        pp.partNum = 5;
-        pp.slowDown = 0.75;
-        pp.rot = (float)world.rand.nextGaussian() / 2.0f;
-        float s = (float)(2.0 + world.rand.nextGaussian() * 0.5);
-        pp.scale = new float[] { s, s * 2.0f };
-        FXDispatcher.INSTANCE.drawGenericParticles(posX, posY, posZ, motionX, motionY, motionZ, pp);
+    public void renderParticleFX(Level level, double posX, double posY, double posZ,
+                                  double motionX, double motionY, double motionZ) {
+        // TODO: Implement particle effects
+        // Original used FXDispatcher.GenPart with wind/air particles
+        // For now, this is a placeholder - will need client-side particle system
     }
-    
+
     @Override
     public void onCast(Entity caster) {
-        caster.world.playSound(null, caster.getPosition().up(), SoundsTC.wind, SoundCategory.PLAYERS, 0.125f, 2.0f);
+        if (caster != null && caster.level() != null) {
+            // TODO: Use custom Thaumcraft wind sound (SoundsTC.wind)
+            caster.level().playSound(null, caster.blockPosition().above(), 
+                SoundEvents.ENDER_DRAGON_FLAP, SoundSource.PLAYERS, 
+                0.125f, 2.0f);
+        }
+    }
+    
+    /**
+     * Gets the caster entity from the focus package.
+     */
+    private Entity getCaster() {
+        if (getPackage() == null || getPackage().getCasterUUID() == null) {
+            return null;
+        }
+        if (getPackage().world != null) {
+            for (Player player : getPackage().world.players()) {
+                if (player.getUUID().equals(getPackage().getCasterUUID())) {
+                    return player;
+                }
+            }
+        }
+        return null;
     }
 }

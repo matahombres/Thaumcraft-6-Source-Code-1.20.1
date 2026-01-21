@@ -1,221 +1,260 @@
 package thaumcraft.common.entities.projectile;
-import io.netty.buffer.ByteBuf;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.UUID;
-import javax.annotation.Nullable;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.MoverType;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
-import net.minecraftforge.fml.common.registry.IEntityAdditionalSpawnData;
-import thaumcraft.api.casters.FocusEffect;
-import thaumcraft.api.casters.FocusEngine;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.casters.FocusPackage;
 import thaumcraft.api.casters.Trajectory;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.lib.events.ServerEvents;
-import thaumcraft.common.lib.utils.EntityUtils;
-import thaumcraft.common.lib.utils.Utils;
+import thaumcraft.init.ModEntities;
 
+import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
-public class EntityFocusCloud extends Entity implements IEntityAdditionalSpawnData
-{
-    FocusPackage focusPackage;
-    private EntityLivingBase owner;
-    private UUID ownerUniqueId;
-    private int duration;
-    private static DataParameter<Float> RADIUS;
-    static HashMap<Long, Long> cooldownMap;
-    FocusEffect[] effects;
+/**
+ * Focus Cloud Entity - An area effect cloud that applies focus effects to entities within.
+ * Periodically hits entities and blocks within its radius.
+ */
+public class EntityFocusCloud extends Entity {
     
-    public EntityFocusCloud(World par1World) {
-        super(par1World);
-        effects = null;
+    private static final EntityDataAccessor<Float> DATA_RADIUS = 
+            SynchedEntityData.defineId(EntityFocusCloud.class, EntityDataSerializers.FLOAT);
+    
+    /** Cooldown map to prevent hitting the same target too often */
+    private static final Map<Long, Long> COOLDOWN_MAP = new HashMap<>();
+    
+    private FocusPackage focusPackage;
+    private LivingEntity owner;
+    private UUID ownerUUID;
+    private int duration; // Duration in seconds
+    
+    public EntityFocusCloud(EntityType<?> type, Level level) {
+        super(type, level);
+        this.noPhysics = true;
     }
     
-    public EntityFocusCloud(FocusPackage pack, Trajectory trajectory, float rad, int dur) {
-        super(pack.world);
-        effects = null;
-        focusPackage = pack;
-        setPosition(trajectory.source.x, trajectory.source.y, trajectory.source.z);
-        setSize(0.15f, 0.15f);
-        setOwner(pack.getCaster());
-        setRadius(rad);
-        setDuration(dur);
+    /**
+     * Create a focus cloud with full parameters.
+     */
+    public EntityFocusCloud(FocusPackage pack, Trajectory trajectory, float radius, int duration) {
+        super(ModEntities.FOCUS_CLOUD.get(), pack.world);
+        
+        this.focusPackage = pack;
+        this.duration = duration;
+        this.noPhysics = true;
+        
+        setPos(trajectory.source.x, trajectory.source.y, trajectory.source.z);
+        setRadius(radius);
+        
+        // Find owner from package
+        if (pack.getCasterUUID() != null && pack.world != null) {
+            for (var player : pack.world.players()) {
+                if (player.getUUID().equals(pack.getCasterUUID())) {
+                    setOwner(player);
+                    break;
+                }
+            }
+        }
+    }
+    
+    @Override
+    protected void defineSynchedData() {
+        this.entityData.define(DATA_RADIUS, 0.5f);
+    }
+    
+    public void setRadius(float radius) {
+        if (!level().isClientSide) {
+            this.entityData.set(DATA_RADIUS, radius);
+        }
+        // Update bounding box
+        double x = getX();
+        double y = getY();
+        double z = getZ();
+        setBoundingBox(new AABB(x - radius, y - 0.25, z - radius, x + radius, y + 0.25, z + radius));
+    }
+    
+    public float getRadius() {
+        return this.entityData.get(DATA_RADIUS);
+    }
+    
+    public void setDuration(int duration) {
+        this.duration = duration;
     }
     
     public int getDuration() {
         return duration;
     }
     
-    public void setDuration(int durationIn) {
-        duration = durationIn;
-    }
-    
-    public void setOwner(@Nullable EntityLivingBase ownerIn) {
-        owner = ownerIn;
-        ownerUniqueId = ((ownerIn == null) ? null : ownerIn.getUniqueID());
+    public void setOwner(@Nullable LivingEntity owner) {
+        this.owner = owner;
+        this.ownerUUID = owner != null ? owner.getUUID() : null;
     }
     
     @Nullable
-    public EntityLivingBase getOwner() {
-        if (owner == null && ownerUniqueId != null && world instanceof WorldServer) {
-            Entity entity = ((WorldServer) world).getEntityFromUuid(ownerUniqueId);
-            if (entity instanceof EntityLivingBase) {
-                owner = (EntityLivingBase)entity;
+    public LivingEntity getOwner() {
+        if (owner == null && ownerUUID != null && level() instanceof ServerLevel serverLevel) {
+            Entity entity = serverLevel.getEntity(ownerUUID);
+            if (entity instanceof LivingEntity living) {
+                owner = living;
             }
         }
         return owner;
     }
     
-    public void entityInit() {
-        getDataManager().register(EntityFocusCloud.RADIUS, 0.5f);
-    }
-    
-    public void setRadius(float radiusIn) {
-        double d0 = posX;
-        double d2 = posY;
-        double d3 = posZ;
-        setSize(radiusIn * 2.0f, 0.5f);
-        setPosition(d0, d2, d3);
-        if (!world.isRemote) {
-            getDataManager().set(EntityFocusCloud.RADIUS, radiusIn);
+    @Override
+    public void tick() {
+        super.tick();
+        
+        float radius = getRadius();
+        int durationTicks = duration * 20;
+        
+        // Expire after duration
+        if (!level().isClientSide && (tickCount > durationTicks || getOwner() == null)) {
+            discard();
+            return;
         }
-    }
-    
-    public float getRadius() {
-        return (float) getDataManager().get((DataParameter)EntityFocusCloud.RADIUS);
-    }
-    
-    public void writeSpawnData(ByteBuf data) {
-        Utils.writeNBTTagCompoundToBuffer(data, focusPackage.serialize());
-    }
-    
-    public void readSpawnData(ByteBuf data) {
-        try {
-            (focusPackage = new FocusPackage()).deserialize(Utils.readNBTTagCompoundFromBuffer(data));
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-    
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        nbt.setInteger("Age", ticksExisted);
-        nbt.setInteger("Duration", duration);
-        nbt.setFloat("Radius", getRadius());
-        if (ownerUniqueId != null) {
-            nbt.setUniqueId("OwnerUUID", ownerUniqueId);
-        }
-        nbt.setTag("pack", focusPackage.serialize());
-    }
-    
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        ticksExisted = nbt.getInteger("Age");
-        duration = nbt.getInteger("Duration");
-        setRadius(nbt.getFloat("Radius"));
-        ownerUniqueId = nbt.getUniqueId("OwnerUUID");
-        try {
-            (focusPackage = new FocusPackage()).deserialize(nbt.getCompoundTag("pack"));
-        }
-        catch (Exception ex) {}
-    }
-    
-    public void onUpdate() {
-        super.onUpdate();
-        float rad = getRadius();
-        int dur = getDuration();
-        if (!world.isRemote && (ticksExisted > dur * 20 || getOwner() == null)) {
-            setDead();
-        }
-        if (isEntityAlive()) {
-            if (world.isRemote) {
-                if (effects == null) {
-                    effects = focusPackage.getFocusEffects();
-                }
-                if (effects != null && effects.length > 0) {
-                    for (int a = 0; a < rad; ++a) {
-                        FocusEffect eff = effects[rand.nextInt(effects.length)];
-                        FXDispatcher.INSTANCE.drawFocusCloudParticle(posX + world.rand.nextGaussian() * rad / 2.0 * 0.85, posY + world.rand.nextGaussian() * rad / 2.0 * 0.85, posZ + world.rand.nextGaussian() * rad / 2.0 * 0.85, world.rand.nextGaussian() * 0.01, world.rand.nextGaussian() * 0.01, world.rand.nextGaussian() * 0.01, FocusEngine.getElementColor(eff.getKey()));
-                        eff.renderParticleFX(world, posX + world.rand.nextGaussian() * rad / 2.0, posY + world.rand.nextGaussian() * rad / 2.0, posZ + world.rand.nextGaussian() * rad / 2.0, world.rand.nextGaussian() * 0.009999999776482582, world.rand.nextGaussian() * 0.009999999776482582, world.rand.nextGaussian() * 0.009999999776482582);
-                    }
-                }
-            }
-            else if (ticksExisted % 5 == 0) {
-                long t = System.currentTimeMillis();
-                ArrayList<Trajectory> trajectories = new ArrayList<Trajectory>();
-                ArrayList<RayTraceResult> targets = new ArrayList<RayTraceResult>();
-                List<Entity> list = EntityUtils.getEntitiesInRange(world, posX, posY, posZ, this, Entity.class, rad);
-                for (Entity e : list) {
-                    if (e.isDead) {
-                        continue;
-                    }
-                    if (e instanceof EntityFocusCloud) {
-                        Vec3d v = e.getPositionVector().subtract(getPositionVector());
-                        e.move(MoverType.SELF, v.x / 50.0, v.y / 50.0, v.z / 50.0);
-                        ((EntityFocusCloud)e).pushOutOfBlocks(posX, posY, posZ);
-                    }
-                    if (!(e instanceof EntityLivingBase)) {
-                        continue;
-                    }
-                    if (EntityFocusCloud.cooldownMap.containsKey(e.getEntityId()) && EntityFocusCloud.cooldownMap.get(e.getEntityId()) > t) {
-                        continue;
-                    }
-                    EntityFocusCloud.cooldownMap.put((long)e.getEntityId(), t + 2000L);
-                    RayTraceResult ray = new RayTraceResult(e);
-                    ray.hitVec = e.getPositionVector().addVector(0.0, e.height / 2.0f, 0.0);
-                    Trajectory tra = new Trajectory(getPositionVector(), getPositionVector().subtractReverse(ray.hitVec));
-                    targets.add(ray);
-                    trajectories.add(tra);
-                }
-                for (int a2 = 0; a2 < rad; ++a2) {
-                    Vec3d dV = new Vec3d(rand.nextGaussian(), rand.nextGaussian(), rand.nextGaussian());
-                    dV = dV.normalize();
-                    RayTraceResult br = world.rayTraceBlocks(getPositionVector(), getPositionVector().add(dV.scale(rad)));
-                    long bl = 0L;
-                    if (br != null) {
-                        bl = br.getBlockPos().toLong();
-                        if (EntityFocusCloud.cooldownMap.containsKey(bl)) {
-                            if (EntityFocusCloud.cooldownMap.get(bl) <= t) {
-                                EntityFocusCloud.cooldownMap.remove(bl);
-                            }
-                            else {
-                                br = null;
-                            }
-                        }
-                    }
-                    if (br != null) {
-                        targets.add(br);
-                        Trajectory tra2 = new Trajectory(getPositionVector(), dV);
-                        trajectories.add(tra2);
-                        EntityFocusCloud.cooldownMap.put(bl, t + 2000L);
-                    }
-                }
-                if (!targets.isEmpty()) {
-                    ServerEvents.addRunnableServer(getEntityWorld(), new Runnable() {
-                        @Override
-                        public void run() {
-                            FocusEngine.runFocusPackage(focusPackage.copy(getOwner()), trajectories.toArray(new Trajectory[0]), targets.toArray(new RayTraceResult[0]));
-                        }
-                    }, 0);
+        
+        if (isAlive()) {
+            if (level().isClientSide) {
+                // Client-side: render particles
+                renderCloudParticles(radius);
+            } else {
+                // Server-side: apply effects every 5 ticks
+                if (tickCount % 5 == 0) {
+                    applyEffects(radius);
                 }
             }
         }
     }
     
-    static {
-        RADIUS = EntityDataManager.createKey(EntityFocusCloud.class, DataSerializers.FLOAT);
-        EntityFocusCloud.cooldownMap = new HashMap<Long, Long>();
+    /**
+     * Render particles on the client.
+     */
+    private void renderCloudParticles(float radius) {
+        // TODO: Implement particle rendering
+        // Original used FXDispatcher.drawFocusCloudParticle
+        // and called effect.renderParticleFX
+    }
+    
+    /**
+     * Apply focus effects to entities and blocks within radius.
+     */
+    private void applyEffects(float radius) {
+        if (focusPackage == null) return;
+        
+        long currentTime = System.currentTimeMillis();
+        
+        // Find entities in range
+        AABB searchBox = getBoundingBox().inflate(radius);
+        List<Entity> entities = level().getEntities(this, searchBox, e -> {
+            if (e.isRemoved()) return false;
+            if (e instanceof EntityFocusCloud) return false;
+            if (!(e instanceof LivingEntity)) return false;
+            
+            // Check if within actual radius (sphere, not box)
+            double distSq = e.distanceToSqr(this);
+            return distSq <= radius * radius;
+        });
+        
+        for (Entity entity : entities) {
+            // Check cooldown
+            long entityKey = entity.getId();
+            if (COOLDOWN_MAP.containsKey(entityKey) && COOLDOWN_MAP.get(entityKey) > currentTime) {
+                continue;
+            }
+            
+            // Apply cooldown (2 seconds)
+            COOLDOWN_MAP.put(entityKey, currentTime + 2000L);
+            
+            // Create trajectory and target for this entity
+            Vec3 entityPos = entity.getBoundingBox().getCenter();
+            Vec3 direction = entityPos.subtract(position()).normalize();
+            
+            // TODO: Execute focus package
+            // Trajectory trajectory = new Trajectory(position(), direction);
+            // EntityHitResult hit = new EntityHitResult(entity, entityPos);
+            // FocusEngine.runFocusPackage(focusPackage.copy(getOwner()), 
+            //     new Trajectory[] { trajectory }, new HitResult[] { hit });
+        }
+        
+        // Also randomly hit blocks in radius
+        for (int i = 0; i < (int) radius; i++) {
+            Vec3 randomDir = new Vec3(
+                    random.nextGaussian(),
+                    random.nextGaussian(),
+                    random.nextGaussian()
+            ).normalize();
+            
+            var blockHit = level().clip(new net.minecraft.world.level.ClipContext(
+                    position(),
+                    position().add(randomDir.scale(radius)),
+                    net.minecraft.world.level.ClipContext.Block.OUTLINE,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE,
+                    this));
+            
+            if (blockHit != null && blockHit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                long blockKey = blockHit.getBlockPos().asLong();
+                
+                if (!COOLDOWN_MAP.containsKey(blockKey) || COOLDOWN_MAP.get(blockKey) <= currentTime) {
+                    COOLDOWN_MAP.put(blockKey, currentTime + 2000L);
+                    
+                    // TODO: Execute focus package for block
+                    // Trajectory trajectory = new Trajectory(position(), randomDir);
+                    // FocusEngine.runFocusPackage(focusPackage.copy(getOwner()),
+                    //     new Trajectory[] { trajectory }, new HitResult[] { blockHit });
+                }
+            }
+        }
+        
+        // Clean up old cooldown entries occasionally
+        if (tickCount % 100 == 0) {
+            COOLDOWN_MAP.entrySet().removeIf(entry -> entry.getValue() <= currentTime);
+        }
+    }
+    
+    @Override
+    protected void addAdditionalSaveData(CompoundTag tag) {
+        tag.putInt("Age", tickCount);
+        tag.putInt("Duration", duration);
+        tag.putFloat("Radius", getRadius());
+        if (ownerUUID != null) {
+            tag.putUUID("OwnerUUID", ownerUUID);
+        }
+        if (focusPackage != null) {
+            tag.put("pack", focusPackage.serialize());
+        }
+    }
+    
+    @Override
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        tickCount = tag.getInt("Age");
+        duration = tag.getInt("Duration");
+        setRadius(tag.getFloat("Radius"));
+        if (tag.hasUUID("OwnerUUID")) {
+            ownerUUID = tag.getUUID("OwnerUUID");
+        }
+        if (tag.contains("pack")) {
+            focusPackage = new FocusPackage();
+            focusPackage.deserialize(tag.getCompound("pack"));
+        }
+    }
+    
+    public FocusPackage getFocusPackage() {
+        return focusPackage;
+    }
+    
+    public void setFocusPackage(FocusPackage pack) {
+        this.focusPackage = pack;
     }
 }

@@ -1,225 +1,188 @@
 package thaumcraft.api.golems.tasks;
-import java.util.UUID;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.math.BlockPos;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
 import thaumcraft.api.golems.GolemHelper;
 import thaumcraft.api.golems.IGolemAPI;
 import thaumcraft.api.golems.ProvisionRequest;
 import thaumcraft.api.golems.seals.ISealEntity;
 import thaumcraft.api.golems.seals.SealPos;
 
+import java.util.UUID;
 
-
+/**
+ * Represents a task for a golem to perform.
+ * Tasks can target either a block position or an entity.
+ */
 public class Task {
 
-	private UUID golemUUID;
-	private int id;	
-	private byte type;
-	private SealPos sealPos;	
-	private BlockPos pos;	
-	private Entity entity; 
-	private boolean reserved;
-	private boolean suspended;
-	private boolean completed;
-	private int data;
-	private ProvisionRequest linkedProvision;
-	/**
-	 * Lifespan in seconds. Default 300 seconds
-	 */
-	private short lifespan;
-	private byte priority=0;
-	
-	private Task() {}
+    public static final byte TYPE_BLOCK = 0;
+    public static final byte TYPE_ENTITY = 1;
 
-	public Task(SealPos sealPos, BlockPos pos) {
-		this.sealPos = sealPos;
-		this.pos = pos;
-		if (sealPos==null) {
-			id = (System.currentTimeMillis()+"/BNPOS/"+pos.toString()).hashCode();
-		} else
-			id = (System.currentTimeMillis()+"/B/"+sealPos.face.toString()+"/"+sealPos.pos.toString()+"/"+pos.toString()).hashCode();
-		type = 0;
-		lifespan = 300;
-	}
-	
-	public Task(SealPos sealPos, Entity entity) {
-		this.sealPos = sealPos;
-		this.entity = entity;
-		if (sealPos==null) {
-			id = (System.currentTimeMillis()+"/ENPOS/"+entity.getEntityId()).hashCode();
-		} else
-			id = (System.currentTimeMillis()+"/E/"+sealPos.face.toString()+"/"+sealPos.pos.toString()+"/"+entity.getEntityId()).hashCode();
-		type = 1;
-		lifespan = 300;
-	}	
+    private UUID golemUUID;
+    private int id;
+    private byte type;
+    private SealPos sealPos;
+    private BlockPos pos;
+    private Entity entity;
+    private boolean reserved;
+    private boolean suspended;
+    private boolean completed;
+    private int data;
+    private ProvisionRequest linkedProvision;
+    
+    /**
+     * Lifespan in seconds. Default 300 seconds (5 minutes)
+     */
+    private short lifespan;
+    private byte priority = 0;
 
-	public byte getPriority() {
-		return priority;
-	}
+    private Task() {}
 
-	public void setPriority(byte priority) {
-		this.priority = priority;
-	}
-
-	public boolean isCompleted() {
-		return completed;
-	}
-
-	public void setCompletion(boolean fulfilled) {
-		completed = fulfilled;
-		lifespan += 1;
-	}
-
-	public UUID getGolemUUID() {
-		return golemUUID;
-	}
-
-	public void setGolemUUID(UUID golemUUID) {
-		this.golemUUID = golemUUID;
-	}
-
-	public BlockPos getPos() {
-		return type==1?entity.getPosition():pos;
-	}	
-	
-	public byte getType() {
-		return type;
-	}
-
-	public Entity getEntity() {
-		return entity;
-	}
-
-	public int getId() {
-		return id;
-	}
-	
-	public boolean isReserved() {
-		return reserved;
-	}
-
-	public void setReserved(boolean res) {
-		reserved = res;
-		lifespan += 120;
-	}
-
-	public boolean isSuspended() {
-		return suspended;
-	}
-
-	public void setSuspended(boolean suspended) {
-		setLinkedProvision(null);
-		this.suspended = suspended;
-	}
-
-	public SealPos getSealPos() {
-		return sealPos;
-	}
-
-	public boolean equals(Object o)
-    {
-        if (!(o instanceof Task))
-        {
-            return false;
+    /**
+     * Create a task targeting a block position
+     */
+    public Task(SealPos sealPos, BlockPos pos) {
+        this.sealPos = sealPos;
+        this.pos = pos;
+        if (sealPos == null) {
+            id = (System.currentTimeMillis() + "/BNPOS/" + pos.toString()).hashCode();
+        } else {
+            id = (System.currentTimeMillis() + "/B/" + sealPos.face.toString() + "/" + 
+                  sealPos.pos.toString() + "/" + pos.toString()).hashCode();
         }
-        else
-        {
-        	Task t = (Task)o;
-            return t.id == id;
-        }
+        type = TYPE_BLOCK;
+        lifespan = 300;
     }
 
-	public long getLifespan() {
-		return lifespan;
-	}
-	
-	public void setLifespan(short ls) {
-		lifespan = ls;
-	}
+    /**
+     * Create a task targeting an entity
+     */
+    public Task(SealPos sealPos, Entity entity) {
+        this.sealPos = sealPos;
+        this.entity = entity;
+        if (sealPos == null) {
+            id = (System.currentTimeMillis() + "/ENPOS/" + entity.getId()).hashCode();
+        } else {
+            id = (System.currentTimeMillis() + "/E/" + sealPos.face.toString() + "/" + 
+                  sealPos.pos.toString() + "/" + entity.getId()).hashCode();
+        }
+        type = TYPE_ENTITY;
+        lifespan = 300;
+    }
 
-	public boolean canGolemPerformTask(IGolemAPI golem) {
-		ISealEntity se = GolemHelper.getSealEntity(golem.getGolemWorld().provider.getDimension(), sealPos);
-		if (se!=null) {
-			if (golem.getGolemColor()>0 && se.getColor()>0 && golem.getGolemColor() != se.getColor()) return false;
-			return se.getSeal().canGolemPerformTask(golem,this);
-		} else {
-			return true;
-		}
-	}
+    public byte getPriority() {
+        return priority;
+    }
 
-	public int getData() {
-		return data;
-	}
+    public void setPriority(byte priority) {
+        this.priority = priority;
+    }
 
-	public void setData(int data) {
-		this.data = data;
-	}
+    public boolean isCompleted() {
+        return completed;
+    }
 
-	public ProvisionRequest getLinkedProvision() {
-		return linkedProvision;
-	}
+    public void setCompletion(boolean fulfilled) {
+        completed = fulfilled;
+        lifespan += 1;
+    }
 
-	public void setLinkedProvision(ProvisionRequest linkedProvision) {
-		this.linkedProvision = linkedProvision;
-	}
+    public UUID getGolemUUID() {
+        return golemUUID;
+    }
 
-	
-	
-	
-//	public static Task readNBT(NBTTagCompound nbt)
-//  {		
-//		Task task = new Task();
-//		task.id = nbt.getInteger("id");
-//		task.type = nbt.getByte("type");		
-//		if (nbt.hasKey("pos", 4)) task.pos = BlockPos.fromLong(nbt.getLong("pos"));	
-//		
-//		if (nbt.hasKey("GUUIDMost", 4) && nbt.hasKey("GUUIDLeast", 4))
-//			task.golemUUID = new UUID(nbt.getLong("GUUIDMost"), nbt.getLong("GUUIDLeast"));
-//		
-//		if (nbt.hasKey("EUUIDMost", 4) && nbt.hasKey("EUUIDLeast", 4))
-//			task.entityUUID = new UUID(nbt.getLong("EUUIDMost"), nbt.getLong("EUUIDLeast"));
-//		
-//		if (task.pos==null && task.entityUUID==null) return null;
-//		
-//		task.reserved = nbt.getBoolean("reserved");
-//		task.waitOnSuspension = nbt.getBoolean("wos");
-//		task.suspended = false;
-//		task.completed = nbt.getBoolean("completed");
-//		task.expireTime = System.currentTimeMillis() + 300000;		
-//		if (nbt.hasKey("sealpos", 10)) {
-//			NBTTagCompound sealpos = nbt.getCompoundTag("sealpos");
-//			SealPos sp = new SealPos(BlockPos.fromLong(nbt.getLong("pos")), EnumFacing.VALUES[nbt.getByte("face")]);
-//			TaskHandler.sealTaskCrossRef.put(task.id, sp);
-//		}
-//		return task;
-//  }
-//	
-//	public static NBTTagCompound writeNBT(Task task)
-//  {
-//		NBTTagCompound nbt = new NBTTagCompound();
-//		nbt.setInteger("id", task.id);
-//		nbt.setByte("type", task.type);
-//		if (task.pos!=null) nbt.setLong("pos", task.pos.toLong());
-//		if (task.entity!=null) {
-//			nbt.setLong("EUUIDMost", task.entity.getUniqueID().getMostSignificantBits());
-//          nbt.setLong("EUUIDLeast", task.entity.getUniqueID().getLeastSignificantBits());
-//		}
-//		if (task.golemUUID!=null) {
-//			nbt.setLong("GUUIDMost", task.golemUUID.getMostSignificantBits());
-//          nbt.setLong("GUUIDLeast", task.golemUUID.getLeastSignificantBits());
-//		}
-//		nbt.setBoolean("reserved", task.reserved);
-//		nbt.setBoolean("wos", task.waitOnSuspension);
-//		nbt.setBoolean("completed", task.completed);
-//		
-//		SealPos sp = TaskHandler.sealTaskCrossRef.get(task.getId());
-//		if (sp!=null) {
-//			NBTTagCompound sealpos = new NBTTagCompound();
-//			sealpos.setLong("pos", sp.pos.toLong());
-//			sealpos.setByte("face", (byte) sp.face.ordinal());
-//			nbt.setTag("sealpos", sealpos);
-//		}
-//		return nbt;
-//  }
+    public void setGolemUUID(UUID golemUUID) {
+        this.golemUUID = golemUUID;
+    }
 
+    public BlockPos getPos() {
+        return type == TYPE_ENTITY ? entity.blockPosition() : pos;
+    }
+
+    public byte getType() {
+        return type;
+    }
+
+    public Entity getEntity() {
+        return entity;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public boolean isReserved() {
+        return reserved;
+    }
+
+    public void setReserved(boolean reserved) {
+        this.reserved = reserved;
+        lifespan += 120;
+    }
+
+    public boolean isSuspended() {
+        return suspended;
+    }
+
+    public void setSuspended(boolean suspended) {
+        setLinkedProvision(null);
+        this.suspended = suspended;
+    }
+
+    public SealPos getSealPos() {
+        return sealPos;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Task t)) {
+            return false;
+        }
+        return t.id == id;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
+    }
+
+    public long getLifespan() {
+        return lifespan;
+    }
+
+    public void setLifespan(short lifespan) {
+        this.lifespan = lifespan;
+    }
+
+    /**
+     * Check if a golem can perform this task
+     */
+    public boolean canGolemPerformTask(IGolemAPI golem) {
+        ISealEntity se = GolemHelper.getSealEntity(golem.getGolemWorld().dimension(), sealPos);
+        if (se != null) {
+            // Color matching
+            if (golem.getGolemColor() > 0 && se.getColor() > 0 && golem.getGolemColor() != se.getColor()) {
+                return false;
+            }
+            return se.getSeal().canGolemPerformTask(golem, this);
+        }
+        return true;
+    }
+
+    public int getData() {
+        return data;
+    }
+
+    public void setData(int data) {
+        this.data = data;
+    }
+
+    public ProvisionRequest getLinkedProvision() {
+        return linkedProvision;
+    }
+
+    public void setLinkedProvision(ProvisionRequest linkedProvision) {
+        this.linkedProvision = linkedProvision;
+    }
 }

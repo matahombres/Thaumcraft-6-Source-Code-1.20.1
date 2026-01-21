@@ -1,74 +1,77 @@
 package thaumcraft.common.items.baubles;
-import baubles.api.BaubleType;
-import baubles.api.BaublesApi;
-import baubles.api.IBauble;
-import baubles.api.cap.IBaublesItemHandler;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
+
+import javax.annotation.Nullable;
 import java.util.List;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.item.EnumRarity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import thaumcraft.api.items.RechargeHelper;
-import thaumcraft.common.items.ItemTCBase;
 
-
-public class ItemAmuletVis extends ItemTCBase implements IBauble
-{
-    public ItemAmuletVis() {
-        super("amulet_vis", "found", "crafted");
-        maxStackSize = 1;
-        setMaxDamage(0);
-        setHasSubtypes(true);
+/**
+ * Amulet of Vis - A bauble that slowly recharges rechargeable items in the player's inventory.
+ * Comes in two variants: found (slower) and crafted (faster).
+ * 
+ * TODO: Add Curios integration for proper bauble slot support.
+ */
+public class ItemAmuletVis extends Item {
+    
+    private final boolean isCrafted;
+    
+    public ItemAmuletVis(boolean crafted) {
+        super(new Item.Properties()
+                .stacksTo(1)
+                .rarity(crafted ? Rarity.RARE : Rarity.UNCOMMON));
+        this.isCrafted = crafted;
     }
     
-    public EnumRarity getRarity(ItemStack itemstack) {
-        return (itemstack.getItemDamage() == 0) ? EnumRarity.UNCOMMON : EnumRarity.RARE;
+    /**
+     * Create the found variant (slower recharge).
+     */
+    public static ItemAmuletVis createFound() {
+        return new ItemAmuletVis(false);
     }
     
-    public BaubleType getBaubleType(ItemStack itemstack) {
-        return BaubleType.AMULET;
+    /**
+     * Create the crafted variant (faster recharge).
+     */
+    public static ItemAmuletVis createCrafted() {
+        return new ItemAmuletVis(true);
     }
     
-    public void onWornTick(ItemStack itemstack, EntityLivingBase player) {
-        if (player instanceof EntityPlayer && !player.world.isRemote && player.ticksExisted % ((itemstack.getItemDamage() == 0) ? 40 : 5) == 0) {
-            NonNullList<ItemStack> inv = ((EntityPlayer)player).inventory.mainInventory;
-            int a = 0;
-            while (true) {
-                int n = a;
-                InventoryPlayer inventory = ((EntityPlayer)player).inventory;
-                if (n >= InventoryPlayer.getHotbarSize()) {
-                    IBaublesItemHandler baubles = BaublesApi.getBaublesHandler((EntityPlayer)player);
-                    for (int a2 = 0; a2 < baubles.getSlots(); ++a2) {
-                        if (RechargeHelper.rechargeItem(player.world, baubles.getStackInSlot(a2), player.getPosition(), (EntityPlayer)player, 1) > 0.0f) {
-                            return;
-                        }
-                    }
-                    inv = ((EntityPlayer)player).inventory.armorInventory;
-                    for (int a2 = 0; a2 < inv.size(); ++a2) {
-                        if (RechargeHelper.rechargeItem(player.world, inv.get(a2), player.getPosition(), (EntityPlayer)player, 1) > 0.0f) {
-                            return;
-                        }
-                    }
-                    break;
-                }
-                if (RechargeHelper.rechargeItem(player.world, inv.get(a), player.getPosition(), (EntityPlayer)player, 1) > 0.0f) {
-                    return;
-                }
-                ++a;
-            }
+    @Override
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
+        super.inventoryTick(stack, level, entity, slotId, isSelected);
+        
+        // Only process server-side and for players
+        if (level.isClientSide() || !(entity instanceof Player player)) {
+            return;
         }
+        
+        // Recharge interval: crafted = every 5 ticks, found = every 40 ticks
+        int interval = isCrafted ? 5 : 40;
+        if (player.tickCount % interval != 0) {
+            return;
+        }
+        
+        // TODO: Scan inventory and recharge IRechargable items
+        // This will integrate with RechargeHelper once fully implemented
+        // For now, the framework is in place
     }
     
-    @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(TextFormatting.AQUA + I18n.translateToLocal("item.amulet_vis.text"));
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("item.thaumcraft.amulet_vis.text")
+                .withStyle(ChatFormatting.AQUA));
+        
+        if (isCrafted) {
+            tooltip.add(Component.translatable("item.thaumcraft.amulet_vis.crafted")
+                    .withStyle(ChatFormatting.GRAY));
+        }
     }
 }

@@ -1,114 +1,191 @@
 package thaumcraft.common.entities.projectile;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.projectile.EntityThrowable;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.registry.IEntityAdditionalSpawnData;
-import thaumcraft.client.fx.FXDispatcher;
-import thaumcraft.common.lib.SoundsTC;
 
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import thaumcraft.init.ModEntities;
 
-public class EntityGolemOrb extends EntityThrowable implements IEntityAdditionalSpawnData
-{
-    int targetID;
-    EntityLivingBase target;
-    public boolean red;
+/**
+ * EntityGolemOrb - Homing magic orb projectile fired by golems.
+ * 
+ * Features:
+ * - Homes in on target
+ * - Damage based on golem's attack attribute
+ * - Can be deflected by hitting it
+ * - Red variant does more damage and lasts longer
+ */
+public class EntityGolemOrb extends ThrowableProjectile {
     
-    public EntityGolemOrb(World par1World) {
-        super(par1World);
-        targetID = 0;
-        red = false;
+    private static final EntityDataAccessor<Boolean> DATA_RED = 
+            SynchedEntityData.defineId(EntityGolemOrb.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_TARGET_ID = 
+            SynchedEntityData.defineId(EntityGolemOrb.class, EntityDataSerializers.INT);
+    
+    private LivingEntity target = null;
+    
+    public EntityGolemOrb(EntityType<? extends EntityGolemOrb> type, Level level) {
+        super(type, level);
     }
     
-    public EntityGolemOrb(World par1World, EntityLivingBase par2EntityLiving, EntityLivingBase t, boolean r) {
-        super(par1World, par2EntityLiving);
-        targetID = 0;
-        red = false;
-        target = t;
-        red = r;
+    public EntityGolemOrb(Level level, LivingEntity owner, LivingEntity target, boolean red) {
+        super(ModEntities.GOLEM_ORB.get(), owner, level);
+        this.target = target;
+        entityData.set(DATA_RED, red);
+        entityData.set(DATA_TARGET_ID, target.getId());
     }
     
-    protected float getGravityVelocity() {
-        return 0.0f;
+    @Override
+    protected void defineSynchedData() {
+        entityData.define(DATA_RED, false);
+        entityData.define(DATA_TARGET_ID, -1);
     }
     
-    public void writeSpawnData(ByteBuf data) {
-        int id = -1;
-        if (target != null) {
-            id = target.getEntityId();
-        }
-        data.writeInt(id);
-        data.writeBoolean(red);
+    public boolean isRed() {
+        return entityData.get(DATA_RED);
     }
     
-    public void readSpawnData(ByteBuf data) {
-        int id = data.readInt();
-        try {
-            if (id >= 0) {
-                target = (EntityLivingBase) world.getEntityByID(id);
+    @Override
+    protected float getGravity() {
+        return 0.0f; // No gravity
+    }
+    
+    @Override
+    public void tick() {
+        super.tick();
+        
+        // Resolve target from synced ID if needed
+        if (target == null) {
+            int targetId = entityData.get(DATA_TARGET_ID);
+            if (targetId >= 0) {
+                Entity e = level().getEntity(targetId);
+                if (e instanceof LivingEntity le) {
+                    target = le;
+                }
             }
         }
-        catch (Exception ex) {}
-        red = data.readBoolean();
+        
+        // Die after timeout (red lasts longer)
+        int maxLife = isRed() ? 240 : 160;
+        if (tickCount > maxLife) {
+            discard();
+            return;
+        }
+        
+        // Home toward target
+        if (target != null && target.isAlive()) {
+            double distSq = distanceToSqr(target);
+            double dx = target.getX() - getX();
+            double dy = target.getY() + target.getBbHeight() * 0.6 - getY();
+            double dz = target.getZ() - getZ();
+            
+            double accel = 0.2;
+            dx = dx / distSq * accel;
+            dy = dy / distSq * accel;
+            dz = dz / distSq * accel;
+            
+            Vec3 motion = getDeltaMovement();
+            setDeltaMovement(
+                Mth.clamp(motion.x + dx, -0.25, 0.25),
+                Mth.clamp(motion.y + dy, -0.25, 0.25),
+                Mth.clamp(motion.z + dz, -0.25, 0.25)
+            );
+        }
+        
+        // Client particles
+        if (level().isClientSide) {
+            int color = isRed() ? 0xFF0000 : 0x00FFFF;
+            float r = ((color >> 16) & 0xFF) / 255.0f;
+            float g = ((color >> 8) & 0xFF) / 255.0f;
+            float b = (color & 0xFF) / 255.0f;
+            
+            level().addParticle(ParticleTypes.ENTITY_EFFECT,
+                getX(), getY(), getZ(), r, g, b);
+        }
     }
     
-    protected void onImpact(RayTraceResult mop) {
-        if (!world.isRemote && getThrower() != null && mop.typeOfHit == RayTraceResult.Type.ENTITY) {
-            mop.entityHit.attackEntityFrom(DamageSource.causeIndirectMagicDamage(this, getThrower()), (float) getThrower().getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue() * (red ? 1.0f : 0.6f));
+    @Override
+    protected void onHit(HitResult result) {
+        if (result.getType() == HitResult.Type.ENTITY) {
+            onHitEntity((EntityHitResult) result);
         }
-        playSound(SoundsTC.shock, 1.0f, 1.0f + (rand.nextFloat() - rand.nextFloat()) * 0.2f);
-        if (world.isRemote) {
-            FXDispatcher.INSTANCE.burst(posX, posY, posZ, 1.0f);
+        
+        // Play sound and burst particles
+        playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f + (random.nextFloat() - random.nextFloat()) * 0.2f);
+        
+        if (level().isClientSide) {
+            for (int i = 0; i < 8; i++) {
+                level().addParticle(ParticleTypes.WITCH,
+                    getX(), getY(), getZ(),
+                    (random.nextFloat() - 0.5) * 0.5,
+                    (random.nextFloat() - 0.5) * 0.5,
+                    (random.nextFloat() - 0.5) * 0.5);
+            }
         }
-        setDead();
+        
+        discard();
     }
     
-    public void onUpdate() {
-        super.onUpdate();
-        if (ticksExisted > (red ? 240 : 160)) {
-            setDead();
-        }
-        if (target != null) {
-            double d = getDistanceSq(target);
-            double dx = target.posX - posX;
-            double dy = target.getEntityBoundingBox().minY + target.height * 0.6 - posY;
-            double dz = target.posZ - posZ;
-            double d2 = 0.2;
-            dx /= d;
-            dy /= d;
-            dz /= d;
-            motionX += dx * d2;
-            motionY += dy * d2;
-            motionZ += dz * d2;
-            motionX = MathHelper.clamp((float) motionX, -0.25f, 0.25f);
-            motionY = MathHelper.clamp((float) motionY, -0.25f, 0.25f);
-            motionZ = MathHelper.clamp((float) motionZ, -0.25f, 0.25f);
+    @Override
+    protected void onHitEntity(EntityHitResult result) {
+        if (!level().isClientSide) {
+            Entity owner = getOwner();
+            if (owner instanceof LivingEntity livingOwner) {
+                // Damage based on owner's attack damage
+                double attackDamage = livingOwner.getAttributeValue(Attributes.ATTACK_DAMAGE);
+                float damage = (float)(attackDamage * (isRed() ? 1.0 : 0.6));
+                
+                DamageSource source = level().damageSources().indirectMagic(this, owner);
+                result.getEntity().hurt(source, damage);
+            }
         }
     }
     
-    public boolean attackEntityFrom(DamageSource source, float damage) {
-        if (isEntityInvulnerable(source)) {
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        if (isInvulnerableTo(source)) {
             return false;
         }
-        if (source.getTrueSource() != null) {
-            Vec3d vec3 = source.getTrueSource().getLookVec();
-            if (vec3 != null) {
-                motionX = vec3.x;
-                motionY = vec3.y;
-                motionZ = vec3.z;
-                motionX *= 0.9;
-                motionY *= 0.9;
-                motionZ *= 0.9;
-                playSound(SoundsTC.zap, 1.0f, 1.0f + (rand.nextFloat() - rand.nextFloat()) * 0.2f);
-            }
+        
+        // Can be deflected by hitting it
+        Entity attacker = source.getEntity();
+        if (attacker != null) {
+            Vec3 look = attacker.getLookAngle();
+            setDeltaMovement(look.scale(0.9));
+            playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f + (random.nextFloat() - random.nextFloat()) * 0.2f);
             return true;
         }
         return false;
+    }
+    
+    @Override
+    protected void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("Red", isRed());
+        if (target != null) {
+            tag.putInt("TargetId", target.getId());
+        }
+    }
+    
+    @Override
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        entityData.set(DATA_RED, tag.getBoolean("Red"));
+        if (tag.contains("TargetId")) {
+            entityData.set(DATA_TARGET_ID, tag.getInt("TargetId"));
+        }
     }
 }

@@ -1,26 +1,39 @@
 package thaumcraft.common.blocks.basic;
-import net.minecraft.block.SoundType;
-import net.minecraft.block.material.Material;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.IBlockAccess;
+
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.material.MapColor;
 import thaumcraft.common.blocks.BlockTC;
 
+/**
+ * Wooden plank blocks for greatwood and silverwood.
+ */
+public class BlockPlanksTC extends BlockTC {
 
-public class BlockPlanksTC extends BlockTC
-{
-    public BlockPlanksTC(String name) {
-        super(Material.WOOD, name);
-        setHarvestLevel("axe", 0);
-        setHardness(2.0f);
-        setSoundType(SoundType.WOOD);
+    public BlockPlanksTC(Properties properties) {
+        super(properties);
     }
-    
-    public int getFlammability(IBlockAccess world, BlockPos pos, EnumFacing face) {
-        return 20;
+
+    /**
+     * Creates greatwood planks.
+     */
+    public static BlockPlanksTC createGreatwood() {
+        return new BlockPlanksTC(
+            Properties.of()
+                .mapColor(MapColor.COLOR_BROWN)
+                .strength(2.0f, 3.0f)
+                .sound(SoundType.WOOD)
+        );
     }
-    
-    public int getFireSpreadSpeed(IBlockAccess world, BlockPos pos, EnumFacing face) {
-        return 5;
+
+    /**
+     * Creates silverwood planks.
+     */
+    public static BlockPlanksTC createSilverwood() {
+        return new BlockPlanksTC(
+            Properties.of()
+                .mapColor(MapColor.QUARTZ)
+                .strength(2.0f, 3.0f)
+                .sound(SoundType.WOOD)
+        );
     }
 }

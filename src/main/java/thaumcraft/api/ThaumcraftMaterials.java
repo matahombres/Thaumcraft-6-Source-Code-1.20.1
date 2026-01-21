@@ -1,45 +1,275 @@
 package thaumcraft.api;
-import net.minecraft.block.material.MapColor;
-import net.minecraft.block.material.Material;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.item.Item.ToolMaterial;
-import net.minecraft.item.ItemArmor.ArmorMaterial;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.common.util.EnumHelper;
-import thaumcraft.api.items.ItemsTC;
 
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.ArmorMaterial;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.Tier;
+import thaumcraft.Thaumcraft;
+import thaumcraft.init.ModItems;
 
+import java.util.function.Supplier;
+
+/**
+ * Custom materials for Thaumcraft armor and tools.
+ * Updated for 1.20.1 using the new Tier and ArmorMaterial systems.
+ */
 public class ThaumcraftMaterials {
 
-	public static ToolMaterial TOOLMAT_THAUMIUM = EnumHelper.addToolMaterial("THAUMIUM", 3, 500, 7F, 2.5f, 22).setRepairItem(new ItemStack(ItemsTC.ingots));
-	public static ToolMaterial TOOLMAT_VOID = EnumHelper.addToolMaterial("VOID", 4, 150, 8F, 3, 10).setRepairItem(new ItemStack(ItemsTC.ingots,1,1));
-	public static ToolMaterial TOOLMAT_ELEMENTAL = EnumHelper.addToolMaterial("THAUMIUM_ELEMENTAL", 3, 1500, 9F, 3, 18).setRepairItem(new ItemStack(ItemsTC.ingots));
-	public static ArmorMaterial ARMORMAT_THAUMIUM = EnumHelper.addArmorMaterial("THAUMIUM","THAUMIUM", 25, new int[] { 2, 5, 6, 2 }, 25, SoundEvents.ITEM_ARMOR_EQUIP_IRON, 1.0F);
-	public static ArmorMaterial ARMORMAT_SPECIAL = EnumHelper.addArmorMaterial("SPECIAL","SPECIAL", 25, new int[] { 1, 2, 3, 1 }, 25, SoundEvents.ITEM_ARMOR_EQUIP_LEATHER, 1.0F);
-	public static ArmorMaterial ARMORMAT_VOID = EnumHelper.addArmorMaterial("VOID","VOID", 10, new int[] { 3, 6, 8, 3 }, 10, SoundEvents.ITEM_ARMOR_EQUIP_CHAIN, 1F);
-	public static ArmorMaterial ARMORMAT_VOIDROBE = EnumHelper.addArmorMaterial("VOIDROBE","VOIDROBE", 18, new int[] { 4, 7, 9, 4 }, 10, SoundEvents.ITEM_ARMOR_EQUIP_LEATHER, 2f);
-	public static ArmorMaterial ARMORMAT_FORTRESS = EnumHelper.addArmorMaterial("FORTRESS","FORTRESS", 40, new int[] { 3, 6, 7, 3 }, 25, SoundEvents.ITEM_ARMOR_EQUIP_IRON, 3f);
-	public static ArmorMaterial ARMORMAT_CULTIST_PLATE = EnumHelper.addArmorMaterial("CULTIST_PLATE","CULTIST_PLATE", 18, new int[]{2, 5, 6, 2}, 13, SoundEvents.ITEM_ARMOR_EQUIP_IRON, 0.0F);
-	public static ArmorMaterial ARMORMAT_CULTIST_ROBE = EnumHelper.addArmorMaterial("CULTIST_ROBE","CULTIST_ROBE", 17, new int[]{2, 4, 5, 2}, 13, SoundEvents.ITEM_ARMOR_EQUIP_CHAIN, 0.0F);
-	public static ArmorMaterial ARMORMAT_CULTIST_LEADER = EnumHelper.addArmorMaterial("CULTIST_LEADER","CULTIST_LEADER", 30, new int[] { 3, 6, 7, 3 }, 20, SoundEvents.ITEM_ARMOR_EQUIP_IRON, 1F);
-	
-	
-	public static Material MATERIAL_TAINT = new MaterialTaint();
-	
-	public static class MaterialTaint extends Material
-	{
-	    public MaterialTaint()
-	    {
-	        super(MapColor.PURPLE);
-	        setNoPushMobility();
-	    }	    
-	    
-	    @Override
-	    public boolean blocksMovement()
-	    {
-	        return true;
-	    }
-	    	    
-	}
-	
+    // ==================== Tool Tiers ====================
+    
+    /**
+     * Thaumium - Better than iron, magic-infused metal
+     * Harvest Level: 3 (diamond), Durability: 500, Speed: 7, Damage: 2.5, Enchantability: 22
+     */
+    public static final Tier TOOLMAT_THAUMIUM = new Tier() {
+        @Override public int getUses() { return 500; }
+        @Override public float getSpeed() { return 7.0F; }
+        @Override public float getAttackDamageBonus() { return 2.5F; }
+        @Override public int getLevel() { return 3; }
+        @Override public int getEnchantmentValue() { return 22; }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.of(ModItems.THAUMIUM_INGOT.get()); 
+        }
+    };
+    
+    /**
+     * Void Metal - Brittle but extremely powerful
+     * Harvest Level: 4 (netherite), Durability: 150, Speed: 8, Damage: 3, Enchantability: 10
+     */
+    public static final Tier TOOLMAT_VOID = new Tier() {
+        @Override public int getUses() { return 150; }
+        @Override public float getSpeed() { return 8.0F; }
+        @Override public float getAttackDamageBonus() { return 3.0F; }
+        @Override public int getLevel() { return 4; }
+        @Override public int getEnchantmentValue() { return 10; }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.of(ModItems.VOID_METAL_INGOT.get()); 
+        }
+    };
+    
+    /**
+     * Elemental Thaumium - Enhanced thaumium with elemental power
+     * Harvest Level: 3, Durability: 1500, Speed: 9, Damage: 3, Enchantability: 18
+     */
+    public static final Tier TOOLMAT_ELEMENTAL = new Tier() {
+        @Override public int getUses() { return 1500; }
+        @Override public float getSpeed() { return 9.0F; }
+        @Override public float getAttackDamageBonus() { return 3.0F; }
+        @Override public int getLevel() { return 3; }
+        @Override public int getEnchantmentValue() { return 18; }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.of(ModItems.THAUMIUM_INGOT.get()); 
+        }
+    };
+
+    // ==================== Armor Materials ====================
+    
+    /**
+     * Thaumium Armor - Balanced magical armor
+     * Protection: 2/5/6/2, Durability: 25x, Enchantability: 25, Toughness: 1.0
+     */
+    public static final ArmorMaterial ARMORMAT_THAUMIUM = new ArmorMaterial() {
+        private static final int[] DURABILITY = {13, 15, 16, 11};
+        private static final int[] PROTECTION = {2, 5, 6, 2};
+        
+        @Override public int getDurabilityForType(ArmorItem.Type type) { 
+            return DURABILITY[type.ordinal()] * 25; 
+        }
+        @Override public int getDefenseForType(ArmorItem.Type type) { 
+            return PROTECTION[type.ordinal()]; 
+        }
+        @Override public int getEnchantmentValue() { return 25; }
+        @Override public net.minecraft.sounds.SoundEvent getEquipSound() { 
+            return SoundEvents.ARMOR_EQUIP_IRON; 
+        }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.of(ModItems.THAUMIUM_INGOT.get()); 
+        }
+        @Override public String getName() { return Thaumcraft.MODID + ":thaumium"; }
+        @Override public float getToughness() { return 1.0F; }
+        @Override public float getKnockbackResistance() { return 0.0F; }
+    };
+    
+    /**
+     * Special/Cloth Armor (Robes, Goggles) - Light magical protection
+     * Protection: 1/2/3/1, Durability: 25x, Enchantability: 25, Toughness: 0
+     */
+    public static final ArmorMaterial ARMORMAT_SPECIAL = new ArmorMaterial() {
+        private static final int[] DURABILITY = {13, 15, 16, 11};
+        private static final int[] PROTECTION = {1, 2, 3, 1};
+        
+        @Override public int getDurabilityForType(ArmorItem.Type type) { 
+            return DURABILITY[type.ordinal()] * 25; 
+        }
+        @Override public int getDefenseForType(ArmorItem.Type type) { 
+            return PROTECTION[type.ordinal()]; 
+        }
+        @Override public int getEnchantmentValue() { return 25; }
+        @Override public net.minecraft.sounds.SoundEvent getEquipSound() { 
+            return SoundEvents.ARMOR_EQUIP_LEATHER; 
+        }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.of(ModItems.ENCHANTED_FABRIC.get()); 
+        }
+        @Override public String getName() { return Thaumcraft.MODID + ":special"; }
+        @Override public float getToughness() { return 0.0F; }
+        @Override public float getKnockbackResistance() { return 0.0F; }
+    };
+    
+    /**
+     * Void Metal Armor - High protection, brittle
+     * Protection: 3/6/8/3, Durability: 10x, Enchantability: 10, Toughness: 1.0
+     */
+    public static final ArmorMaterial ARMORMAT_VOID = new ArmorMaterial() {
+        private static final int[] DURABILITY = {13, 15, 16, 11};
+        private static final int[] PROTECTION = {3, 6, 8, 3};
+        
+        @Override public int getDurabilityForType(ArmorItem.Type type) { 
+            return DURABILITY[type.ordinal()] * 10; 
+        }
+        @Override public int getDefenseForType(ArmorItem.Type type) { 
+            return PROTECTION[type.ordinal()]; 
+        }
+        @Override public int getEnchantmentValue() { return 10; }
+        @Override public net.minecraft.sounds.SoundEvent getEquipSound() { 
+            return SoundEvents.ARMOR_EQUIP_CHAIN; 
+        }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.of(ModItems.VOID_METAL_INGOT.get()); 
+        }
+        @Override public String getName() { return Thaumcraft.MODID + ":void"; }
+        @Override public float getToughness() { return 1.0F; }
+        @Override public float getKnockbackResistance() { return 0.0F; }
+    };
+    
+    /**
+     * Void Robe Armor - Powerful mage armor
+     * Protection: 4/7/9/4, Durability: 18x, Enchantability: 10, Toughness: 2.0
+     */
+    public static final ArmorMaterial ARMORMAT_VOIDROBE = new ArmorMaterial() {
+        private static final int[] DURABILITY = {13, 15, 16, 11};
+        private static final int[] PROTECTION = {4, 7, 9, 4};
+        
+        @Override public int getDurabilityForType(ArmorItem.Type type) { 
+            return DURABILITY[type.ordinal()] * 18; 
+        }
+        @Override public int getDefenseForType(ArmorItem.Type type) { 
+            return PROTECTION[type.ordinal()]; 
+        }
+        @Override public int getEnchantmentValue() { return 10; }
+        @Override public net.minecraft.sounds.SoundEvent getEquipSound() { 
+            return SoundEvents.ARMOR_EQUIP_LEATHER; 
+        }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.of(ModItems.VOID_METAL_INGOT.get()); 
+        }
+        @Override public String getName() { return Thaumcraft.MODID + ":void_robe"; }
+        @Override public float getToughness() { return 2.0F; }
+        @Override public float getKnockbackResistance() { return 0.0F; }
+    };
+    
+    /**
+     * Fortress Armor - Heavy battle mage armor
+     * Protection: 3/6/7/3, Durability: 40x, Enchantability: 25, Toughness: 3.0
+     */
+    public static final ArmorMaterial ARMORMAT_FORTRESS = new ArmorMaterial() {
+        private static final int[] DURABILITY = {13, 15, 16, 11};
+        private static final int[] PROTECTION = {3, 6, 7, 3};
+        
+        @Override public int getDurabilityForType(ArmorItem.Type type) { 
+            return DURABILITY[type.ordinal()] * 40; 
+        }
+        @Override public int getDefenseForType(ArmorItem.Type type) { 
+            return PROTECTION[type.ordinal()]; 
+        }
+        @Override public int getEnchantmentValue() { return 25; }
+        @Override public net.minecraft.sounds.SoundEvent getEquipSound() { 
+            return SoundEvents.ARMOR_EQUIP_IRON; 
+        }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.of(ModItems.THAUMIUM_INGOT.get()); 
+        }
+        @Override public String getName() { return Thaumcraft.MODID + ":fortress"; }
+        @Override public float getToughness() { return 3.0F; }
+        @Override public float getKnockbackResistance() { return 0.1F; }
+    };
+    
+    /**
+     * Cultist Plate Armor - Crimson cult heavy armor
+     * Protection: 2/5/6/2, Durability: 18x, Enchantability: 13, Toughness: 0
+     */
+    public static final ArmorMaterial ARMORMAT_CULTIST_PLATE = new ArmorMaterial() {
+        private static final int[] DURABILITY = {13, 15, 16, 11};
+        private static final int[] PROTECTION = {2, 5, 6, 2};
+        
+        @Override public int getDurabilityForType(ArmorItem.Type type) { 
+            return DURABILITY[type.ordinal()] * 18; 
+        }
+        @Override public int getDefenseForType(ArmorItem.Type type) { 
+            return PROTECTION[type.ordinal()]; 
+        }
+        @Override public int getEnchantmentValue() { return 13; }
+        @Override public net.minecraft.sounds.SoundEvent getEquipSound() { 
+            return SoundEvents.ARMOR_EQUIP_IRON; 
+        }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.EMPTY; 
+        }
+        @Override public String getName() { return Thaumcraft.MODID + ":cultist_plate"; }
+        @Override public float getToughness() { return 0.0F; }
+        @Override public float getKnockbackResistance() { return 0.0F; }
+    };
+    
+    /**
+     * Cultist Robe Armor - Crimson cult light armor
+     * Protection: 2/4/5/2, Durability: 17x, Enchantability: 13, Toughness: 0
+     */
+    public static final ArmorMaterial ARMORMAT_CULTIST_ROBE = new ArmorMaterial() {
+        private static final int[] DURABILITY = {13, 15, 16, 11};
+        private static final int[] PROTECTION = {2, 4, 5, 2};
+        
+        @Override public int getDurabilityForType(ArmorItem.Type type) { 
+            return DURABILITY[type.ordinal()] * 17; 
+        }
+        @Override public int getDefenseForType(ArmorItem.Type type) { 
+            return PROTECTION[type.ordinal()]; 
+        }
+        @Override public int getEnchantmentValue() { return 13; }
+        @Override public net.minecraft.sounds.SoundEvent getEquipSound() { 
+            return SoundEvents.ARMOR_EQUIP_CHAIN; 
+        }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.EMPTY; 
+        }
+        @Override public String getName() { return Thaumcraft.MODID + ":cultist_robe"; }
+        @Override public float getToughness() { return 0.0F; }
+        @Override public float getKnockbackResistance() { return 0.0F; }
+    };
+    
+    /**
+     * Cultist Leader Armor - Elite crimson cult armor
+     * Protection: 3/6/7/3, Durability: 30x, Enchantability: 20, Toughness: 1.0
+     */
+    public static final ArmorMaterial ARMORMAT_CULTIST_LEADER = new ArmorMaterial() {
+        private static final int[] DURABILITY = {13, 15, 16, 11};
+        private static final int[] PROTECTION = {3, 6, 7, 3};
+        
+        @Override public int getDurabilityForType(ArmorItem.Type type) { 
+            return DURABILITY[type.ordinal()] * 30; 
+        }
+        @Override public int getDefenseForType(ArmorItem.Type type) { 
+            return PROTECTION[type.ordinal()]; 
+        }
+        @Override public int getEnchantmentValue() { return 20; }
+        @Override public net.minecraft.sounds.SoundEvent getEquipSound() { 
+            return SoundEvents.ARMOR_EQUIP_IRON; 
+        }
+        @Override public Ingredient getRepairIngredient() { 
+            return Ingredient.EMPTY; 
+        }
+        @Override public String getName() { return Thaumcraft.MODID + ":cultist_leader"; }
+        @Override public float getToughness() { return 1.0F; }
+        @Override public float getKnockbackResistance() { return 0.0F; }
+    };
 }

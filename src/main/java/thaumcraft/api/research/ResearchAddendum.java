@@ -1,54 +1,50 @@
 package thaumcraft.api.research;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.translation.I18n;
 
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
+/**
+ * Represents additional content that can be unlocked after completing research.
+ * Addenda provide bonus recipes or information.
+ */
 public class ResearchAddendum {
-	String text;
-	ResourceLocation[] recipes;
-	String[] research;
-	
-	/**
-	 * @return the text
-	 */
-	public String getText() {
-		return text;
-	}
-	
-	public String getTextLocalized() {
-		return I18n.translateToLocal(getText());
-	}
-	/**
-	 * @param text the text to set
-	 */
-	public void setText(String text) {
-		this.text = text;
-	}	
-	
-	/**
-	 * @return the recipes
-	 */
-	public ResourceLocation[] getRecipes() {
-		return recipes;
-	}
-	/**
-	 * @param recipes the recipes to set
-	 */
-	public void setRecipes(ResourceLocation[] recipes) {
-		this.recipes = recipes;
-	}
-	
-	/**
-	 * @return the research
-	 */
-	public String[] getResearch() {
-		return research;
-	}
-	/**
-	 * @param research the research to set
-	 */
-	public void setResearch(String[] research) {
-		this.research = research;
-	}
-	
+
+    /** Localization key for the addendum text */
+    private String text;
+
+    /** Recipes unlocked by this addendum */
+    private ResourceLocation[] recipes;
+
+    /** Research keys that must be completed for this addendum */
+    private String[] research;
+
+    // Getters and Setters
+
+    public String getText() {
+        return text;
+    }
+
+    public Component getTextLocalized() {
+        return Component.translatable(getText());
+    }
+
+    public void setText(String text) {
+        this.text = text;
+    }
+
+    public ResourceLocation[] getRecipes() {
+        return recipes;
+    }
+
+    public void setRecipes(ResourceLocation[] recipes) {
+        this.recipes = recipes;
+    }
+
+    public String[] getResearch() {
+        return research;
+    }
+
+    public void setResearch(String[] research) {
+        this.research = research;
+    }
 }
