@@ -2,6 +2,7 @@ package thaumcraft.common.world.aura;
 
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
+import thaumcraft.common.lib.utils.PosXY;
 
 import java.lang.ref.WeakReference;
 
@@ -75,5 +76,12 @@ public class AuraChunk {
 
     public LevelChunk getChunk() {
         return chunkRef != null ? chunkRef.get() : null;
+    }
+
+    /**
+     * Get the chunk location as a PosXY (for use as map key).
+     */
+    public PosXY getLocXY() {
+        return loc != null ? new PosXY(loc.x, loc.z) : null;
     }
 }

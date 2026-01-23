@@ -1,0 +1,22 @@
+{
+  "type": "thaumcraft:arcane_workbench_shaped",
+  "research": "GOLEMVISION",
+  "vis": 50,
+  "aspects": {
+    "aqua": 1
+  },
+  "pattern": [
+    "B B",
+    "E E",
+    "PGP"
+  ],
+  "key": {
+    "B": {"item": "minecraft:glass_bottle"},
+    "E": {"item": "minecraft:fermented_spider_eye"},
+    "P": {"tag": "thaumcraft:plates/brass"},
+    "G": {"item": "thaumcraft:mechanism_simple"}
+  },
+  "result": {
+    "item": "thaumcraft:golem_module_vision"
+  }
+}

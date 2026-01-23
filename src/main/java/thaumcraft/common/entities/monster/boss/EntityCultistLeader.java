@@ -129,22 +129,19 @@ public class EntityCultistLeader extends EntityThaumcraftBoss implements RangedA
     
     /**
      * Set up equipment based on difficulty.
+     * Equips the Crimson Praetor armor set and Crimson Blade.
      */
     protected void setLoot(DifficultyInstance difficulty) {
-        // TODO: Use actual Thaumcraft items when implemented
-        // For now, use vanilla equivalents
-        setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.NETHERITE_HELMET));
-        setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.NETHERITE_CHESTPLATE));
-        setItemSlot(EquipmentSlot.LEGS, new ItemStack(Items.NETHERITE_LEGGINGS));
-        setItemSlot(EquipmentSlot.FEET, new ItemStack(Items.NETHERITE_BOOTS));
+        // Equip Crimson Praetor armor
+        setItemSlot(EquipmentSlot.HEAD, new ItemStack(ModItems.CRIMSON_PRAETOR_HELM.get()));
+        setItemSlot(EquipmentSlot.CHEST, new ItemStack(ModItems.CRIMSON_PRAETOR_CHEST.get()));
+        setItemSlot(EquipmentSlot.LEGS, new ItemStack(ModItems.CRIMSON_PRAETOR_LEGS.get()));
+        setItemSlot(EquipmentSlot.FEET, new ItemStack(ModItems.CRIMSON_BOOTS.get()));
         
-        if (level().getDifficulty() == Difficulty.EASY) {
-            setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_SWORD));
-        } else {
-            setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.NETHERITE_SWORD));
-        }
+        // Equip Crimson Blade as weapon
+        setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(ModItems.CRIMSON_BLADE.get()));
         
-        // No drops from equipment
+        // No drops from equipment (armor is rare boss loot handled separately)
         setDropChance(EquipmentSlot.HEAD, 0.0f);
         setDropChance(EquipmentSlot.CHEST, 0.0f);
         setDropChance(EquipmentSlot.LEGS, 0.0f);

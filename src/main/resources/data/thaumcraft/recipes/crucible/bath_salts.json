@@ -5,9 +5,10 @@
     "item": "thaumcraft:salis_mundus"
   },
   "aspects": {
-    "ordo": 20,
-    "cognitio": 10,
-    "praecantatio": 5
+    "sensus": 40,
+    "aer": 40,
+    "ordo": 40,
+    "victus": 40
   },
   "result": {
     "item": "thaumcraft:bath_salts"

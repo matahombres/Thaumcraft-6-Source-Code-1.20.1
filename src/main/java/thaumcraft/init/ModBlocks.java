@@ -19,6 +19,7 @@ import thaumcraft.common.blocks.basic.*;
 import thaumcraft.common.blocks.basic.BlockBannerTC;
 import thaumcraft.common.blocks.basic.BlockPavingStone;
 import thaumcraft.common.blocks.crafting.BlockArcaneWorkbench;
+import thaumcraft.common.blocks.crafting.BlockArcaneWorkbenchCharger;
 import thaumcraft.common.blocks.crafting.BlockCrucible;
 import thaumcraft.common.blocks.crafting.BlockFocalManipulator;
 import thaumcraft.common.blocks.crafting.BlockGolemBuilder;
@@ -34,6 +35,7 @@ import thaumcraft.common.blocks.essentia.BlockEssentiaReservoir;
 import thaumcraft.common.blocks.essentia.BlockJar;
 import thaumcraft.common.blocks.essentia.BlockSmelter;
 import thaumcraft.common.blocks.essentia.BlockTube;
+import thaumcraft.common.blocks.essentia.BlockEssentiaTransport;
 import thaumcraft.common.blocks.misc.BlockBarrier;
 import thaumcraft.common.blocks.misc.BlockEffect;
 import thaumcraft.common.blocks.misc.BlockFluidDeath;
@@ -49,7 +51,11 @@ import thaumcraft.common.blocks.world.plants.BlockSaplingTC;
 import thaumcraft.common.blocks.world.plants.BlockShimmerleaf;
 import thaumcraft.common.blocks.world.plants.BlockVishroom;
 import thaumcraft.common.blocks.world.taint.BlockFluxGoo;
+import thaumcraft.common.blocks.world.taint.BlockTaint;
+import thaumcraft.common.blocks.world.taint.BlockTaintFeature;
 import thaumcraft.common.blocks.world.taint.BlockTaintFibre;
+import thaumcraft.common.blocks.world.taint.BlockTaintLog;
+import thaumcraft.common.blocks.world.BlockGrassAmbient;
 import thaumcraft.common.blocks.world.BlockLoot;
 
 import java.util.function.Supplier;
@@ -228,6 +234,9 @@ public class ModBlocks {
     public static final RegistryObject<Block> ARCANE_WORKBENCH = registerBlock("arcane_workbench",
             BlockArcaneWorkbench::new);
 
+    public static final RegistryObject<Block> ARCANE_WORKBENCH_CHARGER = registerBlock("arcane_workbench_charger",
+            BlockArcaneWorkbenchCharger::create);
+
     public static final RegistryObject<Block> CRUCIBLE = registerBlock("crucible",
             BlockCrucible::new);
 
@@ -241,6 +250,17 @@ public class ModBlocks {
 
     public static final RegistryObject<Block> QUARTZ_ORE = registerBlock("quartz_ore",
             BlockOreTC::createQuartzOre);
+
+    // ==================== Deepslate Ore Blocks ====================
+
+    public static final RegistryObject<Block> DEEPSLATE_AMBER_ORE = registerBlock("deepslate_amber_ore",
+            BlockOreTC::createDeepslateAmberOre);
+
+    public static final RegistryObject<Block> DEEPSLATE_CINNABAR_ORE = registerBlock("deepslate_cinnabar_ore",
+            BlockOreTC::createDeepslateCinnabarOre);
+
+    public static final RegistryObject<Block> DEEPSLATE_QUARTZ_ORE = registerBlock("deepslate_quartz_ore",
+            BlockOreTC::createDeepslateQuartzOre);
 
     // ==================== Crystal Blocks ====================
 
@@ -266,6 +286,9 @@ public class ModBlocks {
             () -> new BlockCrystalTC(Aspect.FLUX));
 
     // ==================== Plant Blocks ====================
+
+    public static final RegistryObject<Block> GRASS_AMBIENT = registerBlock("grass_ambient",
+            BlockGrassAmbient::new);
 
     public static final RegistryObject<Block> SHIMMERLEAF = registerBlock("shimmerleaf",
             BlockShimmerleaf::new);
@@ -486,6 +509,12 @@ public class ModBlocks {
     public static final RegistryObject<Block> ESSENTIA_RESERVOIR = registerBlock("essentia_reservoir",
             BlockEssentiaReservoir::new);
 
+    public static final RegistryObject<Block> ESSENTIA_INPUT = registerBlock("essentia_input",
+            () -> new BlockEssentiaTransport(BlockEssentiaTransport.TransportType.INPUT));
+
+    public static final RegistryObject<Block> ESSENTIA_OUTPUT = registerBlock("essentia_output",
+            () -> new BlockEssentiaTransport(BlockEssentiaTransport.TransportType.OUTPUT));
+
     public static final RegistryObject<Block> SPA = registerBlock("spa",
             BlockSpa::new);
 
@@ -519,6 +548,24 @@ public class ModBlocks {
     public static final RegistryObject<Block> TAINT_FIBRE = registerBlockNoItem("taint_fibre",
             BlockTaintFibre::new);
 
+    public static final RegistryObject<Block> TAINT_SOIL = registerBlockNoItem("taint_soil",
+            () -> new BlockTaint(BlockTaint.TaintType.SOIL));
+
+    public static final RegistryObject<Block> TAINT_ROCK = registerBlockNoItem("taint_rock",
+            () -> new BlockTaint(BlockTaint.TaintType.ROCK));
+
+    public static final RegistryObject<Block> TAINT_CRUST = registerBlockNoItem("taint_crust",
+            () -> new BlockTaint(BlockTaint.TaintType.CRUST));
+
+    public static final RegistryObject<Block> TAINT_GEYSER = registerBlockNoItem("taint_geyser",
+            () -> new BlockTaint(BlockTaint.TaintType.GEYSER));
+
+    public static final RegistryObject<Block> TAINT_LOG = registerBlockNoItem("taint_log",
+            BlockTaintLog::new);
+
+    public static final RegistryObject<Block> TAINT_FEATURE = registerBlockNoItem("taint_feature",
+            BlockTaintFeature::new);
+
     // ==================== Liquid Blocks ====================
 
     public static final RegistryObject<Block> LIQUID_DEATH = registerBlockNoItem("liquid_death",
@@ -543,6 +590,15 @@ public class ModBlocks {
 
     public static final RegistryObject<Block> POTION_SPRAYER = registerBlock("potion_sprayer",
             BlockPotionSprayer::new);
+
+    public static final RegistryObject<Block> VIS_BATTERY = registerBlock("vis_battery",
+            BlockVisBattery::create);
+
+    public static final RegistryObject<Block> BRAIN_BOX = registerBlock("brain_box",
+            BlockBrainBox::create);
+
+    public static final RegistryObject<Block> INLAY = registerBlock("inlay",
+            BlockInlay::create);
 
     // ==================== Loot Blocks ====================
 

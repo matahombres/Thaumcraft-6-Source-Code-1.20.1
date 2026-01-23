@@ -210,6 +210,8 @@ public class ModCreativeTabs {
                         output.accept(ModItems.VOID_METAL_NUGGET.get());
                         output.accept(ModItems.BRASS_INGOT.get());
                         output.accept(ModItems.BRASS_NUGGET.get());
+                        output.accept(ModItems.QUICKSILVER_NUGGET.get());
+                        output.accept(ModItems.QUARTZ_NUGGET.get());
 
                         // === Primal Shards ===
                         output.accept(ModItems.SHARD_AIR.get());
@@ -354,6 +356,11 @@ public class ModCreativeTabs {
 
                         // === Crimson Cult Boots ===
                         output.accept(ModItems.CRIMSON_BOOTS.get());
+
+                        // === Crimson Praetor Armor ===
+                        output.accept(ModItems.CRIMSON_PRAETOR_HELM.get());
+                        output.accept(ModItems.CRIMSON_PRAETOR_CHEST.get());
+                        output.accept(ModItems.CRIMSON_PRAETOR_LEGS.get());
 
                         // === Baubles / Curios ===
                         output.accept(ModItems.AMULET_VIS_FOUND.get());

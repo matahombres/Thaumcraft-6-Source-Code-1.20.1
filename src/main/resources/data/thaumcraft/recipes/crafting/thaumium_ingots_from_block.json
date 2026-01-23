@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {"item": "thaumcraft:metal_thaumium"}
+  ],
+  "result": {
+    "item": "thaumcraft:ingot_thaumium",
+    "count": 9
+  }
+}

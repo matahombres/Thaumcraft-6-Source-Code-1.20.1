@@ -1,0 +1,21 @@
+{
+  "type": "thaumcraft:arcane_workbench_shaped",
+  "research": "ADVANCEDTURRET",
+  "vis": 150,
+  "aspects": {
+    "aer": 2
+  },
+  "pattern": [
+    "PMP",
+    "PTP",
+    "   "
+  ],
+  "key": {
+    "P": {"tag": "thaumcraft:plates/iron"},
+    "M": {"item": "thaumcraft:mind_biothaumic"},
+    "T": {"item": "thaumcraft:turret_placer"}
+  },
+  "result": {
+    "item": "thaumcraft:turret_placer_advanced"
+  }
+}

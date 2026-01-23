@@ -6,14 +6,19 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -111,10 +116,89 @@ public class BlockCrucible extends BlockTCDevice {
         ItemStack heldItem = player.getItemInHand(hand);
         BlockEntity blockEntity = level.getBlockEntity(pos);
 
-        // TODO: Implement proper crucible interaction
-        // - Fill with water from water bucket
-        // - Throw items in to smelt them
-        // - Shift+empty hand to dump contents
+        if (!(blockEntity instanceof TileCrucible crucible)) {
+            return InteractionResult.PASS;
+        }
+
+        // Shift + empty hand = dump contents
+        if (player.isShiftKeyDown() && heldItem.isEmpty()) {
+            if (crucible.aspects.visSize() > 0 || crucible.getTank().getFluidAmount() > 0) {
+                crucible.spillAll();
+                level.playSound(null, pos, SoundEvents.BUCKET_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
+                return InteractionResult.SUCCESS;
+            }
+            return InteractionResult.PASS;
+        }
+
+        // Handle fluid containers (buckets, etc.)
+        if (!heldItem.isEmpty()) {
+            // Try to fill crucible from held item
+            var itemFluidCap = heldItem.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM);
+            if (itemFluidCap.isPresent()) {
+                IFluidHandlerItem itemHandler = itemFluidCap.orElse(null);
+                if (itemHandler != null) {
+                    FluidStack contained = itemHandler.getFluidInTank(0);
+                    if (contained.getFluid() == Fluids.WATER && contained.getAmount() > 0) {
+                        // Fill crucible with water
+                        int filled = crucible.getTank().fill(contained, IFluidHandler.FluidAction.SIMULATE);
+                        if (filled > 0) {
+                            FluidStack drained = itemHandler.drain(filled, IFluidHandler.FluidAction.EXECUTE);
+                            crucible.getTank().fill(drained, IFluidHandler.FluidAction.EXECUTE);
+                            
+                            // Handle bucket specifically
+                            if (heldItem.is(Items.WATER_BUCKET)) {
+                                if (!player.getAbilities().instabuild) {
+                                    player.setItemInHand(hand, new ItemStack(Items.BUCKET));
+                                }
+                            } else {
+                                player.setItemInHand(hand, itemHandler.getContainer());
+                            }
+                            
+                            level.playSound(null, pos, SoundEvents.BUCKET_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
+                            crucible.markDirtyAndSync();
+                            return InteractionResult.SUCCESS;
+                        }
+                    } else if (contained.isEmpty() && crucible.getTank().getFluidAmount() > 0) {
+                        // Take water from crucible
+                        FluidStack inCrucible = crucible.getTank().getFluid();
+                        int filled = itemHandler.fill(inCrucible, IFluidHandler.FluidAction.SIMULATE);
+                        if (filled > 0) {
+                            FluidStack drained = crucible.getTank().drain(filled, IFluidHandler.FluidAction.EXECUTE);
+                            itemHandler.fill(drained, IFluidHandler.FluidAction.EXECUTE);
+                            
+                            // Handle bucket specifically
+                            if (heldItem.is(Items.BUCKET)) {
+                                if (!player.getAbilities().instabuild) {
+                                    player.setItemInHand(hand, new ItemStack(Items.WATER_BUCKET));
+                                }
+                            } else {
+                                player.setItemInHand(hand, itemHandler.getContainer());
+                            }
+                            
+                            level.playSound(null, pos, SoundEvents.BUCKET_FILL, SoundSource.BLOCKS, 1.0f, 1.0f);
+                            crucible.markDirtyAndSync();
+                            return InteractionResult.SUCCESS;
+                        }
+                    }
+                }
+            }
+            
+            // If crucible is heated and has water, try to smelt the held item
+            if (crucible.isHeated() && crucible.getTank().getFluidAmount() > 0) {
+                ItemStack result = crucible.attemptSmelt(heldItem.copy(), player.getName().getString());
+                if (result == null || result.getCount() < heldItem.getCount()) {
+                    // Something was smelted
+                    if (!player.getAbilities().instabuild) {
+                        if (result == null || result.isEmpty()) {
+                            heldItem.shrink(1);
+                        } else {
+                            player.setItemInHand(hand, result);
+                        }
+                    }
+                    return InteractionResult.SUCCESS;
+                }
+            }
+        }
 
         return InteractionResult.PASS;
     }

@@ -82,6 +82,11 @@ public class BlocksTC {
     public static final RegistryObject<Block> oreCinnabar = ModBlocks.CINNABAR_ORE;
     public static final RegistryObject<Block> oreQuartz = ModBlocks.QUARTZ_ORE;
 
+    // Deepslate Ores
+    public static final RegistryObject<Block> deepslateOreAmber = ModBlocks.DEEPSLATE_AMBER_ORE;
+    public static final RegistryObject<Block> deepslateOreCinnabar = ModBlocks.DEEPSLATE_CINNABAR_ORE;
+    public static final RegistryObject<Block> deepslateOreQuartz = ModBlocks.DEEPSLATE_QUARTZ_ORE;
+
     // Crystals
     public static final RegistryObject<Block> crystalAir = ModBlocks.CRYSTAL_AIR;
     public static final RegistryObject<Block> crystalFire = ModBlocks.CRYSTAL_FIRE;
@@ -147,6 +152,9 @@ public class BlocksTC {
     public static final RegistryObject<Block> candleWhite = ModBlocks.CANDLE_WHITE;
     public static final RegistryObject<Block> nitorWhite = ModBlocks.NITOR_WHITE;
     // ... mapping for all colors would go here, omitting for brevity in this initial pass ...
+
+    // Infusion Support
+    public static final RegistryObject<Block> inlay = ModBlocks.INLAY;
 
     // Effects & Misc
     public static final RegistryObject<Block> effectSap = ModBlocks.EFFECT_SAP;

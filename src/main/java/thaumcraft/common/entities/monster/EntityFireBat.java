@@ -9,14 +9,17 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -55,6 +58,17 @@ public class EntityFireBat extends Monster {
                 .add(Attributes.ATTACK_DAMAGE, 1.0)
                 .add(Attributes.FLYING_SPEED, 0.5)
                 .add(Attributes.MOVEMENT_SPEED, 0.25);
+    }
+    
+    /**
+     * Static spawn rule check for use with SpawnPlacementRegisterEvent.
+     * Fire bats spawn in dark areas, typically in the Nether.
+     */
+    public static boolean checkFireBatSpawnRules(EntityType<? extends EntityFireBat> type, ServerLevelAccessor level,
+            MobSpawnType spawnType, BlockPos pos, RandomSource random) {
+        // Check light level - spawn in dark areas
+        int light = level.getMaxLocalRawBrightness(pos);
+        return light <= random.nextInt(7);
     }
     
     @Override

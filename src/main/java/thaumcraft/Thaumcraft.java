@@ -27,6 +27,7 @@ import thaumcraft.init.ModMenuTypes;
 import thaumcraft.init.ModRecipeTypes;
 import thaumcraft.init.ModRecipeSerializers;
 import thaumcraft.init.ModFeatures;
+import thaumcraft.init.ModStructures;
 import thaumcraft.common.lib.network.PacketHandler;
 import thaumcraft.common.items.casters.FocusInit;
 import thaumcraft.common.golems.GolemProperties;
@@ -76,6 +77,7 @@ public class Thaumcraft {
         ModRecipeTypes.RECIPE_TYPES.register(modEventBus);
         ModRecipeSerializers.RECIPE_SERIALIZERS.register(modEventBus);
         ModFeatures.FEATURES.register(modEventBus);
+        ModStructures.STRUCTURE_TYPES.register(modEventBus);
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
@@ -371,7 +373,7 @@ public class Thaumcraft {
                 );
                 net.minecraft.client.renderer.entity.EntityRenderers.register(
                     ModEntities.ELDRITCH_ORB.get(),
-                    ctx -> thaumcraft.client.renderers.entity.ThaumcraftProjectileRenderer.Factory.orb(ctx, 0x440066)
+                    thaumcraft.client.renderers.entity.EldritchOrbRenderer::new
                 );
                 net.minecraft.client.renderer.entity.EntityRenderers.register(
                     ModEntities.HOMING_SHARD.get(),
@@ -398,6 +400,38 @@ public class Thaumcraft {
                 net.minecraft.client.renderer.entity.EntityRenderers.register(
                     ModEntities.FALLING_TAINT.get(),
                     thaumcraft.client.renderers.entity.FallingTaintRenderer::new
+                );
+                // Special/Following items - glowing magical item entities
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.SPECIAL_ITEM.get(),
+                    thaumcraft.client.renderers.entity.SpecialItemRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.FOLLOWING_ITEM.get(),
+                    thaumcraft.client.renderers.entity.SpecialItemRenderer::new
+                );
+                // Invisible projectiles (effects come from particles)
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.FOCUS_PROJECTILE.get(),
+                    thaumcraft.client.renderers.entity.NoProjectileRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.ALUMENTUM.get(),
+                    thaumcraft.client.renderers.entity.NoProjectileRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.CAUSALITY_COLLAPSER.get(),
+                    thaumcraft.client.renderers.entity.NoProjectileRenderer::new
+                );
+                // Bottle Taint - uses item rendering (thrown item texture)
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.BOTTLE_TAINT.get(),
+                    thaumcraft.client.renderers.entity.BottleTaintRenderer::new
+                );
+                // Eldritch Warden - boss version of Eldritch Guardian
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.ELDRITCH_WARDEN.get(),
+                    thaumcraft.client.renderers.entity.EldritchWardenRenderer::new
                 );
                 LOGGER.info("Registered Thaumcraft entity renderers");
                 
@@ -526,6 +560,14 @@ public class Thaumcraft {
                 thaumcraft.client.models.block.BellowsModel.LAYER_LOCATION,
                 thaumcraft.client.models.block.BellowsModel::createBodyLayer
             );
+            event.registerLayerDefinition(
+                thaumcraft.client.models.block.TubeValveModel.LAYER_LOCATION,
+                thaumcraft.client.models.block.TubeValveModel::createBodyLayer
+            );
+            event.registerLayerDefinition(
+                thaumcraft.client.models.block.BrainModel.LAYER_LOCATION,
+                thaumcraft.client.models.block.BrainModel::createBodyLayer
+            );
             LOGGER.info("Registered Thaumcraft model layers");
         }
         
@@ -587,8 +629,25 @@ public class Thaumcraft {
                 thaumcraft.client.renderers.tile.MirrorRenderer::new
             );
             
-            // Note: JAR_BRAIN needs a separate renderer as it extends TileThaumcraft
-            // TODO: Create JarBrainRenderer
+            // Essentia tube renderers
+            event.registerBlockEntityRenderer(
+                ModBlockEntities.TUBE_VALVE.get(),
+                thaumcraft.client.renderers.tile.TubeValveRenderer::new
+            );
+            event.registerBlockEntityRenderer(
+                ModBlockEntities.TUBE_BUFFER.get(),
+                thaumcraft.client.renderers.tile.TubeBufferRenderer::new
+            );
+            event.registerBlockEntityRenderer(
+                ModBlockEntities.TUBE_ONEWAY.get(),
+                thaumcraft.client.renderers.tile.TubeOnewayRenderer::new
+            );
+            
+            // Brain in a Jar renderer
+            event.registerBlockEntityRenderer(
+                ModBlockEntities.JAR_BRAIN.get(),
+                thaumcraft.client.renderers.tile.JarBrainRenderer::new
+            );
             LOGGER.info("Registered Thaumcraft block entity renderers");
         }
         

@@ -29,6 +29,9 @@ import thaumcraft.api.ThaumcraftApiHelper;
 import thaumcraft.init.ModEntities;
 import thaumcraft.init.ModSounds;
 
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.ServerLevelAccessor;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -63,6 +66,34 @@ public class EntityWisp extends FlyingMob implements Enemy {
                 .add(Attributes.ATTACK_DAMAGE, 3.0)
                 .add(Attributes.FLYING_SPEED, 0.5)
                 .add(Attributes.MOVEMENT_SPEED, 0.25);
+    }
+    
+    /**
+     * Static spawn rule check for use with SpawnPlacementRegisterEvent.
+     * Wisps spawn in dark areas and not in peaceful mode.
+     */
+    public static boolean checkWispSpawnRules(EntityType<? extends EntityWisp> type, ServerLevelAccessor level, 
+            MobSpawnType spawnType, BlockPos pos, RandomSource random) {
+        // Check difficulty
+        if (level.getDifficulty() == Difficulty.PEACEFUL) {
+            return false;
+        }
+        
+        // Check spawn density - max 8 wisps in area
+        int count = level.getEntitiesOfClass(EntityWisp.class, 
+                new AABB(pos).inflate(16.0)).size();
+        if (count >= 8) {
+            return false;
+        }
+        
+        // Check light level - similar to monsters
+        int skyLight = level.getBrightness(LightLayer.SKY, pos);
+        if (skyLight > random.nextInt(32)) {
+            return false;
+        }
+        
+        int blockLight = level.getMaxLocalRawBrightness(pos);
+        return blockLight <= random.nextInt(8);
     }
     
     @Override

@@ -1,0 +1,17 @@
+{
+  "type": "thaumcraft:crucible",
+  "research": "SEALGUARD",
+  "catalyst": {
+    "item": "thaumcraft:seal",
+    "nbt": "{seal:\"thaumcraft:guard\"}"
+  },
+  "aspects": {
+    "sensus": 20,
+    "cognitio": 20
+  },
+  "result": {
+    "item": "thaumcraft:seal",
+    "count": 1,
+    "nbt": "{seal:\"thaumcraft:guard_advanced\"}"
+  }
+}

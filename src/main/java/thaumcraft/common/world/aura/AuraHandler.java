@@ -2,6 +2,7 @@ package thaumcraft.common.world.aura;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -14,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import thaumcraft.common.lib.capabilities.ThaumcraftCapabilities;
 import thaumcraft.common.lib.utils.PosXY;
+import thaumcraft.common.world.biomes.BiomeHandler;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -258,12 +260,10 @@ public class AuraHandler {
 
     /**
      * Gets the aura modifier for the biome at the given position.
-     * TODO: Implement proper biome-based modifiers
+     * Uses BiomeHandler to look up biome-specific aura values.
      */
     private static float getBiomeAuraModifier(Level level, BlockPos pos) {
-        Biome biome = level.getBiome(pos).value();
-        // Default to 1.0 (normal aura)
-        // In the future, this should check biome tags or a config map
-        return 1.0f;
+        Holder<Biome> biome = level.getBiome(pos);
+        return BiomeHandler.getAuraModifier(biome);
     }
 }

@@ -1,11 +1,11 @@
 {
   "type": "thaumcraft:crucible",
-  "research": "UNLOCKALCHEMY",
-  "ingredient": {
+  "research": "HEDGEALCHEMY@1",
+  "catalyst": {
     "item": "minecraft:rotten_flesh"
   },
   "aspects": {
-    "ordo": 3
+    "ignis": 1
   },
   "result": {
     "item": "thaumcraft:tallow"

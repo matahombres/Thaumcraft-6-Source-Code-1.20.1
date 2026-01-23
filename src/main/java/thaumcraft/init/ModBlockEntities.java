@@ -119,6 +119,18 @@ public class ModBlockEntities {
                             ModBlocks.ESSENTIA_RESERVOIR.get()
                     ).build(null));
 
+    public static final RegistryObject<BlockEntityType<TileEssentiaInput>> ESSENTIA_INPUT =
+            BLOCK_ENTITIES.register("essentia_input",
+                    () -> BlockEntityType.Builder.of(TileEssentiaInput::new,
+                            ModBlocks.ESSENTIA_INPUT.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileEssentiaOutput>> ESSENTIA_OUTPUT =
+            BLOCK_ENTITIES.register("essentia_output",
+                    () -> BlockEntityType.Builder.of(TileEssentiaOutput::new,
+                            ModBlocks.ESSENTIA_OUTPUT.get()
+                    ).build(null));
+
     // ==================== Crafting ====================
 
     public static final RegistryObject<BlockEntityType<TilePedestal>> PEDESTAL =

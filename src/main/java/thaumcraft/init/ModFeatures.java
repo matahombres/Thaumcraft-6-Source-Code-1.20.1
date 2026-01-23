@@ -9,6 +9,7 @@ import thaumcraft.Thaumcraft;
 import thaumcraft.common.world.features.GreatwoodTreeFeature;
 import thaumcraft.common.world.features.SilverwoodTreeFeature;
 import thaumcraft.common.world.features.ThaumcraftPlantFeature;
+import thaumcraft.common.world.structures.BarrowFeature;
 
 /**
  * Registry for all Thaumcraft world generation features.
@@ -89,11 +90,18 @@ public class ModFeatures {
     // - Quartz ore generation (Thaumcraft variant)
     
     // ==================== Structure Features ====================
-    // Note: Structures in 1.20.1 use the Structure system, not Features.
-    // Barrow mounds and other structures should be registered separately.
+    
+    /**
+     * Barrow mound - Ancient burial mound with loot and spawners.
+     * Underground stone chamber with grass-covered mound entrance.
+     * Contains chest, Thaumcraft loot crates/urns, and monster spawners.
+     */
+    public static final RegistryObject<BarrowFeature> BARROW = 
+            FEATURES.register("barrow", 
+                    () -> new BarrowFeature(NoneFeatureConfiguration.CODEC));
     
     // Future structure features:
-    // - Barrow mound (underground structure with loot)
     // - Cultist portal spawning
     // - Eldritch obelisks
+    // - Ancient stone circles
 }

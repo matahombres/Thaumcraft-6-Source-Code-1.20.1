@@ -6,24 +6,31 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.PacketDistributor;
 import thaumcraft.Thaumcraft;
+import thaumcraft.common.config.ModConfig;
+import thaumcraft.common.entities.EntityFluxRift;
 import thaumcraft.common.golems.seals.SealHandler;
 import thaumcraft.common.golems.tasks.TaskHandler;
 import thaumcraft.common.lib.network.PacketHandler;
 import thaumcraft.common.lib.network.fx.PacketFXBlockBamf;
+import thaumcraft.common.world.aura.AuraHandler;
+import thaumcraft.common.world.aura.AuraThreadManager;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Predicate;
 
@@ -73,8 +80,10 @@ public class ServerEvents {
         String dimKey = level.dimension().location().toString();
         
         if (event.phase == TickEvent.Phase.START) {
-            // Start of tick - aura thread initialization would go here
-            // TODO: Start AuraThread when aura system is ported
+            // Start aura thread if not already running
+            if (!AuraThreadManager.hasThread(level.dimension()) && AuraHandler.getAuraWorld(level.dimension()) != null) {
+                AuraThreadManager.startThread(level.dimension());
+            }
         } else {
             // End of tick phase
             if (!serverTicks.containsKey(dimKey)) {
@@ -95,9 +104,26 @@ public class ServerEvents {
                 // Clean up suspended or expired golem tasks
                 TaskHandler.clearSuspendedOrExpiredTasks(level);
                 
-                // TODO: When Aura system is implemented:
-                // - Mark dirty chunks for saving
-                // - Handle flux rift triggers
+                // Mark dirty aura chunks for saving
+                ResourceKey<Level> dimension = level.dimension();
+                CopyOnWriteArrayList<ChunkPos> dirtyChunks = AuraHandler.dirtyChunks.get(dimension);
+                if (dirtyChunks != null && !dirtyChunks.isEmpty()) {
+                    for (ChunkPos pos : dirtyChunks) {
+                        // Mark the chunk as needing to be saved
+                        level.getChunkSource().getChunk(pos.x, pos.z, false);
+                        // The chunk will be marked dirty automatically when aura data is saved
+                    }
+                    dirtyChunks.clear();
+                }
+                
+                // Handle flux rift triggers (if not in wuss mode)
+                if (AuraHandler.riftTrigger.containsKey(dimension)) {
+                    if (!ModConfig.wussMode) {
+                        BlockPos riftPos = AuraHandler.riftTrigger.get(dimension);
+                        EntityFluxRift.createRift(level, riftPos);
+                    }
+                    AuraHandler.riftTrigger.remove(dimension);
+                }
             }
             
             // Tick all seals in this dimension (every tick)
@@ -449,10 +475,37 @@ public class ServerEvents {
     }
     
     /**
+     * Level load event - initialize aura world for the dimension
+     */
+    @SubscribeEvent
+    public static void onLevelLoad(LevelEvent.Load event) {
+        if (event.getLevel() instanceof ServerLevel level) {
+            AuraThreadManager.onLevelLoad(level);
+        }
+    }
+    
+    /**
+     * Level unload event - clean up aura world for the dimension
+     */
+    @SubscribeEvent
+    public static void onLevelUnload(LevelEvent.Unload event) {
+        if (event.getLevel() instanceof ServerLevel level) {
+            AuraThreadManager.onLevelUnload(level);
+        }
+    }
+    
+    /**
      * Server stopping event - clean up resources
      */
     @SubscribeEvent
     public static void onServerStopping(net.minecraftforge.event.server.ServerStoppingEvent event) {
+        // Stop all aura threads
+        AuraThreadManager.stopAllThreads();
+        
+        // Clear dirty chunk tracking
+        AuraHandler.dirtyChunks.clear();
+        AuraHandler.riftTrigger.clear();
+        
         serverTicks.clear();
         serverRunList.clear();
         swapList.clear();

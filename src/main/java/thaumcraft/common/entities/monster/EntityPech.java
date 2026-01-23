@@ -41,7 +41,9 @@ import net.minecraft.world.entity.projectile.Arrow;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.phys.AABB;
 import thaumcraft.init.ModEntities;
@@ -144,6 +146,22 @@ public class EntityPech extends Monster implements RangedAttackMob {
                 .add(Attributes.ATTACK_DAMAGE, 6.0)
                 .add(Attributes.MOVEMENT_SPEED, 0.5)
                 .add(Attributes.ARMOR, 2.0);
+    }
+    
+    /**
+     * Static spawn rule check for use with SpawnPlacementRegisterEvent.
+     * Pechs spawn in magical biomes in moderately lit areas.
+     */
+    public static boolean checkPechSpawnRules(EntityType<? extends EntityPech> type, ServerLevelAccessor level,
+            MobSpawnType spawnType, BlockPos pos, RandomSource random) {
+        // Pechs spawn in dimmer areas but not total darkness
+        // They prefer magical forest biomes (handled by biome modifiers)
+        int skyLight = level.getBrightness(LightLayer.SKY, pos);
+        int blockLight = level.getBrightness(LightLayer.BLOCK, pos);
+        
+        // Spawn in areas with moderate light - not pitch black, not bright daylight
+        // Sky light <= 12, but some block light is okay
+        return skyLight <= 12 && (blockLight >= 0 && blockLight <= 10);
     }
     
     /**

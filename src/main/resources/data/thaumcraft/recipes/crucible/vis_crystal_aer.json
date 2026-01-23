@@ -1,0 +1,16 @@
+{
+  "type": "thaumcraft:crucible",
+  "research": "BASEALCHEMY",
+  "catalyst": {
+    "tag": "forge:gems/quartz"
+  },
+  "aspects": {
+    "aer": 2
+  },
+  "result": {
+    "item": "thaumcraft:vis_crystal",
+    "count": 1,
+    "nbt": "{aspect:\"aer\"}"
+  },
+  "group": "thaumcraft:viscrystalgroup"
+}

@@ -1,8 +1,10 @@
 package thaumcraft.common.entities.monster;
 
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
@@ -36,6 +38,16 @@ public class EntityThaumicSlime extends Slime {
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MOVEMENT_SPEED, 0.3);
+    }
+    
+    /**
+     * Static spawn rule check for use with SpawnPlacementRegisterEvent.
+     * Thaumic slimes don't spawn naturally - they are created by flux effects.
+     */
+    public static boolean checkThaumicSlimeSpawnRules(EntityType<? extends EntityThaumicSlime> type, ServerLevelAccessor level,
+            MobSpawnType spawnType, BlockPos pos, RandomSource random) {
+        // Thaumic slimes don't spawn naturally - only from flux effects
+        return false;
     }
     
     public EntityThaumicSlime(EntityType<? extends EntityThaumicSlime> type, Level level) {

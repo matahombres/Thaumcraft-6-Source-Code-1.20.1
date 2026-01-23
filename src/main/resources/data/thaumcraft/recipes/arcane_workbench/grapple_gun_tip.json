@@ -1,0 +1,21 @@
+{
+  "type": "thaumcraft:arcane_workbench_shaped",
+  "research": "GRAPPLEGUN",
+  "vis": 25,
+  "aspects": {
+    "terra": 1
+  },
+  "pattern": [
+    "BRB",
+    "RHR",
+    "BRB"
+  ],
+  "key": {
+    "B": {"tag": "thaumcraft:plates/brass"},
+    "R": {"item": "thaumcraft:nugget_rareearth"},
+    "H": {"item": "minecraft:tripwire_hook"}
+  },
+  "result": {
+    "item": "thaumcraft:grapple_gun_tip"
+  }
+}

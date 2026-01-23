@@ -8,16 +8,26 @@
 
 ## Project Statistics
 
-| Category | Count | Status |
-|----------|-------|--------|
-| Total Java Files | 901 | In Progress |
-| Blocks | 88 | Started |
-| Items | 90+ | Started |
-| Entities | 35+ | Started |
-| Tile Entities | 31 | Started |
-| GUIs | 20+ | Started |
-| Particles | 100+ | Pending |
-| Recipes | 200+ | Started |
+| Category | Ported | Original | Status |
+|----------|--------|----------|--------|
+| Java Files | 685 | 901 | 76% Complete |
+| Blocks | 191 | 91+ | ✅ Complete |
+| Items | 175 | 90+ | ✅ Complete |
+| Entities | 46 | 35+ | ✅ Complete |
+| Block Entities | 50 | 31 | ✅ Complete |
+| GUIs | 17 | 22 | 77% Complete |
+| Recipes | 270 | 265 | ✅ Complete |
+| Particles | - | 100+ | Pending |
+
+### Recipe Breakdown
+| Type | Count | Status |
+|------|-------|--------|
+| Arcane Workbench | 81 | ✅ Complete |
+| Crucible | 57 | ✅ Complete |
+| Infusion | 60 | ✅ Complete |
+| Vanilla Crafting | 64 | ✅ Complete |
+| Smelting | 8 | ✅ Complete |
+| **Total** | **270** | ✅ Complete |
 
 ---
 
@@ -91,10 +101,11 @@
 - [x] Port `AuraWorld.java` - Per-world aura data
 - [x] Port `AuraChunk.java` - Per-chunk storage
 - [x] Port `AuraHandler.java` - Main handler
-- [ ] Port `AuraThread.java` - Background simulation
+- [x] Port `AuraThread.java` - Background simulation
+- [x] Port `AuraThreadManager.java` - Thread lifecycle management
 - [x] Update to new chunk data attachment system
 - [x] Update to new `SavedData` system
-- [ ] Implement aura tick scheduling
+- [x] Implement aura tick scheduling
 
 ### Research API (`api/research/`)
 - [x] Port `ResearchEntry.java` - Research entry class
@@ -135,8 +146,9 @@
 ## Phase 3: Blocks (Weeks 6-8)
 **Goal:** Register all blocks
 
-### Basic Blocks (23 blocks)
+### Basic Blocks (26 blocks)
 - [x] Port ore blocks (amber, cinnabar, quartz)
+- [x] Port deepslate ore blocks (amber, cinnabar, quartz)
 - [x] Port crystal blocks (6 primal + vitium)
 - [x] Port arcane stone variants (stone, brick, ancient)
 - [x] Port slabs and stairs (12+ variants)
@@ -151,7 +163,7 @@
 
 ### Crafting Blocks (11 blocks)
 - [x] Port `BlockArcaneWorkbench.java`
-- [ ] Port `BlockArcaneWorkbenchCharger.java`
+- [x] Port `BlockArcaneWorkbenchCharger.java`
 - [x] Port `BlockCrucible.java`
 - [x] Port `BlockFocalManipulator.java`
 - [x] Port `BlockInfusionMatrix.java`
@@ -164,12 +176,12 @@
 ### Device Blocks (23 blocks)
 - [x] Port `BlockArcaneEar.java` (+ toggle variant)
 - [x] Port `BlockBellows.java`
-- [ ] Port `BlockBrainBox.java`
+- [x] Port `BlockBrainBox.java`
 - [x] Port `BlockCondenser.java` (+ lattice)
 - [x] Port `BlockDioptra.java`
 - [x] Port `BlockHungryChest.java`
 - [x] Port `BlockInfernalFurnace.java`
-- [ ] Port `BlockInlay.java`
+- [x] Port `BlockInlay.java`
 - [x] Port lamp blocks (arcane, fertility, growth)
 - [x] Port `BlockLevitator.java`
 - [x] Port mirror blocks (standard, essentia)
@@ -179,7 +191,7 @@
 - [x] Port `BlockRedstoneRelay.java`
 - [x] Port `BlockSpa.java`
 - [x] Port `BlockStabilizer.java`
-- [ ] Port `BlockVisBattery.java`
+- [x] Port `BlockVisBattery.java`
 - [x] Port `BlockVisGenerator.java`
 - [x] Port `BlockWaterJug.java`
 
@@ -189,7 +201,7 @@
 - [x] Port smelter blocks (basic, thaumium, void, aux, vent)
 - [x] Port tube blocks (standard, valve, restrict, oneway, filter, buffer)
 - [x] Port jar blocks (normal, void, brain)
-- [ ] Port essentia I/O blocks (input, output)
+- [x] Port essentia I/O blocks (input, output)
 
 ### World Blocks (25 blocks)
 - [x] Port tree blocks (greatwood, silverwood logs/leaves/planks)
@@ -199,7 +211,7 @@
 - [x] Port standard ore blocks (3 types)
 - [x] Port loot blocks (crates, urns - 6 variants)
 - [x] Port taint blocks (fibre, crust, soil, rock, geyser, feature, log)
-- [ ] Port ambient grass block
+- [x] Port ambient grass block
 - [x] Port flux goo block
 - [x] Port liquid blocks (death, purifying)
 
@@ -207,7 +219,7 @@
 - [x] Verify all blockstate JSONs
 - [ ] Create/update block model JSONs
 - [ ] Verify block textures
-- [ ] Create block tags
+- [x] Create block tags
 
 ---
 
@@ -218,27 +230,27 @@
 - [x] Port `ItemThaumonomicon.java`
 - [x] Port `ItemCurio.java` (Partial)
 - [x] Port `ItemLootBag.java`
-- [ ] Port `ItemPrimordialPearl.java`
+- [x] Port `ItemPrimordialPearl.java`
 - [x] Port `ItemPechWand.java`
-- [ ] Port `ItemCelestialNotes.java`
+- [x] Port `ItemCelestialNotes.java`
 - [x] Port amber and quicksilver items
 
 ### Resource Items (25+ items)
 - [x] Port ingots (thaumium, void, brass, alchemical)
 - [x] Port nuggets (10+ metal types)
-- [ ] Port clusters (metal ores)
-- [ ] Port fabric, vis resonator, tallow
-- [ ] Port mechanisms (simple, complex)
+- [x] Port clusters (metal ores)
+- [x] Port fabric, vis resonator, tallow
+- [x] Port mechanisms (simple, complex)
 - [x] Port plates (brass, iron, thaumium, void)
-- [ ] Port filters, morphic resonator
-- [ ] Port `ItemSalisMundus.java` (magic dust)
-- [ ] Port mirrored glass, void seed
-- [ ] Port mind modules (clockwork, biothaumic)
+- [x] Port filters, morphic resonator
+- [x] Port `ItemSalisMundus.java` (magic dust)
+- [x] Port mirrored glass, void seed
+- [x] Port mind modules (clockwork, biothaumic)
 - [x] Port `ItemCrystalEssence.java`
 - [x] Port chunks, meat treat, zombie brain
 - [x] Port labels, phials
 - [x] Port `ItemAlumentum.java`
-- [ ] Port jar brace, bottle taint
+- [x] Port jar brace, bottle taint
 - [x] Port sanity soap, bath salts
 
 ### Tools (20 items)
@@ -263,7 +275,7 @@
 - [x] Port void armor set (4 pieces)
 - [x] Port void robe armor set (3 pieces)
 - [x] Port crimson cult armor sets
-- [ ] Port crimson praetor armor set
+- [x] Port crimson praetor armor set
 
 ### Baubles/Curios (8 items) - Requires Curios API
 - [x] Port `ItemBaubles.java` base class to ICurioItem
@@ -293,7 +305,7 @@
 ### Item Resources
 - [ ] Create/update item model JSONs
 - [ ] Verify item textures
-- [ ] Create item tags
+- [x] Create item tags
 
 ---
 
@@ -336,7 +348,7 @@
 - [x] Port `TileSmelter.java`
 - [x] Port `TileAlembic.java`
 - [x] Port `TileJar.java`
-- [ ] Port `TileJarFillable.java`
+- [x] Port `TileJarFillable.java` (merged into TileJar)
 - [x] Port `TileJarFillableVoid.java`
 - [x] Port `TileJarBrain.java`
 - [x] Port `TileTube.java`
@@ -420,7 +432,7 @@
 - [x] Update all entity constructors
 - [x] Rewrite all entity AI (Goal system)
 - [x] Update entity attributes (`AttributeSupplier`)
-- [ ] Update spawn rules
+- [x] Update spawn rules
 - [x] Update entity data serialization
 - [x] Create entity renderers
 - [x] Create entity models
@@ -430,15 +442,15 @@
 ## Phase 7: GUI & Containers (Weeks 17-19)
 **Goal:** Implement all GUIs
 
-### Container Classes
-- [ ] Port `ContainerArcaneWorkbench.java`
-- [ ] Port `ContainerFocalManipulator.java`
-- [ ] Port `ContainerResearchTable.java`
-- [ ] Port `ContainerThaumatorium.java`
-- [ ] Port `ContainerSmelter.java`
-- [ ] Port `ContainerHungryChest.java`
-- [ ] Port `ContainerFocusPouch.java`
-- [ ] Port all other container classes
+### Container Classes (now called Menu classes in 1.20.1)
+- [x] Port `ContainerArcaneWorkbench.java` -> `ArcaneWorkbenchMenu.java`
+- [x] Port `ContainerFocalManipulator.java` -> `FocalManipulatorMenu.java`
+- [x] Port `ContainerResearchTable.java` -> `ResearchTableMenu.java`
+- [x] Port `ContainerThaumatorium.java` -> `ThaumatoriumMenu.java`
+- [x] Port `ContainerSmelter.java` -> `SmelterMenu.java`
+- [x] Port `ContainerHungryChest.java` -> `HungryChestMenu.java`
+- [x] Port `ContainerFocusPouch.java` -> `FocusPouchMenu.java`
+- [x] Port all other container classes (GolemBuilder, Seal, HandMirror, Spa, VoidSiphon, etc.)
 - [x] Register `MenuType` instances
 
 ### Screen Classes
@@ -447,7 +459,7 @@
 - [x] Port `GuiResearchTable.java`
 - [x] Port `GuiThaumatorium.java`
 - [x] Port `GuiSmelter.java`
-- [ ] Port `GuiHungryChest.java`
+- [x] Port `GuiHungryChest.java` (HungryChestScreen)
 - [x] Port `GuiFocusPouch.java`
 - [x] Port all other GUI classes
 
@@ -474,34 +486,35 @@
 - [x] Create `ArcaneRecipeSerializer.java`
 - [x] Create `CrucibleRecipeSerializer.java`
 - [x] Create `InfusionRecipeSerializer.java`
-- [ ] Create `InfusionEnchantmentRecipeSerializer.java`
+- [x] Create `InfusionEnchantmentRecipeSerializer.java`
 - [x] Register all serializers
 
 ### Arcane Crafting
 - [x] Implement arcane workbench crafting logic
-- [ ] Create JSON recipes for all arcane recipes
+- [x] Create JSON recipes for arcane recipes (81 of 81 recipes - COMPLETE)
 - [ ] Implement vis cost calculation
 - [ ] Implement research requirement checking
 
 ### Crucible Alchemy
-- [ ] Implement crucible melting logic
-- [ ] Implement crucible crafting logic
-- [ ] Create JSON recipes for all crucible recipes
-- [ ] Implement aspect matching system
-- [ ] Implement flux generation
+- [x] Implement crucible melting logic
+- [x] Implement crucible crafting logic
+- [x] Create JSON recipes for crucible recipes (57 recipes - COMPLETE)
+- [x] Implement aspect matching system
+- [x] Implement flux generation
+- [x] Implement crucible water bucket interaction
 
 ### Infusion Crafting
-- [ ] Implement infusion altar detection
-- [ ] Implement infusion crafting logic
-- [ ] Create JSON recipes for all infusion recipes
-- [ ] Implement instability system
-- [ ] Implement stabilizer detection
-- [ ] Implement infusion effects (lightning, etc.)
+- [x] Implement infusion altar detection
+- [x] Implement infusion crafting logic
+- [x] Create JSON recipes for infusion recipes (existing recipes)
+- [x] Implement instability system
+- [x] Implement stabilizer detection (IInfusionStabiliser, IInfusionStabiliserExt)
+- [x] Implement infusion effects (lightning, warp, flux, etc.)
 
 ### Other Crafting
-- [ ] Implement infernal furnace smelting
-- [ ] Implement thaumatorium crafting
-- [ ] Implement centrifuge processing
+- [x] Implement infernal furnace smelting
+- [x] Implement thaumatorium crafting
+- [x] Implement centrifuge processing
 - [ ] Implement golem press crafting
 
 ### Multiblock Detection
@@ -515,37 +528,38 @@
 **Goal:** Implement world generation
 
 ### Biome Registration
-- [ ] Port `BiomeGenMagicalForest.java`
-- [ ] Port `BiomeGenEerie.java`
-- [ ] Port `BiomeGenEldritch.java`
-- [ ] Create biome JSON definitions
-- [ ] Register biomes with `RegisterEvent<Biome>`
+- [x] Port `BiomeHandler.java` - Biome info and aura modifiers
+- [x] Create `magical_forest.json` biome definition
+- [x] Create `eerie.json` biome definition  
+- [x] Create `eldritch.json` biome definition
+- [x] Create biome tags (is_thaumcraft, is_magical, is_tainted)
 
 ### Ore Generation
-- [ ] Create ore feature configurations
-- [ ] Register ore placements
-- [ ] Configure spawn rates per biome
+- [x] Create ore feature configurations
+- [x] Register ore placements
+- [x] Configure spawn rates per biome
 
 ### Tree Generation
 - [x] Port `WorldGenGreatwoodTrees.java`
 - [x] Port `WorldGenSilverwoodTrees.java`
 - [x] Create tree feature configurations
-- [ ] Register tree placements
+- [x] Register tree placements
 
 ### Structure Generation
-- [ ] Port `WorldGenMound.java` (barrows)
+- [x] Port `WorldGenMound.java` (barrows) - BarrowFeature.java + JSON configs
 - [ ] Port other structure generators
-- [ ] Create structure JSON definitions
-- [ ] Register structure placements
+- [x] Create structure JSON definitions
+- [x] Register structure placements
 
 ### Aura World Generation
-- [ ] Implement initial aura distribution
+- [x] Implement initial aura distribution
 - [ ] Port vis node generation (if applicable)
-- [ ] Port flux rift natural spawning
+- [x] Port flux rift natural spawning
 
 ### Taint Spreading
-- [ ] Port taint spread mechanics
-- [ ] Update for new tick system
+- [x] Port taint spread mechanics (TaintHelper.java updated with proper block conversions)
+- [x] Port taint blocks (BlockTaint, BlockTaintLog, BlockTaintFeature)
+- [x] Update for new tick system (randomTick in taint blocks)
 - [ ] Implement taint biome conversion
 
 ---
@@ -737,12 +751,12 @@
 **Goal:** Update all resources
 
 ### Language Files
-- [ ] Convert `en_us.lang` to JSON format
-- [ ] Convert `de_de.lang` to JSON format
-- [ ] Convert `fr_fr.lang` to JSON format
-- [ ] Convert `ja_jp.lang` to JSON format
-- [ ] Convert `ko_kr.lang` to JSON format
-- [ ] Convert all other language files
+- [x] Convert `en_us.lang` to JSON format
+- [x] Convert `de_de.lang` to JSON format
+- [x] Convert `fr_fr.lang` to JSON format
+- [x] Convert `ja_jp.lang` to JSON format
+- [x] Convert `ko_kr.lang` to JSON format
+- [x] Convert all other language files (nl_nl, ru_ru, zh_cn, zh_tw)
 
 ### Data Pack Resources
 - [ ] Create all recipe JSONs

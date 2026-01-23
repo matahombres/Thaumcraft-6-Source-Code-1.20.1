@@ -16,6 +16,7 @@ import thaumcraft.common.items.armor.ItemVoidRobeArmor;
 import thaumcraft.common.items.armor.ItemCultistRobeArmor;
 import thaumcraft.common.items.armor.ItemCultistPlateArmor;
 import thaumcraft.common.items.armor.ItemCultistBoots;
+import thaumcraft.common.items.armor.ItemCultistLeaderArmor;
 import thaumcraft.common.items.consumables.ItemPhial;
 import thaumcraft.common.items.curios.ItemThaumonomicon;
 import thaumcraft.common.items.resources.ItemMaterial;
@@ -132,6 +133,12 @@ public class ModItems {
             ItemMaterial::basic);
 
     public static final RegistryObject<Item> BRASS_NUGGET = ITEMS.register("brass_nugget",
+            ItemMaterial::basic);
+
+    public static final RegistryObject<Item> QUICKSILVER_NUGGET = ITEMS.register("quicksilver_nugget",
+            ItemMaterial::basic);
+
+    public static final RegistryObject<Item> QUARTZ_NUGGET = ITEMS.register("quartz_nugget",
             ItemMaterial::basic);
 
     // ==================== Primal Shards ====================
@@ -468,6 +475,17 @@ public class ModItems {
 
     public static final RegistryObject<Item> CRIMSON_BOOTS = ITEMS.register("crimson_boots",
             ItemCultistBoots::new);
+
+    // ==================== Crimson Praetor Armor (Cultist Leader) ====================
+
+    public static final RegistryObject<Item> CRIMSON_PRAETOR_HELM = ITEMS.register("crimson_praetor_helm",
+            ItemCultistLeaderArmor::createHelmet);
+
+    public static final RegistryObject<Item> CRIMSON_PRAETOR_CHEST = ITEMS.register("crimson_praetor_chest",
+            ItemCultistLeaderArmor::createChestplate);
+
+    public static final RegistryObject<Item> CRIMSON_PRAETOR_LEGS = ITEMS.register("crimson_praetor_legs",
+            ItemCultistLeaderArmor::createLeggings);
 
     // ==================== Baubles / Curios ====================
 

@@ -164,21 +164,21 @@ public class TaintHelper {
             return;
         }
         
-        // Convert leaves - check if adjacent to taint log
+        // Convert leaves - check if adjacent to taint log or fibre
         if (bs.is(net.minecraft.tags.BlockTags.LEAVES)) {
             Direction face = BlockUtils.getFaceBlockTouching(level, target, ModBlocks.TAINT_FIBRE.get());
-            if (level.random.nextFloat() < 0.6 && face != null) {
-                // TODO: Convert to taint feature with facing when ported
-                if (ModBlocks.TAINT_FIBRE != null) {
-                    level.setBlockAndUpdate(target, ModBlocks.TAINT_FIBRE.get().defaultBlockState());
-                    level.blockEvent(target, ModBlocks.TAINT_FIBRE.get(), 1, 0);
-                }
-            } else {
-                if (ModBlocks.TAINT_FIBRE != null) {
-                    level.setBlockAndUpdate(target, ModBlocks.TAINT_FIBRE.get().defaultBlockState());
-                    level.blockEvent(target, ModBlocks.TAINT_FIBRE.get(), 1, 0);
-                    AuraHelper.drainFlux(level, target, 0.01f, false);
-                }
+            if (face == null && ModBlocks.TAINT_LOG != null) {
+                face = BlockUtils.getFaceBlockTouching(level, target, ModBlocks.TAINT_LOG.get());
+            }
+            if (level.random.nextFloat() < 0.6 && face != null && ModBlocks.TAINT_FEATURE != null) {
+                // Convert to taint feature with facing
+                level.setBlockAndUpdate(target, ModBlocks.TAINT_FEATURE.get().defaultBlockState()
+                        .setValue(BlockTaintFeature.FACING, face));
+                level.blockEvent(target, ModBlocks.TAINT_FEATURE.get(), 1, 0);
+            } else if (ModBlocks.TAINT_FIBRE != null) {
+                level.setBlockAndUpdate(target, ModBlocks.TAINT_FIBRE.get().defaultBlockState());
+                level.blockEvent(target, ModBlocks.TAINT_FIBRE.get(), 1, 0);
+                AuraHelper.drainFlux(level, target, 0.01f, false);
             }
             return;
         }
@@ -187,24 +187,28 @@ public class TaintHelper {
         if (BlockTaintFibre.isHemmedByTaint(level, target) && hardness < 5.0f) {
             // Convert logs to taint log
             if (bs.is(net.minecraft.tags.BlockTags.LOGS)) {
-                // TODO: Convert to taint log when BlockTaintLog is ported
-                if (ModBlocks.TAINT_FIBRE != null) {
-                    level.setBlockAndUpdate(target, ModBlocks.TAINT_FIBRE.get().defaultBlockState());
-                    level.blockEvent(target, ModBlocks.TAINT_FIBRE.get(), 1, 0);
+                if (ModBlocks.TAINT_LOG != null) {
+                    // Preserve axis from original log if possible
+                    Direction.Axis axis = Direction.Axis.Y;
+                    if (bs.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.AXIS)) {
+                        axis = bs.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.AXIS);
+                    }
+                    level.setBlockAndUpdate(target, ModBlocks.TAINT_LOG.get().defaultBlockState()
+                            .setValue(BlockTaintLog.AXIS, axis));
+                    level.blockEvent(target, ModBlocks.TAINT_LOG.get(), 1, 0);
                     AuraHelper.drainFlux(level, target, 0.01f, false);
                 }
                 return;
             }
             
-            // Convert mushroom blocks, gourds, cacti, coral, sponge, wood
+            // Convert mushroom blocks, gourds, cacti, coral, sponge, wood to taint crust
             if (block == Blocks.RED_MUSHROOM_BLOCK || block == Blocks.BROWN_MUSHROOM_BLOCK ||
                 material == MapColor.COLOR_GREEN || // Cactus-like
                 material == MapColor.PLANT ||       // Plant materials
                 material == MapColor.WOOD) {
-                // TODO: Convert to taint crust when ported
-                if (ModBlocks.TAINT_FIBRE != null) {
-                    level.setBlockAndUpdate(target, ModBlocks.TAINT_FIBRE.get().defaultBlockState());
-                    level.blockEvent(target, ModBlocks.TAINT_FIBRE.get(), 1, 0);
+                if (ModBlocks.TAINT_CRUST != null) {
+                    level.setBlockAndUpdate(target, ModBlocks.TAINT_CRUST.get().defaultBlockState());
+                    level.blockEvent(target, ModBlocks.TAINT_CRUST.get(), 1, 0);
                     AuraHelper.drainFlux(level, target, 0.01f, false);
                 }
                 return;
@@ -213,10 +217,9 @@ public class TaintHelper {
             // Convert sand, dirt, grass, clay to taint soil
             if (material == MapColor.SAND || material == MapColor.DIRT || 
                 material == MapColor.GRASS || material == MapColor.CLAY) {
-                // TODO: Convert to taint soil when ported
-                if (ModBlocks.TAINT_FIBRE != null) {
-                    level.setBlockAndUpdate(target, ModBlocks.TAINT_FIBRE.get().defaultBlockState());
-                    level.blockEvent(target, ModBlocks.TAINT_FIBRE.get(), 1, 0);
+                if (ModBlocks.TAINT_SOIL != null) {
+                    level.setBlockAndUpdate(target, ModBlocks.TAINT_SOIL.get().defaultBlockState());
+                    level.blockEvent(target, ModBlocks.TAINT_SOIL.get(), 1, 0);
                     AuraHelper.drainFlux(level, target, 0.01f, false);
                 }
                 return;
@@ -224,10 +227,9 @@ public class TaintHelper {
             
             // Convert stone to taint rock
             if (material == MapColor.STONE) {
-                // TODO: Convert to taint rock when ported
-                if (ModBlocks.TAINT_FIBRE != null) {
-                    level.setBlockAndUpdate(target, ModBlocks.TAINT_FIBRE.get().defaultBlockState());
-                    level.blockEvent(target, ModBlocks.TAINT_FIBRE.get(), 1, 0);
+                if (ModBlocks.TAINT_ROCK != null) {
+                    level.setBlockAndUpdate(target, ModBlocks.TAINT_ROCK.get().defaultBlockState());
+                    level.blockEvent(target, ModBlocks.TAINT_ROCK.get(), 1, 0);
                     AuraHelper.drainFlux(level, target, 0.01f, false);
                 }
                 return;
