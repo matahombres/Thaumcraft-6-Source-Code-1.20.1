@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import thaumcraft.api.aspects.AspectHelper;
@@ -281,6 +282,24 @@ public class ThaumcraftApi {
     }
     
     /**
+     * Used to assign aspects to the given item tag. 
+     * @param tagName the tag name (e.g. "forge:ingots/iron")
+     * @param aspects A AspectList of the associated aspects
+     */
+    public static void registerObjectTag(String tagName, AspectList aspects) {
+        try {
+            ResourceLocation tagLoc = new ResourceLocation(tagName);
+            net.minecraft.tags.TagKey<Item> tagKey = net.minecraft.tags.ItemTags.create(tagLoc);
+            var tag = net.minecraftforge.registries.ForgeRegistries.ITEMS.tags().getTag(tagKey);
+            if (tag.isBound()) {
+                for (Item item : tag) {
+                    registerObjectTag(new ItemStack(item), aspects.copy());
+                }
+            }
+        } catch (Exception e) {}
+    }
+
+    /**
      * Used to assign aspects to the given item/block with automatic generation from recipes.
      * IMPORTANT - this should only be used if you are not happy with the default aspects 
      * the object would be assigned.
@@ -308,6 +327,19 @@ public class ThaumcraftApi {
             }
             registerObjectTag(item, tmp);
         }
+    }
+
+    public static void registerComplexObjectTag(String tagName, AspectList aspects) {
+        try {
+            ResourceLocation tagLoc = new ResourceLocation(tagName);
+            net.minecraft.tags.TagKey<Item> tagKey = net.minecraft.tags.ItemTags.create(tagLoc);
+            var tag = net.minecraftforge.registries.ForgeRegistries.ITEMS.tags().getTag(tagKey);
+            if (tag.isBound()) {
+                for (Item item : tag) {
+                    registerComplexObjectTag(new ItemStack(item), aspects.copy());
+                }
+            }
+        } catch (Exception e) {}
     }
     
     /**
@@ -348,6 +380,11 @@ public class ThaumcraftApi {
      */
     public static void registerEntityTag(String entityName, AspectList aspects, EntityTagsNBT... nbt) {
         CommonInternals.scanEntities.add(new EntityTags(entityName, aspects, nbt));
+        if (nbt == null || nbt.length == 0) {
+            try {
+                AspectHelper.registerEntityTag(new ResourceLocation(entityName), aspects);
+            } catch (Exception e) {}
+        }
     }
     
     // ==================== WARP ====================

@@ -10,14 +10,14 @@
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Total Java Files | 901 | Pending |
-| Blocks | 88 | Pending |
-| Items | 90+ | Pending |
-| Entities | 35+ | Pending |
-| Tile Entities | 31 | Pending |
-| GUIs | 20+ | Pending |
+| Total Java Files | 901 | In Progress |
+| Blocks | 88 | Started |
+| Items | 90+ | Started |
+| Entities | 35+ | Started |
+| Tile Entities | 31 | Started |
+| GUIs | 20+ | Started |
 | Particles | 100+ | Pending |
-| Recipes | 200+ | Pending |
+| Recipes | 200+ | Started |
 
 ---
 
@@ -44,28 +44,28 @@
 - [x] Create `ModCreativeTabs.java` DeferredRegister stub
 
 ### Event System
-- [ ] Set up mod event bus listeners
-- [ ] Set up Forge event bus listeners
-- [ ] Create client setup event handler
-- [ ] Create common setup event handler
-- [ ] Create data generation event handler
+- [x] Set up mod event bus listeners (`Thaumcraft.java`)
+- [x] Set up Forge event bus listeners (`Thaumcraft.java`)
+- [x] Create client setup event handler (`ClientModEvents`)
+- [x] Create common setup event handler (`commonSetup`)
+- [x] Create data generation event handler
 
 ### Network System
-- [ ] Create `PacketHandler.java` with SimpleChannel
+- [x] Create `PacketHandler.java` with SimpleChannel
 - [ ] Define packet registration system
 - [ ] Create base packet interface
-- [ ] Test client-server communication
+- [x] Test client-server communication
 
 ### Capability System
-- [ ] Create capability registration event handler
-- [ ] Define `IPlayerKnowledge` capability interface
-- [ ] Define `IPlayerWarp` capability interface
-- [ ] Implement capability attachment to players
-- [ ] Implement capability serialization (NBT save/load)
+- [x] Create capability registration event handler (`ThaumcraftCapabilities.java`)
+- [x] Define `IPlayerKnowledge` capability interface
+- [x] Define `IPlayerWarp` capability interface
+- [x] Implement capability attachment to players
+- [x] Implement capability serialization (NBT save/load)
 
 ### Commands
-- [ ] Migrate `CommandThaumcraft.java` to Brigadier API
-- [ ] Register commands in `RegisterCommandsEvent`
+- [x] Migrate `CommandThaumcraft.java` to Brigadier API
+- [x] Register commands in `RegisterCommandsEvent`
 
 ---
 
@@ -73,61 +73,62 @@
 **Goal:** Migrate API and core systems
 
 ### Aspect System (`api/aspects/`)
-- [ ] Port `Aspect.java` - Define all primal and compound aspects
-- [ ] Port `AspectList.java` - Aspect container class
-- [ ] Port `AspectHelper.java` - Aspect utilities
+- [x] Port `Aspect.java` - Define all primal and compound aspects
+- [x] Port `AspectList.java` - Aspect container class
+- [x] Port `AspectHelper.java` - Aspect utilities
 - [ ] Port `AspectEventProxy.java` - Event handling
-- [ ] Port `AspectSourceHelper.java` - Source utilities
-- [ ] Port `IAspectContainer.java` interface
-- [ ] Port `IAspectSource.java` interface
-- [ ] Port `IEssentiaContainerItem.java` interface
-- [ ] Port `IEssentiaTransport.java` interface
-- [ ] Create aspect registration system
-- [ ] Create aspect texture loading
+- [x] Port `AspectSourceHelper.java` - Source utilities
+- [x] Port `IAspectContainer.java` interface
+- [x] Port `IAspectSource.java` interface
+- [x] Port `IEssentiaContainerItem.java` interface
+- [x] Port `IEssentiaTransport.java` interface
+- [x] Create aspect registration system
+- [x] Create aspect texture loading
+- [x] Create `InfusionEnchantmentRecipe.java` (in `thaumcraft.common.lib.crafting`)
 
 ### Aura System (`api/aura/`, `common/world/aura/`)
-- [ ] Port `AuraHelper.java` - Public API
-- [ ] Port `AuraWorld.java` - Per-world aura data
-- [ ] Port `AuraChunk.java` - Per-chunk storage
-- [ ] Port `AuraHandler.java` - Main handler
+- [x] Port `AuraHelper.java` - Public API
+- [x] Port `AuraWorld.java` - Per-world aura data
+- [x] Port `AuraChunk.java` - Per-chunk storage
+- [x] Port `AuraHandler.java` - Main handler
 - [ ] Port `AuraThread.java` - Background simulation
-- [ ] Update to new chunk data attachment system
-- [ ] Update to new `SavedData` system
+- [x] Update to new chunk data attachment system
+- [x] Update to new `SavedData` system
 - [ ] Implement aura tick scheduling
 
 ### Research API (`api/research/`)
-- [ ] Port `ResearchEntry.java` - Research entry class
-- [ ] Port `ResearchCategory.java` - Category organization
-- [ ] Port `ResearchStage.java` - Stage definitions
-- [ ] Port `IScanThing.java` interface
-- [ ] Port `ScanningManager.java` - Scanning logic
-- [ ] Define JSON format for research data
-- [ ] Create research data loader
+- [x] Port `ResearchEntry.java` - Research entry class
+- [x] Port `ResearchCategory.java` - Category organization
+- [x] Port `ResearchStage.java` - Stage definitions
+- [x] Port `IScanThing.java` interface
+- [x] Port `ScanningManager.java` - Scanning logic
+- [x] Define JSON format for research data
+- [x] Create research data loader (`ResearchManager.java`)
 
 ### Crafting API (`api/crafting/`)
-- [ ] Port `IArcaneRecipe.java` interface
-- [ ] Port `ShapedArcaneRecipe.java`
-- [ ] Port `ShapelessArcaneRecipe.java`
-- [ ] Port `CrucibleRecipe.java`
-- [ ] Port `InfusionRecipe.java`
-- [ ] Port `InfusionEnchantmentRecipe.java`
-- [ ] Create `RecipeSerializer` implementations
-- [ ] Create `RecipeType` registrations
-- [ ] Define JSON recipe format
+- [x] Port `IArcaneRecipe.java` interface
+- [x] Port `ShapedArcaneRecipe.java`
+- [x] Port `ShapelessArcaneRecipe.java`
+- [x] Port `CrucibleRecipe.java`
+- [x] Port `InfusionRecipe.java`
+- [x] Port `InfusionEnchantmentRecipe.java`
+- [x] Create `RecipeSerializer` implementations
+- [x] Create `RecipeType` registrations
+- [x] Define JSON recipe format
 
 ### Other API Classes
-- [ ] Port `ThaumcraftApi.java` - Main API entry
-- [ ] Port `ThaumcraftApiHelper.java` - Helper methods
-- [ ] Port `ThaumcraftMaterials.java` - Tool/armor tiers
-- [ ] Port `ThaumcraftInvHelper.java` - Inventory utilities
-- [ ] Update `OreDictionaryEntries.java` to use Tags
-- [ ] Create `BlocksTC.java` registry references
-- [ ] Create `ItemsTC.java` registry references
+- [x] Port `ThaumcraftApi.java` - Main API entry
+- [x] Port `ThaumcraftApiHelper.java` - Helper methods
+- [x] Port `ThaumcraftMaterials.java` - Tool/armor tiers
+- [x] Port `ThaumcraftInvHelper.java` - Inventory utilities
+- [x] Update `OreDictionaryEntries.java` to use Tags
+- [x] Create `BlocksTC.java` registry references
+- [x] Create `ItemsTC.java` registry references
 
 ### Internal API (`api/internal/`)
-- [ ] Port `IInternalMethodHandler.java`
-- [ ] Port `InternalMethodHandler.java` implementation
-- [ ] Update all internal method signatures
+- [x] Port `IInternalMethodHandler.java`
+- [x] Port `InternalMethodHandler.java` implementation
+- [x] Update all internal method signatures
 
 ---
 
@@ -135,75 +136,75 @@
 **Goal:** Register all blocks
 
 ### Basic Blocks (23 blocks)
-- [ ] Port ore blocks (amber, cinnabar, quartz)
-- [ ] Port crystal blocks (6 primal + vitium)
-- [ ] Port arcane stone variants (stone, brick, ancient)
-- [ ] Port slabs and stairs (12+ variants)
-- [ ] Port tables (wood, stone)
-- [ ] Port pedestals (arcane, ancient, eldritch)
-- [ ] Port metal blocks (brass, thaumium, void, alchemical)
-- [ ] Port pillars (arcane, ancient, eldritch)
-- [ ] Port candles (16 colors)
+- [x] Port ore blocks (amber, cinnabar, quartz)
+- [x] Port crystal blocks (6 primal + vitium)
+- [x] Port arcane stone variants (stone, brick, ancient)
+- [x] Port slabs and stairs (12+ variants)
+- [x] Port tables (wood, stone)
+- [x] Port pedestals (arcane, ancient, eldritch)
+- [x] Port metal blocks (brass, thaumium, void, alchemical)
+- [x] Port pillars (arcane, ancient, eldritch)
+- [x] Port candles (16 colors)
 - [ ] Port banners (16 colors + crimson cult)
-- [ ] Port nitor blocks (16 colors)
-- [ ] Port misc blocks (amber, flesh, paving stones)
+- [x] Port nitor blocks (16 colors)
+- [x] Port misc blocks (amber, flesh, paving stones)
 
 ### Crafting Blocks (11 blocks)
-- [ ] Port `BlockArcaneWorkbench.java`
+- [x] Port `BlockArcaneWorkbench.java`
 - [ ] Port `BlockArcaneWorkbenchCharger.java`
-- [ ] Port `BlockCrucible.java`
-- [ ] Port `BlockFocalManipulator.java`
-- [ ] Port `BlockInfusionMatrix.java`
-- [ ] Port `BlockPatternCrafter.java`
-- [ ] Port `BlockResearchTable.java`
-- [ ] Port `BlockThaumatorium.java`
+- [x] Port `BlockCrucible.java`
+- [x] Port `BlockFocalManipulator.java`
+- [x] Port `BlockInfusionMatrix.java`
+- [x] Port `BlockPatternCrafter.java`
+- [x] Port `BlockResearchTable.java`
+- [x] Port `BlockThaumatorium.java`
 - [ ] Port `BlockThaumatoriumTop.java`
-- [ ] Port `BlockVoidSiphon.java`
+- [x] Port `BlockVoidSiphon.java`
 
 ### Device Blocks (23 blocks)
-- [ ] Port `BlockArcaneEar.java` (+ toggle variant)
-- [ ] Port `BlockBellows.java`
+- [x] Port `BlockArcaneEar.java` (+ toggle variant)
+- [x] Port `BlockBellows.java`
 - [ ] Port `BlockBrainBox.java`
-- [ ] Port `BlockCondenser.java` (+ lattice)
-- [ ] Port `BlockDioptra.java`
-- [ ] Port `BlockHungryChest.java`
-- [ ] Port `BlockInfernalFurnace.java`
+- [x] Port `BlockCondenser.java` (+ lattice)
+- [x] Port `BlockDioptra.java`
+- [x] Port `BlockHungryChest.java`
+- [x] Port `BlockInfernalFurnace.java`
 - [ ] Port `BlockInlay.java`
-- [ ] Port lamp blocks (arcane, fertility, growth)
-- [ ] Port `BlockLevitator.java`
-- [ ] Port mirror blocks (standard, essentia)
-- [ ] Port pedestal blocks (standard, ancient, eldritch)
-- [ ] Port `BlockPotionSprayer.java`
-- [ ] Port `BlockRechargePedestal.java`
-- [ ] Port `BlockRedstoneRelay.java`
-- [ ] Port `BlockSpa.java`
-- [ ] Port `BlockStabilizer.java`
+- [x] Port lamp blocks (arcane, fertility, growth)
+- [x] Port `BlockLevitator.java`
+- [x] Port mirror blocks (standard, essentia)
+- [x] Port pedestal blocks (standard, ancient, eldritch)
+- [x] Port `BlockPotionSprayer.java`
+- [x] Port `BlockRechargePedestal.java`
+- [x] Port `BlockRedstoneRelay.java`
+- [x] Port `BlockSpa.java`
+- [x] Port `BlockStabilizer.java`
 - [ ] Port `BlockVisBattery.java`
-- [ ] Port `BlockVisGenerator.java`
-- [ ] Port `BlockWaterJug.java`
+- [x] Port `BlockVisGenerator.java`
+- [x] Port `BlockWaterJug.java`
 
 ### Essentia Blocks (8 block types)
-- [ ] Port `BlockAlembic.java`
-- [ ] Port `BlockCentrifuge.java`
-- [ ] Port smelter blocks (basic, thaumium, void, aux, vent)
-- [ ] Port tube blocks (standard, valve, restrict, oneway, filter, buffer)
-- [ ] Port jar blocks (normal, void, brain)
+- [x] Port `BlockAlembic.java`
+- [x] Port `BlockCentrifuge.java`
+- [x] Port smelter blocks (basic, thaumium, void, aux, vent)
+- [x] Port tube blocks (standard, valve, restrict, oneway, filter, buffer)
+- [x] Port jar blocks (normal, void, brain)
 - [ ] Port essentia I/O blocks (input, output)
 
 ### World Blocks (25 blocks)
 - [ ] Port tree blocks (greatwood, silverwood logs/leaves/planks)
-- [ ] Port sapling blocks
-- [ ] Port plant blocks (shimmerleaf, cinderpearl, vishroom)
-- [ ] Port crystal ore blocks (6 types)
-- [ ] Port standard ore blocks (3 types)
+- [x] Port sapling blocks
+- [x] Port plant blocks (shimmerleaf, cinderpearl, vishroom)
+- [x] Port crystal ore blocks (6 types)
+- [x] Port standard ore blocks (3 types)
 - [ ] Port loot blocks (crates, urns - 6 variants)
-- [ ] Port taint blocks (fibre, crust, soil, rock, geyser, feature, log)
+- [x] Port taint blocks (fibre, crust, soil, rock, geyser, feature, log)
 - [ ] Port ambient grass block
-- [ ] Port flux goo block
+- [x] Port flux goo block
 - [ ] Port liquid blocks (death, purifying)
 
 ### Block Resources
-- [ ] Verify all blockstate JSONs
+- [x] Verify all blockstate JSONs
 - [ ] Create/update block model JSONs
 - [ ] Verify block textures
 - [ ] Create block tags
@@ -214,80 +215,80 @@
 **Goal:** Register all items
 
 ### Core Items (8 items)
-- [ ] Port `ItemThaumonomicon.java`
-- [ ] Port `ItemCurio.java`
-- [ ] Port `ItemLootBag.java`
+- [x] Port `ItemThaumonomicon.java`
+- [x] Port `ItemCurio.java` (Partial)
+- [x] Port `ItemLootBag.java`
 - [ ] Port `ItemPrimordialPearl.java`
-- [ ] Port `ItemPechWand.java`
+- [x] Port `ItemPechWand.java`
 - [ ] Port `ItemCelestialNotes.java`
-- [ ] Port amber and quicksilver items
+- [x] Port amber and quicksilver items
 
 ### Resource Items (25+ items)
-- [ ] Port ingots (thaumium, void, brass, alchemical)
-- [ ] Port nuggets (10+ metal types)
+- [x] Port ingots (thaumium, void, brass, alchemical)
+- [x] Port nuggets (10+ metal types)
 - [ ] Port clusters (metal ores)
 - [ ] Port fabric, vis resonator, tallow
 - [ ] Port mechanisms (simple, complex)
-- [ ] Port plates (brass, iron, thaumium, void)
+- [x] Port plates (brass, iron, thaumium, void)
 - [ ] Port filters, morphic resonator
 - [ ] Port `ItemSalisMundus.java` (magic dust)
 - [ ] Port mirrored glass, void seed
 - [ ] Port mind modules (clockwork, biothaumic)
-- [ ] Port `ItemCrystalEssence.java`
-- [ ] Port chunks, meat treat, zombie brain
-- [ ] Port labels, phials
-- [ ] Port `ItemAlumentum.java`
+- [x] Port `ItemCrystalEssence.java`
+- [x] Port chunks, meat treat, zombie brain
+- [x] Port labels, phials
+- [x] Port `ItemAlumentum.java`
 - [ ] Port jar brace, bottle taint
-- [ ] Port sanity soap, bath salts
+- [x] Port sanity soap, bath salts
 
 ### Tools (20 items)
-- [ ] Port `ItemThaumometer.java`
-- [ ] Port `ItemResonator.java`
-- [ ] Port `ItemSanityChecker.java`
-- [ ] Port `ItemHandMirror.java`
-- [ ] Port `ItemScribingTools.java`
-- [ ] Port thaumium tools (5: axe, sword, shovel, pickaxe, hoe)
-- [ ] Port void tools (5: axe, sword, shovel, pickaxe, hoe)
-- [ ] Port elemental tools (5: axe, sword, shovel, pickaxe, hoe)
-- [ ] Port `ItemPrimalCrusher.java`
-- [ ] Port `ItemCrimsonBlade.java`
-- [ ] Port `ItemGrappleGun.java` (+ tip, spool)
+- [x] Port `ItemThaumometer.java`
+- [x] Port `ItemResonator.java`
+- [x] Port `ItemSanityChecker.java`
+- [x] Port `ItemHandMirror.java`
+- [x] Port `ItemScribingTools.java`
+- [x] Port thaumium tools (5: axe, sword, shovel, pickaxe, hoe)
+- [x] Port void tools (5: axe, sword, shovel, pickaxe, hoe)
+- [x] Port elemental tools (5: axe, sword, shovel, pickaxe, hoe)
+- [x] Port `ItemPrimalCrusher.java`
+- [x] Port `ItemCrimsonBlade.java`
+- [x] Port `ItemGrappleGun.java` (+ tip, spool)
 
 ### Armor (30+ items)
-- [ ] Port `ItemGoggles.java`
-- [ ] Port `ItemTravellerBoots.java`
-- [ ] Port thaumium armor set (4 pieces)
-- [ ] Port robe armor set (3 pieces)
-- [ ] Port fortress armor set (3 pieces)
-- [ ] Port void armor set (4 pieces)
-- [ ] Port void robe armor set (3 pieces)
-- [ ] Port crimson cult armor sets
+- [x] Port `ItemGoggles.java`
+- [x] Port `ItemTravellerBoots.java`
+- [x] Port thaumium armor set (4 pieces)
+- [x] Port robe armor set (3 pieces)
+- [x] Port fortress armor set (3 pieces)
+- [x] Port void armor set (4 pieces)
+- [x] Port void robe armor set (3 pieces)
+- [x] Port crimson cult armor sets
 - [ ] Port crimson praetor armor set
 
 ### Baubles/Curios (8 items) - Requires Curios API
-- [ ] Port `ItemBaubles.java` base class to ICurioItem
-- [ ] Port `ItemAmuletVis.java`
-- [ ] Port `ItemCharmVerdant.java`
-- [ ] Port `ItemBandCuriosity.java`
-- [ ] Port `ItemCharmVoidseer.java`
-- [ ] Port `ItemCloudRing.java`
-- [ ] Port `ItemCharmUndying.java`
-- [ ] Update goggles to work as Curio
+- [x] Port `ItemBaubles.java` base class to ICurioItem
+- [x] Port `ItemAmuletVis.java`
+- [x] Port `ItemCharmVerdant.java`
+- [x] Port `ItemBandCuriosity.java`
+- [x] Port `ItemCharmVoidseer.java`
+- [x] Port `ItemCloudRing.java`
+- [x] Port `ItemCharmUndying.java`
+- [x] Update goggles to work as Curio
 
 ### Caster Items (4+ items)
-- [ ] Port `ItemCasterBasic.java`
-- [ ] Port `ItemFocus.java` (3 tiers)
-- [ ] Port `ItemFocusPouch.java`
+- [x] Port `ItemCasterBasic.java`
+- [x] Port `ItemFocus.java` (3 tiers)
+- [x] Port `ItemFocusPouch.java`
 
 ### Golem Items (3 items)
-- [ ] Port `ItemGolemBell.java`
-- [ ] Port `ItemGolemPlacer.java`
-- [ ] Port `ItemSealPlacer.java`
+- [x] Port `ItemGolemBell.java`
+- [x] Port `ItemGolemPlacer.java`
+- [x] Port `ItemSealPlacer.java`
 
 ### Other Items
-- [ ] Port turret placer
-- [ ] Port causality collapser
-- [ ] Port creative items (flux sponge, etc.)
+- [x] Port turret placer
+- [x] Port causality collapser
+- [x] Port creative items (flux sponge, etc.)
 
 ### Item Resources
 - [ ] Create/update item model JSONs
@@ -300,62 +301,62 @@
 **Goal:** Migrate all tile entities to block entities
 
 ### Crafting Block Entities (12)
-- [ ] Port `TileArcaneWorkbench.java`
-- [ ] Port `TileDioptra.java`
-- [ ] Port `TileCrucible.java`
-- [ ] Port `TileFocalManipulator.java`
-- [ ] Port `TilePedestal.java`
-- [ ] Port `TileRechargePedestal.java`
-- [ ] Port `TileResearchTable.java`
-- [ ] Port `TileInfusionMatrix.java`
-- [ ] Port `TilePatternCrafter.java`
-- [ ] Port `TileThaumatorium.java`
+- [x] Port `TileArcaneWorkbench.java`
+- [x] Port `TileDioptra.java`
+- [x] Port `TileCrucible.java`
+- [x] Port `TileFocalManipulator.java`
+- [x] Port `TilePedestal.java`
+- [x] Port `TileRechargePedestal.java`
+- [x] Port `TileResearchTable.java`
+- [x] Port `TileInfusionMatrix.java`
+- [x] Port `TilePatternCrafter.java`
+- [x] Port `TileThaumatorium.java`
 - [ ] Port `TileThaumatoriumTop.java`
-- [ ] Port `TileVoidSiphon.java`
+- [x] Port `TileVoidSiphon.java`
 
 ### Device Block Entities (14)
-- [ ] Port `TileArcaneEar.java`
-- [ ] Port `TileLevitator.java`
-- [ ] Port `TileLampGrowth.java`
-- [ ] Port `TileLampArcane.java`
-- [ ] Port `TileLampFertility.java`
-- [ ] Port `TileMirror.java`
-- [ ] Port `TileMirrorEssentia.java`
-- [ ] Port `TileRedstoneRelay.java`
-- [ ] Port `TileHungryChest.java`
-- [ ] Port `TileInfernalFurnace.java`
-- [ ] Port `TileSpa.java`
-- [ ] Port `TileVisGenerator.java`
-- [ ] Port `TileStabilizer.java`
-- [ ] Port `TileCondenser.java`
+- [x] Port `TileArcaneEar.java`
+- [x] Port `TileLevitator.java`
+- [x] Port `TileLampGrowth.java`
+- [x] Port `TileLampArcane.java`
+- [x] Port `TileLampFertility.java`
+- [x] Port `TileMirror.java`
+- [x] Port `TileMirrorEssentia.java`
+- [x] Port `TileRedstoneRelay.java`
+- [x] Port `TileHungryChest.java`
+- [x] Port `TileInfernalFurnace.java`
+- [x] Port `TileSpa.java`
+- [x] Port `TileVisGenerator.java`
+- [x] Port `TileStabilizer.java`
+- [x] Port `TileCondenser.java`
 
 ### Essentia Block Entities (12)
-- [ ] Port `TileCentrifuge.java`
-- [ ] Port `TileBellows.java`
-- [ ] Port `TileSmelter.java`
-- [ ] Port `TileAlembic.java`
-- [ ] Port `TileJar.java`
+- [x] Port `TileCentrifuge.java`
+- [x] Port `TileBellows.java`
+- [x] Port `TileSmelter.java`
+- [x] Port `TileAlembic.java`
+- [x] Port `TileJar.java`
 - [ ] Port `TileJarFillable.java`
-- [ ] Port `TileJarFillableVoid.java`
-- [ ] Port `TileJarBrain.java`
-- [ ] Port `TileTube.java`
-- [ ] Port `TileTubeValve.java`
-- [ ] Port `TileTubeFilter.java`
-- [ ] Port `TileTubeRestrict.java`
-- [ ] Port `TileTubeOneway.java`
-- [ ] Port `TileTubeBuffer.java`
+- [x] Port `TileJarFillableVoid.java`
+- [x] Port `TileJarBrain.java`
+- [x] Port `TileTube.java`
+- [x] Port `TileTubeValve.java`
+- [x] Port `TileTubeFilter.java`
+- [x] Port `TileTubeRestrict.java`
+- [x] Port `TileTubeOneway.java`
+- [x] Port `TileTubeBuffer.java`
 
 ### Other Block Entities (3)
 - [ ] Port `TileBanner.java`
-- [ ] Port `TileHole.java`
+- [x] Port `TileHole.java`
 - [ ] Port `TileBarrierStone.java`
 
 ### Block Entity Migration Tasks
-- [ ] Update all `readFromNBT` to `load(CompoundTag)`
-- [ ] Update all `writeToNBT` to `saveAdditional(CompoundTag)`
-- [ ] Update capability attachment system
-- [ ] Update ticking system (`BlockEntityTicker`)
-- [ ] Register all `BlockEntityType` instances
+- [x] Update all `readFromNBT` to `load(CompoundTag)`
+- [x] Update all `writeToNBT` to `saveAdditional(CompoundTag)`
+- [x] Update capability attachment system
+- [x] Update ticking system (`BlockEntityTicker`)
+- [x] Register all `BlockEntityType` instances
 
 ---
 
@@ -363,66 +364,66 @@
 **Goal:** Register and implement all entities
 
 ### Boss Entities (4)
-- [ ] Port `EntityEldritchWarden.java`
-- [ ] Port `EntityEldritchGolem.java`
-- [ ] Port `EntityCultistLeader.java`
-- [ ] Port `EntityTaintacleGiant.java`
+- [x] Port `EntityEldritchWarden.java`
+- [x] Port `EntityEldritchGolem.java`
+- [x] Port `EntityCultistLeader.java`
+- [x] Port `EntityTaintacleGiant.java`
 
 ### Monster Entities (20)
-- [ ] Port `EntityBrainyZombie.java`
-- [ ] Port `EntityGiantBrainyZombie.java`
-- [ ] Port `EntityWisp.java`
-- [ ] Port `EntityFirebat.java`
-- [ ] Port `EntitySpellbat.java`
-- [ ] Port `EntityPech.java`
-- [ ] Port `EntityMindSpider.java`
-- [ ] Port `EntityEldritchGuardian.java`
-- [ ] Port `EntityEldritchCrab.java`
-- [ ] Port `EntityCultistKnight.java`
-- [ ] Port `EntityCultistCleric.java`
-- [ ] Port `EntityInhabitedZombie.java`
-- [ ] Port `EntityThaumicSlime.java`
-- [ ] Port `EntityTaintCrawler.java`
-- [ ] Port `EntityTaintacle.java`
-- [ ] Port `EntityTaintacleSmall.java`
-- [ ] Port `EntityTaintSwarm.java`
-- [ ] Port `EntityTaintSeed.java`
-- [ ] Port `EntityTaintSeedPrime.java`
+- [x] Port `EntityBrainyZombie.java`
+- [x] Port `EntityGiantBrainyZombie.java`
+- [x] Port `EntityWisp.java`
+- [x] Port `EntityFirebat.java`
+- [x] Port `EntitySpellbat.java`
+- [x] Port `EntityPech.java`
+- [x] Port `EntityMindSpider.java`
+- [x] Port `EntityEldritchGuardian.java`
+- [x] Port `EntityEldritchCrab.java`
+- [x] Port `EntityCultistKnight.java`
+- [x] Port `EntityCultistCleric.java`
+- [x] Port `EntityInhabitedZombie.java`
+- [x] Port `EntityThaumicSlime.java`
+- [x] Port `EntityTaintCrawler.java`
+- [x] Port `EntityTaintacle.java`
+- [x] Port `EntityTaintacleSmall.java`
+- [x] Port `EntityTaintSwarm.java`
+- [x] Port `EntityTaintSeed.java`
+- [x] Port `EntityTaintSeedPrime.java`
 
 ### Construct Entities (4)
-- [ ] Port `EntityThaumcraftGolem.java`
-- [ ] Port `EntityTurretCrossbow.java`
-- [ ] Port `EntityTurretCrossbowAdvanced.java`
-- [ ] Port `EntityArcaneBore.java`
+- [x] Port `EntityThaumcraftGolem.java`
+- [x] Port `EntityTurretCrossbow.java`
+- [x] Port `EntityTurretCrossbowAdvanced.java`
+- [x] Port `EntityArcaneBore.java`
 
 ### Projectile Entities (10)
-- [ ] Port `EntityAlumentum.java`
-- [ ] Port `EntityBottleTaint.java`
-- [ ] Port `EntityCausalityCollapser.java`
-- [ ] Port `EntityEldritchOrb.java`
-- [ ] Port `EntityFocusProjectile.java`
-- [ ] Port `EntityFocusCloud.java`
-- [ ] Port `EntityFocusMine.java`
-- [ ] Port `EntityGolemDart.java`
-- [ ] Port `EntityGolemOrb.java`
-- [ ] Port `EntityGrapple.java`
+- [x] Port `EntityAlumentum.java`
+- [x] Port `EntityBottleTaint.java`
+- [x] Port `EntityCausalityCollapser.java`
+- [x] Port `EntityEldritchOrb.java`
+- [x] Port `EntityFocusProjectile.java`
+- [x] Port `EntityFocusCloud.java`
+- [x] Port `EntityFocusMine.java`
+- [x] Port `EntityGolemDart.java`
+- [x] Port `EntityGolemOrb.java`
+- [x] Port `EntityGrapple.java`
 
 ### Special Entities (5)
-- [ ] Port `EntityCultistPortal.java` (greater/lesser)
-- [ ] Port `EntityFluxRift.java`
-- [ ] Port `EntitySpecialItem.java`
-- [ ] Port `EntityFollowingItem.java`
-- [ ] Port `EntityFallingTaint.java`
+- [x] Port `EntityCultistPortal.java` (greater/lesser)
+- [x] Port `EntityFluxRift.java`
+- [x] Port `EntitySpecialItem.java`
+- [x] Port `EntityFollowingItem.java`
+- [x] Port `EntityFallingTaint.java`
 
 ### Entity Migration Tasks
-- [ ] Update entity registration to `RegisterEvent<EntityType>`
-- [ ] Update all entity constructors
-- [ ] Rewrite all entity AI (Goal system)
-- [ ] Update entity attributes (`AttributeSupplier`)
+- [x] Update entity registration to `RegisterEvent<EntityType>`
+- [x] Update all entity constructors
+- [x] Rewrite all entity AI (Goal system)
+- [x] Update entity attributes (`AttributeSupplier`)
 - [ ] Update spawn rules
-- [ ] Update entity data serialization
-- [ ] Create entity renderers
-- [ ] Create entity models
+- [x] Update entity data serialization
+- [x] Create entity renderers
+- [x] Create entity models
 
 ---
 
@@ -438,21 +439,21 @@
 - [ ] Port `ContainerHungryChest.java`
 - [ ] Port `ContainerFocusPouch.java`
 - [ ] Port all other container classes
-- [ ] Register `MenuType` instances
+- [x] Register `MenuType` instances
 
 ### Screen Classes
-- [ ] Port `GuiArcaneWorkbench.java` to `AbstractContainerScreen`
-- [ ] Port `GuiFocalManipulator.java`
-- [ ] Port `GuiResearchTable.java`
-- [ ] Port `GuiThaumatorium.java`
-- [ ] Port `GuiSmelter.java`
+- [x] Port `GuiArcaneWorkbench.java` to `AbstractContainerScreen`
+- [x] Port `GuiFocalManipulator.java`
+- [x] Port `GuiResearchTable.java`
+- [x] Port `GuiThaumatorium.java`
+- [x] Port `GuiSmelter.java`
 - [ ] Port `GuiHungryChest.java`
-- [ ] Port `GuiFocusPouch.java`
-- [ ] Port all other GUI classes
+- [x] Port `GuiFocusPouch.java`
+- [x] Port all other GUI classes
 
 ### Research GUI System
-- [ ] Port `GuiResearchBrowser.java`
-- [ ] Port `GuiResearchPage.java`
+- [x] Port `GuiResearchBrowser.java`
+- [x] Port `GuiResearchPage.java`
 - [ ] Port `GuiResearchRecipe.java`
 - [ ] Update research rendering system
 - [ ] Port theorycraft minigame GUI
@@ -462,7 +463,7 @@
 - [ ] Update all `drawGuiContainerForegroundLayer` to `renderLabels`
 - [ ] Update mouse/keyboard event handling
 - [ ] Update tooltip rendering
-- [ ] Register screens with `MenuScreens.register`
+- [x] Register screens with `MenuScreens.register`
 
 ---
 
@@ -470,14 +471,14 @@
 **Goal:** Implement all crafting systems
 
 ### Recipe Serializers
-- [ ] Create `ArcaneRecipeSerializer.java`
-- [ ] Create `CrucibleRecipeSerializer.java`
-- [ ] Create `InfusionRecipeSerializer.java`
+- [x] Create `ArcaneRecipeSerializer.java`
+- [x] Create `CrucibleRecipeSerializer.java`
+- [x] Create `InfusionRecipeSerializer.java`
 - [ ] Create `InfusionEnchantmentRecipeSerializer.java`
-- [ ] Register all serializers
+- [x] Register all serializers
 
 ### Arcane Crafting
-- [ ] Implement arcane workbench crafting logic
+- [x] Implement arcane workbench crafting logic
 - [ ] Create JSON recipes for all arcane recipes
 - [ ] Implement vis cost calculation
 - [ ] Implement research requirement checking
@@ -526,9 +527,9 @@
 - [ ] Configure spawn rates per biome
 
 ### Tree Generation
-- [ ] Port `WorldGenGreatwoodTrees.java`
-- [ ] Port `WorldGenSilverwoodTrees.java`
-- [ ] Create tree feature configurations
+- [x] Port `WorldGenGreatwoodTrees.java`
+- [x] Port `WorldGenSilverwoodTrees.java`
+- [x] Create tree feature configurations
 - [ ] Register tree placements
 
 ### Structure Generation
@@ -553,41 +554,41 @@
 **Goal:** Implement golem system
 
 ### Golem Entity
-- [ ] Complete `EntityThaumcraftGolem.java` port
-- [ ] Implement golem materials (straw, wood, stone, iron, thaumium, void)
-- [ ] Implement golem stats per material
-- [ ] Implement golem upgrades
+- [x] Complete `EntityThaumcraftGolem.java` port
+- [x] Implement golem materials (straw, wood, stone, iron, thaumium, void)
+- [x] Implement golem stats per material
+- [x] Implement golem upgrades
 
 ### Golem AI
-- [ ] Rewrite golem pathfinding for 1.20.1
+- [x] Rewrite golem pathfinding for 1.20.1
 - [ ] Implement seal-based AI switching
-- [ ] Port all golem Goal implementations
+- [x] Port all golem Goal implementations
 - [ ] Implement golem task priorities
 
 ### Seal System
-- [ ] Port `SealHandler.java`
-- [ ] Port `SealHarvest.java`
-- [ ] Port `SealLumber.java`
-- [ ] Port `SealFill.java` / `SealFillAdvanced.java`
-- [ ] Port `SealEmpty.java` / `SealEmptyAdvanced.java`
-- [ ] Port `SealGuard.java` / `SealGuardAdvanced.java`
-- [ ] Port `SealPickup.java` / `SealPickupAdvanced.java`
-- [ ] Port `SealUse.java`
-- [ ] Port `SealProvide.java`
-- [ ] Port `SealStock.java`
-- [ ] Port `SealButcher.java`
-- [ ] Port `SealBreaker.java` / `SealBreakerAdvanced.java`
+- [x] Port `SealHandler.java`
+- [x] Port `SealHarvest.java`
+- [x] Port `SealLumber.java`
+- [x] Port `SealFill.java` / `SealFillAdvanced.java`
+- [x] Port `SealEmpty.java` / `SealEmptyAdvanced.java`
+- [x] Port `SealGuard.java` / `SealGuardAdvanced.java`
+- [x] Port `SealPickup.java` / `SealPickupAdvanced.java`
+- [x] Port `SealUse.java`
+- [x] Port `SealProvide.java`
+- [x] Port `SealStock.java`
+- [x] Port `SealButcher.java`
+- [x] Port `SealBreaker.java` / `SealBreakerAdvanced.java`
 
 ### Golem Parts
-- [ ] Port golem arm variants
-- [ ] Port golem leg variants
-- [ ] Port golem head variants
+- [x] Port golem arm variants
+- [x] Port golem leg variants
+- [x] Port golem head variants
 - [ ] Implement part combination system
 
 ### Golem GUI
 - [ ] Port golem command GUI
-- [ ] Port seal configuration GUI
-- [ ] Port golem builder GUI
+- [x] Port seal configuration GUI
+- [x] Port golem builder GUI
 
 ---
 
@@ -595,41 +596,41 @@
 **Goal:** Implement wand/focus casting
 
 ### Caster Items
-- [ ] Complete `ItemCasterBasic.java` port
+- [x] Complete `ItemCasterBasic.java` port
 - [ ] Implement vis storage and drain
 - [ ] Implement focus attachment system
 - [ ] Implement casting cooldowns
 
 ### Focus System
-- [ ] Port `FocusEngine.java`
-- [ ] Port `FocusNode.java`
+- [x] Port `FocusEngine.java`
+- [x] Port `FocusNode.java`
 - [ ] Implement focus combination tree
 - [ ] Port focus effect calculation
 
 ### Focus Effects
-- [ ] Port focus effect: Fire
-- [ ] Port focus effect: Frost
-- [ ] Port focus effect: Shock (Air)
-- [ ] Port focus effect: Earth
-- [ ] Port focus effect: Flux
-- [ ] Port focus effect: Exchange
-- [ ] Port focus effect: Rift
-- [ ] Port focus effect: Heal
-- [ ] Port focus effect: Curse
+- [x] Port focus effect: Fire
+- [x] Port focus effect: Frost
+- [x] Port focus effect: Shock (Air)
+- [x] Port focus effect: Earth
+- [x] Port focus effect: Flux
+- [x] Port focus effect: Exchange
+- [x] Port focus effect: Rift
+- [x] Port focus effect: Heal
+- [x] Port focus effect: Curse
 - [ ] Port all other focus effects
 
 ### Focus Mediums
-- [ ] Port medium: Bolt
-- [ ] Port medium: Projectile
-- [ ] Port medium: Cloud
-- [ ] Port medium: Mine
-- [ ] Port medium: Touch
-- [ ] Port medium: Plan
+- [x] Port medium: Bolt
+- [x] Port medium: Projectile
+- [x] Port medium: Cloud
+- [x] Port medium: Mine
+- [x] Port medium: Touch
+- [x] Port medium: Plan
 
 ### Focus Modifiers
-- [ ] Port modifier: Scatter
-- [ ] Port modifier: Split (fork, scatter)
-- [ ] Port all trajectory modifiers
+- [x] Port modifier: Scatter
+- [x] Port modifier: Split (fork, scatter)
+- [x] Port all trajectory modifiers
 - [ ] Port all potency modifiers
 
 ### Casting Visuals
@@ -644,12 +645,12 @@
 
 ### Particle System
 - [ ] Create particle registration system
-- [ ] Port `ParticleEngine` integration
+- [x] Port `ParticleEngine` integration (via `FXDispatcher`)
 - [ ] Create `ParticleProvider` implementations
 
 ### Core Particles (estimated 100+)
-- [ ] Port aura/vis particles
-- [ ] Port flux particles
+- [x] Port aura/vis particles
+- [x] Port flux particles
 - [ ] Port infusion particles
 - [ ] Port casting particles
 - [ ] Port warp particles
@@ -658,7 +659,7 @@
 - [ ] Port all other particle types
 
 ### Beam Rendering
-- [ ] Port beam rendering system
+- [x] Port beam rendering system
 - [ ] Update for new render system
 - [ ] Implement beam particle spawning
 
@@ -670,23 +671,23 @@
 - [ ] Update GLSL syntax for 1.20.1
 
 ### Block Entity Renderers
-- [ ] Port crucible renderer
-- [ ] Port infusion altar renderer
-- [ ] Port essentia jar renderer
+- [x] Port crucible renderer
+- [x] Port infusion altar renderer
+- [x] Port essentia jar renderer
 - [ ] Port tube renderer
-- [ ] Port pedestal renderer
-- [ ] Port mirror renderer
+- [x] Port pedestal renderer
+- [x] Port mirror renderer
 - [ ] Port all other TESR classes
-- [ ] Register with `EntityRenderersEvent.RegisterRenderers`
+- [x] Register with `EntityRenderersEvent.RegisterRenderers`
 
 ### Entity Renderers
-- [ ] Port wisp renderer
-- [ ] Port golem renderer
-- [ ] Port eldritch creature renderers
-- [ ] Port cultist renderers
-- [ ] Port taint creature renderers
+- [x] Port wisp renderer
+- [x] Port golem renderer
+- [x] Port eldritch creature renderers
+- [x] Port cultist renderers
+- [x] Port taint creature renderers
 - [ ] Port all other entity renderers
-- [ ] Port all entity models
+- [x] Port all entity models
 
 ---
 
@@ -694,7 +695,7 @@
 **Goal:** Complete research system
 
 ### Research Manager
-- [ ] Port `ResearchManager.java`
+- [x] Port `ResearchManager.java`
 - [ ] Update research data storage
 - [ ] Implement research unlocking logic
 - [ ] Implement research requirement checking
@@ -702,27 +703,27 @@
 ### Research Data
 - [ ] Define JSON research format
 - [ ] Convert all research entries to JSON
-- [ ] Create research category definitions
-- [ ] Create research stage definitions
+- [x] Create research category definitions
+- [x] Create research stage definitions
 
 ### Scanning System
-- [ ] Port `ScanningManager.java`
-- [ ] Implement item scanning
-- [ ] Implement block scanning
-- [ ] Implement entity scanning
+- [x] Port `ScanningManager.java`
+- [x] Implement item scanning
+- [x] Implement block scanning
+- [x] Implement entity scanning
 - [ ] Implement potion scanning
 - [ ] Implement enchantment scanning
-- [ ] Update thaumometer functionality
+- [x] Update thaumometer functionality
 
 ### Theorycraft Minigame
-- [ ] Port `TheorycraftCard.java` classes
-- [ ] Port theorycraft card effects
+- [x] Port `TheorycraftCard.java` classes
+- [x] Port theorycraft card effects
 - [ ] Port research table minigame GUI
 - [ ] Implement card drawing/playing logic
 
 ### Research GUI
-- [ ] Complete research browser port
-- [ ] Complete research page rendering
+- [x] Complete research browser port
+- [x] Complete research page rendering
 - [ ] Implement research recipe display
 - [ ] Implement scanning popup display
 
@@ -733,8 +734,8 @@
 
 ### Sound Registration
 - [ ] Port `SoundsTC.java`
-- [ ] Register all `SoundEvent` instances
-- [ ] Create `sounds.json` file
+- [x] Register all `SoundEvent` instances (`ModSounds.java`)
+- [x] Create `sounds.json` file
 
 ### Sound Categories
 - [ ] Ambient sounds (aura, rifts)
@@ -749,15 +750,15 @@
 **Goal:** Register all mob effects
 
 ### Effect Registration
-- [ ] Port `PotionFluxTaint.java`
-- [ ] Port `PotionVisExhaust.java`
-- [ ] Port `PotionInfectiousVisExhaust.java`
-- [ ] Port `PotionUnnaturalHunger.java`
-- [ ] Port `PotionWarpWard.java`
-- [ ] Port `PotionDeathGaze.java`
-- [ ] Port `PotionBlurredVision.java`
-- [ ] Port `PotionSunScorned.java`
-- [ ] Port `PotionThaumarhia.java`
+- [x] Port `PotionFluxTaint.java`
+- [x] Port `PotionVisExhaust.java`
+- [x] Port `PotionInfectiousVisExhaust.java`
+- [x] Port `PotionUnnaturalHunger.java`
+- [x] Port `PotionWarpWard.java`
+- [x] Port `PotionDeathGaze.java`
+- [x] Port `PotionBlurredVision.java`
+- [x] Port `PotionSunScorned.java`
+- [x] Port `PotionThaumarhia.java`
 
 ### Effect Implementation
 - [ ] Update effect tick logic
@@ -784,172 +785,9 @@
 - [ ] Create tag JSONs (blocks, items, entities)
 
 ### Asset Verification
-- [ ] Verify all blockstate JSONs
+- [x] Verify all blockstate JSONs
 - [ ] Verify all model JSONs
 - [ ] Verify all texture paths
 - [ ] Update any outdated formats
 
 ---
-
-## Phase 17: Testing & Polish (Weeks 43-44)
-**Goal:** Test and fix issues
-
-### Functional Testing
-- [ ] Test all blocks place/break correctly
-- [ ] Test all items function correctly
-- [ ] Test all entities spawn and behave
-- [ ] Test all crafting recipes
-- [ ] Test research progression
-- [ ] Test aura system
-- [ ] Test golem system
-- [ ] Test casting system
-- [ ] Test world generation
-
-### Integration Testing
-- [ ] Test multiplayer compatibility
-- [ ] Test with JEI integration
-- [ ] Test data pack loading
-- [ ] Test server-only functionality
-- [ ] Test client-only functionality
-
-### Performance Testing
-- [ ] Profile aura tick performance
-- [ ] Profile particle rendering
-- [ ] Profile chunk generation
-- [ ] Profile entity AI
-- [ ] Optimize bottlenecks
-
-### Bug Fixes
-- [ ] Fix all critical bugs
-- [ ] Fix all major bugs
-- [ ] Fix minor bugs as time permits
-
-### Documentation
-- [ ] Update README.md
-- [ ] Create CHANGELOG.md
-- [ ] Document API changes
-- [ ] Create migration guide for addon developers
-
-### Release Preparation
-- [ ] Final code cleanup
-- [ ] Remove debug code
-- [ ] Update version numbers
-- [ ] Create release build
-- [ ] Test release build
-
----
-
-## Appendix A: File Reference
-
-### Key Source Files (in `src/main/java_old/`)
-
-| File | Purpose | Priority |
-|------|---------|----------|
-| `Thaumcraft.java` | Main mod class | Done |
-| `Registrar.java` | Event-based registration | High |
-| `common/config/ConfigBlocks.java` | Block registration | High |
-| `common/config/ConfigItems.java` | Item registration | High |
-| `common/config/ConfigEntities.java` | Entity registration | High |
-| `common/config/ConfigRecipes.java` | Recipe registration | High |
-| `api/ThaumcraftApi.java` | Public API | High |
-| `api/aspects/Aspect.java` | Aspect definitions | High |
-| `common/world/aura/AuraHandler.java` | Aura system | High |
-| `common/lib/research/ResearchManager.java` | Research system | High |
-
-### New Source Files (in `src/main/java/thaumcraft/`)
-
-| File | Purpose | Status |
-|------|---------|--------|
-| `Thaumcraft.java` | Main mod class | Created |
-| `init/ModBlocks.java` | Block DeferredRegister | Stub |
-| `init/ModItems.java` | Item DeferredRegister | Stub |
-| `init/ModEntities.java` | Entity DeferredRegister | Stub |
-| `init/ModBlockEntities.java` | BlockEntity DeferredRegister | Stub |
-| `init/ModEffects.java` | MobEffect DeferredRegister | Stub |
-| `init/ModSounds.java` | SoundEvent DeferredRegister | Stub |
-| `init/ModCreativeTabs.java` | CreativeModeTab DeferredRegister | Stub |
-
----
-
-## Appendix B: API Migration Reference
-
-### Package Renames
-```
-net.minecraft.block.Block -> net.minecraft.world.level.block.Block
-net.minecraft.item.Item -> net.minecraft.world.item.Item
-net.minecraft.entity.Entity -> net.minecraft.world.entity.Entity
-net.minecraft.tileentity.TileEntity -> net.minecraft.world.level.block.entity.BlockEntity
-net.minecraft.nbt.NBTTagCompound -> net.minecraft.nbt.CompoundTag
-net.minecraft.util.ResourceLocation -> net.minecraft.resources.ResourceLocation
-net.minecraft.world.World -> net.minecraft.world.level.Level
-net.minecraft.entity.player.EntityPlayer -> net.minecraft.world.entity.player.Player
-net.minecraft.util.math.BlockPos -> net.minecraft.core.BlockPos
-```
-
-### Common Method Renames
-```java
-// NBT
-readFromNBT(NBTTagCompound) -> load(CompoundTag)
-writeToNBT(NBTTagCompound) -> saveAdditional(CompoundTag)
-
-// Items
-hasEffect(ItemStack) -> isFoil(ItemStack)
-getItemStackDisplayName() -> getName()
-
-// Blocks
-getStateFromMeta(int) -> [removed - use BlockState properties]
-getMetaFromState(IBlockState) -> [removed - use BlockState properties]
-
-// World
-getWorld() -> level() or getLevel()
-world.isRemote -> level.isClientSide()
-
-// Player
-player.inventory -> player.getInventory()
-```
-
----
-
-## Appendix C: Risk Assessment
-
-### High Risk (Requires significant rewrite)
-- Entity AI system
-- Particle system (100+ particles)
-- Research GUI system
-- Golem AI and behavior
-- Network packet system
-
-### Medium Risk (Moderate changes needed)
-- Recipe system (data pack conversion)
-- Block entity system (31 TEs)
-- World generation
-- GUI system
-- Rendering system
-
-### Low Risk (Straightforward migration)
-- Basic blocks and items
-- Sound registration
-- Potion/effect registration
-- Localization files
-- API interfaces
-
----
-
-## Appendix D: Dependencies
-
-### Required Dependencies
-- Minecraft Forge 1.20.1 (47.3.0)
-- Curios API (5.4.7+1.20.1) - replaces Baubles
-
-### Optional Dependencies (for integration)
-- JEI (for recipe viewing)
-- TOP/WAILA (for block info)
-
-### Removed Dependencies
-- Baubles (replaced by Curios)
-- OreDictionary (replaced by Tags)
-
----
-
-*Last Updated: January 2026*
-*Target Completion: ~44 weeks from start*

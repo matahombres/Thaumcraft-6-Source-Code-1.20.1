@@ -33,6 +33,9 @@ public class EntityTaintacle extends Monster {
     
     public float flailIntensity = 1.0f;
     
+    /** Length factor for the tentacle - affects model scaling and animation */
+    protected int length = 10;
+    
     public EntityTaintacle(EntityType<? extends EntityTaintacle> type, Level level) {
         super(type, level);
         this.xpReward = 8;
@@ -201,6 +204,14 @@ public class EntityTaintacle extends Monster {
     @Override
     protected SoundEvent getDeathSound() {
         return ModSounds.TENTACLE.get();
+    }
+    
+    /**
+     * Gets the length factor of this tentacle.
+     * Used by the renderer for scaling.
+     */
+    public int getLength() {
+        return this.length;
     }
     
     @Override

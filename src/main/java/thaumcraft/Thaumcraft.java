@@ -34,6 +34,7 @@ import thaumcraft.common.golems.seals.SealHandler;
 import thaumcraft.common.lib.research.theorycraft.TheoryRegistry;
 import thaumcraft.common.lib.InternalMethodHandler;
 import thaumcraft.common.config.ConfigResearch;
+import thaumcraft.common.config.ConfigAspects;
 import thaumcraft.api.ThaumcraftApi;
 import thaumcraft.client.lib.events.KeyHandler;
 
@@ -115,7 +116,7 @@ public class Thaumcraft {
             ConfigResearch.init();
             
             // Initialize aspect registry (item/block -> aspects mapping)
-            // ConfigAspects.init();
+            ConfigAspects.init();
             
             // Initialize recipe system
             // ConfigRecipes.init();
@@ -218,10 +219,11 @@ public class Thaumcraft {
             LOGGER.info("Registered Thaumcraft entity attributes");
         }
     }
-    
+
     // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
     @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class ClientModEvents {
+
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
             // Some client setup code
@@ -301,6 +303,26 @@ public class Thaumcraft {
                     ModEntities.TAINT_SWARM.get(),
                     thaumcraft.client.renderers.entity.TaintSwarmRenderer::new
                 );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.TAINTACLE.get(),
+                    thaumcraft.client.renderers.entity.TaintacleRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.TAINTACLE_SMALL.get(),
+                    thaumcraft.client.renderers.entity.TaintacleRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.TAINTACLE_GIANT.get(),
+                    thaumcraft.client.renderers.entity.TaintacleRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.TAINT_SEED.get(),
+                    thaumcraft.client.renderers.entity.TaintSeedRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.TAINT_SEED_PRIME.get(),
+                    thaumcraft.client.renderers.entity.TaintSeedRenderer::new
+                );
                 // Eldritch entities
                 net.minecraft.client.renderer.entity.EntityRenderers.register(
                     ModEntities.ELDRITCH_CRAB.get(),
@@ -309,6 +331,34 @@ public class Thaumcraft {
                 net.minecraft.client.renderer.entity.EntityRenderers.register(
                     ModEntities.ELDRITCH_GUARDIAN.get(),
                     thaumcraft.client.renderers.entity.EldritchGuardianRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.ELDRITCH_GOLEM.get(),
+                    thaumcraft.client.renderers.entity.EldritchGolemRenderer::new
+                );
+                // SpellBat
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.SPELL_BAT.get(),
+                    thaumcraft.client.renderers.entity.SpellBatRenderer::new
+                );
+                // InhabitedZombie
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.INHABITED_ZOMBIE.get(),
+                    thaumcraft.client.renderers.entity.InhabitedZombieRenderer::new
+                );
+                // Boss entities
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.CULTIST_LEADER.get(),
+                    thaumcraft.client.renderers.entity.CultistLeaderRenderer::new
+                );
+                // Cultist portals
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.CULTIST_PORTAL_LESSER.get(),
+                    thaumcraft.client.renderers.entity.CultistPortalRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.CULTIST_PORTAL_GREATER.get(),
+                    thaumcraft.client.renderers.entity.CultistPortalGreaterRenderer::new
                 );
                 // Projectiles - using generic renderer
                 net.minecraft.client.renderer.entity.EntityRenderers.register(
@@ -326,6 +376,28 @@ public class Thaumcraft {
                 net.minecraft.client.renderer.entity.EntityRenderers.register(
                     ModEntities.HOMING_SHARD.get(),
                     ctx -> thaumcraft.client.renderers.entity.ThaumcraftProjectileRenderer.Factory.magic(ctx, 0x66FFFF)
+                );
+                // Focus/projectile renderers
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.FOCUS_MINE.get(),
+                    thaumcraft.client.renderers.entity.FocusMineRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.FOCUS_CLOUD.get(),
+                    thaumcraft.client.renderers.entity.FocusCloudRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.GRAPPLE.get(),
+                    thaumcraft.client.renderers.entity.GrappleRenderer::new
+                );
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.RIFT_BLAST.get(),
+                    thaumcraft.client.renderers.entity.RiftBlastRenderer::new
+                );
+                // Falling taint
+                net.minecraft.client.renderer.entity.EntityRenderers.register(
+                    ModEntities.FALLING_TAINT.get(),
+                    thaumcraft.client.renderers.entity.FallingTaintRenderer::new
                 );
                 LOGGER.info("Registered Thaumcraft entity renderers");
                 
@@ -423,6 +495,22 @@ public class Thaumcraft {
             event.registerLayerDefinition(
                 thaumcraft.client.models.entity.PechModel.LAYER_LOCATION,
                 thaumcraft.client.models.entity.PechModel::createBodyLayer
+            );
+            event.registerLayerDefinition(
+                thaumcraft.client.models.entity.TaintacleModel.LAYER_LOCATION,
+                thaumcraft.client.models.entity.TaintacleModel::createBodyLayer
+            );
+            event.registerLayerDefinition(
+                thaumcraft.client.models.entity.TaintSeedModel.LAYER_LOCATION,
+                thaumcraft.client.models.entity.TaintSeedModel::createBodyLayer
+            );
+            event.registerLayerDefinition(
+                thaumcraft.client.models.entity.EldritchGolemModel.LAYER_LOCATION,
+                thaumcraft.client.models.entity.EldritchGolemModel::createBodyLayer
+            );
+            event.registerLayerDefinition(
+                thaumcraft.client.models.entity.GrapplerModel.LAYER_LOCATION,
+                thaumcraft.client.models.entity.GrapplerModel::createBodyLayer
             );
             
             // Register block entity model layers

@@ -18,11 +18,13 @@ public class EntityTaintacleSmall extends EntityTaintacle {
     public EntityTaintacleSmall(EntityType<? extends EntityTaintacleSmall> type, Level level) {
         super(type, level);
         this.xpReward = 0;
+        this.length = 5; // Shorter than regular taintacles
     }
     
     public EntityTaintacleSmall(Level level) {
         super(ModEntities.TAINTACLE_SMALL.get(), level);
         this.xpReward = 0;
+        this.length = 5; // Shorter than regular taintacles
     }
     
     public static AttributeSupplier.Builder createAttributes() {

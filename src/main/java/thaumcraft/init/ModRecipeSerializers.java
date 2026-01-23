@@ -6,6 +6,8 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import thaumcraft.Thaumcraft;
 import thaumcraft.common.lib.crafting.CrucibleRecipeType;
+import thaumcraft.common.lib.crafting.InfusionEnchantmentRecipe;
+import thaumcraft.common.lib.crafting.InfusionEnchantmentRecipeSerializer;
 import thaumcraft.common.lib.crafting.InfusionRecipeType;
 import thaumcraft.common.lib.crafting.ShapedArcaneRecipe;
 import thaumcraft.common.lib.crafting.ShapelessArcaneRecipe;
@@ -43,4 +45,10 @@ public class ModRecipeSerializers {
      */
     public static final RegistryObject<RecipeSerializer<InfusionRecipeType>> INFUSION = 
             RECIPE_SERIALIZERS.register("infusion", () -> InfusionRecipeType.Serializer.INSTANCE);
+            
+    /**
+     * Serializer for infusion enchantment recipes.
+     */
+    public static final RegistryObject<RecipeSerializer<InfusionEnchantmentRecipe>> INFUSION_ENCHANTMENT = 
+            RECIPE_SERIALIZERS.register("infusion_enchantment", () -> InfusionEnchantmentRecipeSerializer.INSTANCE);
 }
