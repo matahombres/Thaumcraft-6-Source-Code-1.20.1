@@ -6,11 +6,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.SoundType;
@@ -29,6 +33,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.network.NetworkHooks;
 import thaumcraft.common.tiles.crafting.TileThaumatorium;
 import thaumcraft.init.ModBlockEntities;
+import thaumcraft.init.ModBlocks;
 
 import javax.annotation.Nullable;
 
@@ -63,8 +68,36 @@ public class BlockThaumatorium extends Block implements EntityBlock {
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
+        // Check if there's room for the top block
+        BlockPos above = context.getClickedPos().above();
+        Level level = context.getLevel();
+        if (!level.getBlockState(above).canBeReplaced(context)) {
+            return null; // Can't place if there's no room for the top
+        }
+        
         return this.defaultBlockState()
                 .setValue(FACING, context.getHorizontalDirection().getOpposite());
+    }
+    
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        
+        // Place the top block
+        BlockPos above = pos.above();
+        if (level.getBlockState(above).canBeReplaced()) {
+            level.setBlock(above, ModBlocks.THAUMATORIUM_TOP.get().defaultBlockState(), Block.UPDATE_ALL);
+        }
+    }
+    
+    @Override
+    public BlockState updateShape(BlockState state, Direction facing, BlockState facingState,
+                                   LevelAccessor level, BlockPos currentPos, BlockPos facingPos) {
+        // If the top block is removed, break this block too
+        if (facing == Direction.UP && !facingState.is(ModBlocks.THAUMATORIUM_TOP.get())) {
+            return Blocks.AIR.defaultBlockState();
+        }
+        return super.updateShape(state, facing, facingState, level, currentPos, facingPos);
     }
 
     @Override
@@ -104,6 +137,13 @@ public class BlockThaumatorium extends Block implements EntityBlock {
                             thaumatorium.getItem(i));
                 }
             }
+            
+            // Remove the top block
+            BlockPos above = pos.above();
+            if (level.getBlockState(above).is(ModBlocks.THAUMATORIUM_TOP.get())) {
+                level.removeBlock(above, false);
+            }
+            
             super.onRemove(state, level, pos, newState, isMoving);
         }
     }

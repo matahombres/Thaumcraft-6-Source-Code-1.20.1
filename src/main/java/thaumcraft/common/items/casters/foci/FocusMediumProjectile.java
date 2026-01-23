@@ -5,6 +5,7 @@ import thaumcraft.api.casters.FocusMedium;
 import thaumcraft.api.casters.FocusPackage;
 import thaumcraft.api.casters.NodeSetting;
 import thaumcraft.api.casters.Trajectory;
+import thaumcraft.common.entities.projectile.EntityFocusProjectile;
 
 /**
  * Projectile Medium - Fires a projectile entity that applies effects on impact.
@@ -66,16 +67,8 @@ public class FocusMediumProjectile extends FocusMedium {
         }
         
         if (getPackage().world != null) {
-            // TODO: Create and spawn EntityFocusProjectile
-            // EntityFocusProjectile projectile = new EntityFocusProjectile(p, speed, trajectory, getSettingValue("option"));
-            // return getPackage().world.addFreshEntity(projectile);
-            
-            // For now, return true as placeholder - will need entity implementation
-            // When entity is implemented:
-            // - Entity carries remaining FocusPackage
-            // - On hit, entity supplies TARGET and TRAJECTORY to remaining nodes
-            // - Effects are executed at the hit location
-            return true;
+            EntityFocusProjectile projectile = new EntityFocusProjectile(p, speed, trajectory, getSettingValue("option"));
+            return getPackage().world.addFreshEntity(projectile);
         }
         
         return false;

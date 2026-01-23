@@ -1,0 +1,27 @@
+{
+  "type": "thaumcraft:infusion",
+  "research": "THAUMIUMARMOR",
+  "instability": 1,
+  "center": {
+    "item": "minecraft:iron_boots"
+  },
+  "ingredients": [
+    {
+      "item": "thaumcraft:thaumium_ingot"
+    },
+    {
+      "item": "thaumcraft:thaumium_ingot"
+    },
+    {
+      "item": "thaumcraft:thaumium_ingot"
+    }
+  ],
+  "aspects": {
+    "metallum": 15,
+    "praecantatio": 8,
+    "praemunio": 12
+  },
+  "result": {
+    "item": "thaumcraft:thaumium_boots"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "type": "thaumcraft:crucible",
+  "research": "SANITYSOAPBASIC",
+  "catalyst": {
+    "item": "thaumcraft:tallow"
+  },
+  "aspects": {
+    "ordo": 15,
+    "cognitio": 5
+  },
+  "result": {
+    "item": "thaumcraft:sanitizing_soap"
+  }
+}

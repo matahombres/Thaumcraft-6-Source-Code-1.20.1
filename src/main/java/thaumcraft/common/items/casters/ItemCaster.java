@@ -23,6 +23,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import thaumcraft.api.casters.FocusPackage;
 import thaumcraft.api.casters.ICaster;
 import thaumcraft.api.casters.IInteractWithCaster;
+import thaumcraft.api.casters.FocusEngine;
 import thaumcraft.api.items.IVisDiscountGear;
 import thaumcraft.common.world.aura.AuraHandler;
 
@@ -288,11 +289,9 @@ public class ItemCaster extends Item implements ICaster {
         
         // Cast the spell!
         if (!level.isClientSide()) {
-            // TODO: Execute focus effect using FocusEngine
             FocusPackage focusPackage = ItemFocus.getPackage(focusStack);
             if (focusPackage != null) {
-                // Execute the focus package
-                // For now, just swing arm to indicate cast
+                FocusEngine.castFocusPackage(player, focusPackage);
             }
         }
         

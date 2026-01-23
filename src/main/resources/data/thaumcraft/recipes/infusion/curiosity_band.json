@@ -1,0 +1,42 @@
+{
+  "type": "thaumcraft:infusion",
+  "research": "CURIOSITYBAND",
+  "instability": 5,
+  "center": {
+    "item": "thaumcraft:baubles_charm"
+  },
+  "ingredients": [
+    {
+      "tag": "forge:gems/emerald"
+    },
+    {
+      "item": "minecraft:writable_book"
+    },
+    {
+      "tag": "forge:gems/emerald"
+    },
+    {
+      "item": "minecraft:writable_book"
+    },
+    {
+      "tag": "forge:gems/emerald"
+    },
+    {
+      "item": "minecraft:writable_book"
+    },
+    {
+      "tag": "forge:gems/emerald"
+    },
+    {
+      "item": "minecraft:writable_book"
+    }
+  ],
+  "aspects": {
+    "cognitio": 150,
+    "vacuos": 50,
+    "vinculum": 100
+  },
+  "result": {
+    "item": "thaumcraft:band_curiosity"
+  }
+}

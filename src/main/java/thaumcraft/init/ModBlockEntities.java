@@ -25,6 +25,8 @@ import thaumcraft.common.tiles.essentia.TileCentrifuge;
 import thaumcraft.common.tiles.essentia.TileEssentiaReservoir;
 import thaumcraft.common.tiles.essentia.TileJarBrain;
 import thaumcraft.common.tiles.essentia.TileJarVoid;
+import thaumcraft.common.tiles.misc.TileBanner;
+import thaumcraft.common.tiles.misc.TileBarrierStone;
 import thaumcraft.common.tiles.misc.TileHole;
 
 /**
@@ -163,6 +165,12 @@ public class ModBlockEntities {
                             ModBlocks.THAUMATORIUM.get()
                     ).build(null));
 
+    public static final RegistryObject<BlockEntityType<TileThaumatoriumTop>> THAUMATORIUM_TOP =
+            BLOCK_ENTITIES.register("thaumatorium_top",
+                    () -> BlockEntityType.Builder.of(TileThaumatoriumTop::new,
+                            ModBlocks.THAUMATORIUM_TOP.get()
+                    ).build(null));
+
     public static final RegistryObject<BlockEntityType<TilePatternCrafter>> PATTERN_CRAFTER =
             BLOCK_ENTITIES.register("pattern_crafter",
                     () -> BlockEntityType.Builder.of(TilePatternCrafter::new,
@@ -284,6 +292,12 @@ public class ModBlockEntities {
                             ModBlocks.HOLE.get()
                     ).build(null));
 
+    public static final RegistryObject<BlockEntityType<TileBarrierStone>> BARRIER_STONE =
+            BLOCK_ENTITIES.register("barrier_stone",
+                    () -> BlockEntityType.Builder.of(TileBarrierStone::new,
+                            ModBlocks.PAVING_STONE_BARRIER.get()
+                    ).build(null));
+
     // ==================== New Devices ====================
 
     public static final RegistryObject<BlockEntityType<TileLevitator>> LEVITATOR =
@@ -320,5 +334,29 @@ public class ModBlockEntities {
             BLOCK_ENTITIES.register("water_jug",
                     () -> BlockEntityType.Builder.of(TileWaterJug::new,
                             ModBlocks.EVERFULL_URN.get()
+                    ).build(null));
+
+    // ==================== Banners ====================
+
+    public static final RegistryObject<BlockEntityType<TileBanner>> BANNER =
+            BLOCK_ENTITIES.register("banner",
+                    () -> BlockEntityType.Builder.of(TileBanner::new,
+                            ModBlocks.BANNER_WHITE.get(),
+                            ModBlocks.BANNER_ORANGE.get(),
+                            ModBlocks.BANNER_MAGENTA.get(),
+                            ModBlocks.BANNER_LIGHT_BLUE.get(),
+                            ModBlocks.BANNER_YELLOW.get(),
+                            ModBlocks.BANNER_LIME.get(),
+                            ModBlocks.BANNER_PINK.get(),
+                            ModBlocks.BANNER_GRAY.get(),
+                            ModBlocks.BANNER_LIGHT_GRAY.get(),
+                            ModBlocks.BANNER_CYAN.get(),
+                            ModBlocks.BANNER_PURPLE.get(),
+                            ModBlocks.BANNER_BLUE.get(),
+                            ModBlocks.BANNER_BROWN.get(),
+                            ModBlocks.BANNER_GREEN.get(),
+                            ModBlocks.BANNER_RED.get(),
+                            ModBlocks.BANNER_BLACK.get(),
+                            ModBlocks.BANNER_CRIMSON_CULT.get()
                     ).build(null));
 }

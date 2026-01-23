@@ -25,6 +25,8 @@ import thaumcraft.api.aspects.IAspectContainer;
 import thaumcraft.api.aura.AuraHelper;
 import thaumcraft.common.tiles.TileThaumcraft;
 import thaumcraft.init.ModBlockEntities;
+import thaumcraft.common.lib.crafting.ThaumcraftCraftingManager;
+import thaumcraft.common.lib.crafting.CrucibleRecipeType;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -154,9 +156,55 @@ public class TileCrucible extends TileThaumcraft implements IAspectContainer {
         boolean itemChanged = false;
         int remaining = item.getCount();
 
-        // TODO: Check for crucible recipe first
-        // CrucibleRecipe recipe = findMatchingRecipe(item);
-        // if (recipe != null) { ... }
+        // Check for crucible recipe
+        Player player = level.getPlayerByUUID(java.util.UUID.nameUUIDFromBytes(username.getBytes())); // Approximate player retrieval
+        // Better to pass Player entity if possible, but username is what we have from ItemEntity
+        // For now, let's just pass null for player if we can't easily get it, or try to get it properly
+        if (player == null && !username.isEmpty()) {
+             // Try to find player by name if UUID fails or simple name
+             player = level.players().stream().filter(p -> p.getName().getString().equals(username)).findFirst().orElse(null);
+        }
+
+        CrucibleRecipeType recipe = ThaumcraftCraftingManager.findMatchingCrucibleRecipe(aspects, item, player, level);
+        
+        if (recipe != null) {
+            // Found a recipe!
+            AspectList required = recipe.getAspects();
+            if (aspects.contains(required)) {
+                aspects.remove(required);
+                
+                // Crafted successfully
+                ItemStack result = recipe.assemble(null, level.registryAccess());
+                
+                // Spawn result in world
+                double x = worldPosition.getX() + 0.5;
+                double y = worldPosition.getY() + 0.5;
+                double z = worldPosition.getZ() + 0.5;
+                ItemEntity entity = new ItemEntity(level, x, y + 1.0, z, result.copy());
+                entity.setDeltaMovement(0, 0.25, 0);
+                level.addFreshEntity(entity);
+                
+                // Play sound
+                level.playSound(null, worldPosition, SoundEvents.EXPERIENCE_ORB_PICKUP,
+                        SoundSource.BLOCKS, 0.5f, 1.0f);
+                
+                // Effects
+                if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+                    // TODO: Send craft FX packet
+                }
+                
+                remaining--;
+                itemChanged = true;
+                markDirtyAndSync();
+                
+                if (remaining <= 0) {
+                    return null;
+                }
+                ItemStack ret = item.copy();
+                ret.setCount(remaining);
+                return ret;
+            }
+        }
 
         // For now, just dissolve items into aspects
         // TODO: Use ThaumcraftCraftingManager.getObjectTags(item) when implemented
@@ -187,13 +235,10 @@ public class TileCrucible extends TileThaumcraft implements IAspectContainer {
     }
 
     /**
-     * Placeholder - get aspects from an item.
-     * TODO: Replace with actual aspect lookup.
+     * Get aspects from an item using the crafting manager.
      */
     private AspectList getItemAspects(ItemStack item) {
-        // Placeholder implementation
-        // In full implementation, this queries the aspect registry
-        return new AspectList();
+        return ThaumcraftCraftingManager.getObjectTags(item);
     }
 
     /**

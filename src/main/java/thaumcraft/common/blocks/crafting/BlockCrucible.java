@@ -138,7 +138,10 @@ public class BlockCrucible extends BlockTCDevice {
     @Override
     public int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos) {
         BlockEntity blockEntity = level.getBlockEntity(pos);
-        // TODO: Return signal based on essentia amount when TileCrucible is implemented
+        if (blockEntity instanceof TileCrucible crucible) {
+            float r = (float) crucible.aspects.visSize() / (float) TileCrucible.MAX_ASPECTS;
+            return Math.min(15, (int) (r * 15));
+        }
         return 0;
     }
 
@@ -146,12 +149,13 @@ public class BlockCrucible extends BlockTCDevice {
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
         if (random.nextInt(10) == 0) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
-            // TODO: Check if crucible is heated and bubbling when TileCrucible is implemented
-            // if (heated && hasWater) {
-            //     level.playLocalSound(pos.getX(), pos.getY(), pos.getZ(),
-            //             SoundEvents.LAVA_POP, SoundSource.BLOCKS,
-            //             0.1f + random.nextFloat() * 0.1f, 1.2f + random.nextFloat() * 0.2f, false);
-            // }
+            if (blockEntity instanceof TileCrucible crucible) {
+                if (crucible.isHeated() && crucible.getTank().getFluidAmount() > 0) {
+                    level.playLocalSound(pos.getX(), pos.getY(), pos.getZ(),
+                            SoundEvents.LAVA_POP, SoundSource.BLOCKS,
+                            0.1f + random.nextFloat() * 0.1f, 1.2f + random.nextFloat() * 0.2f, false);
+                }
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package thaumcraft.api.casters;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.HitResult;
 import thaumcraft.api.aspects.Aspect;
 
@@ -170,5 +171,26 @@ public abstract class FocusNode implements IFocusElement {
      */
     public boolean isExclusive() {
         return false;
+    }
+    
+    public void serialize(CompoundTag tag) {
+        // Serialize settings
+        CompoundTag settingsTag = new CompoundTag();
+        for (NodeSetting setting : settings.values()) {
+            settingsTag.putInt(setting.key, setting.getValue());
+        }
+        tag.put("settings", settingsTag);
+    }
+    
+    public void deserialize(CompoundTag tag) {
+        // Deserialize settings
+        if (tag.contains("settings")) {
+            CompoundTag settingsTag = tag.getCompound("settings");
+            for (String key : settings.keySet()) {
+                if (settingsTag.contains(key)) {
+                    settings.get(key).setValue(settingsTag.getInt(key));
+                }
+            }
+        }
     }
 }

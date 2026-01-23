@@ -16,6 +16,8 @@ import thaumcraft.api.aspects.Aspect;
 import net.minecraft.world.item.DyeColor;
 import thaumcraft.common.blocks.BlockTC;
 import thaumcraft.common.blocks.basic.*;
+import thaumcraft.common.blocks.basic.BlockBannerTC;
+import thaumcraft.common.blocks.basic.BlockPavingStone;
 import thaumcraft.common.blocks.crafting.BlockArcaneWorkbench;
 import thaumcraft.common.blocks.crafting.BlockCrucible;
 import thaumcraft.common.blocks.crafting.BlockFocalManipulator;
@@ -24,6 +26,7 @@ import thaumcraft.common.blocks.crafting.BlockInfusionMatrix;
 import thaumcraft.common.blocks.crafting.BlockPatternCrafter;
 import thaumcraft.common.blocks.crafting.BlockResearchTable;
 import thaumcraft.common.blocks.crafting.BlockThaumatorium;
+import thaumcraft.common.blocks.crafting.BlockThaumatoriumTop;
 import thaumcraft.common.blocks.devices.*;
 import thaumcraft.common.blocks.essentia.BlockAlembic;
 import thaumcraft.common.blocks.essentia.BlockCentrifuge;
@@ -31,7 +34,10 @@ import thaumcraft.common.blocks.essentia.BlockEssentiaReservoir;
 import thaumcraft.common.blocks.essentia.BlockJar;
 import thaumcraft.common.blocks.essentia.BlockSmelter;
 import thaumcraft.common.blocks.essentia.BlockTube;
+import thaumcraft.common.blocks.misc.BlockBarrier;
 import thaumcraft.common.blocks.misc.BlockEffect;
+import thaumcraft.common.blocks.misc.BlockFluidDeath;
+import thaumcraft.common.blocks.misc.BlockFluidPure;
 import thaumcraft.common.blocks.misc.BlockHole;
 import thaumcraft.common.blocks.misc.BlockNitor;
 import thaumcraft.common.blocks.world.ore.BlockCrystalTC;
@@ -44,6 +50,7 @@ import thaumcraft.common.blocks.world.plants.BlockShimmerleaf;
 import thaumcraft.common.blocks.world.plants.BlockVishroom;
 import thaumcraft.common.blocks.world.taint.BlockFluxGoo;
 import thaumcraft.common.blocks.world.taint.BlockTaintFibre;
+import thaumcraft.common.blocks.world.BlockLoot;
 
 import java.util.function.Supplier;
 
@@ -415,6 +422,9 @@ public class ModBlocks {
     public static final RegistryObject<Block> THAUMATORIUM = registerBlock("thaumatorium",
             BlockThaumatorium::new);
 
+    public static final RegistryObject<Block> THAUMATORIUM_TOP = registerBlockNoItem("thaumatorium_top",
+            BlockThaumatoriumTop::new);
+
     public static final RegistryObject<Block> PATTERN_CRAFTER = registerBlock("pattern_crafter",
             BlockPatternCrafter::new);
 
@@ -509,6 +519,14 @@ public class ModBlocks {
     public static final RegistryObject<Block> TAINT_FIBRE = registerBlockNoItem("taint_fibre",
             BlockTaintFibre::new);
 
+    // ==================== Liquid Blocks ====================
+
+    public static final RegistryObject<Block> LIQUID_DEATH = registerBlockNoItem("liquid_death",
+            BlockFluidDeath::new);
+
+    public static final RegistryObject<Block> PURIFYING_FLUID = registerBlockNoItem("purifying_fluid",
+            BlockFluidPure::new);
+
     // ==================== Additional Devices ====================
 
     public static final RegistryObject<Block> LEVITATOR = registerBlock("levitator",
@@ -526,6 +544,26 @@ public class ModBlocks {
     public static final RegistryObject<Block> POTION_SPRAYER = registerBlock("potion_sprayer",
             BlockPotionSprayer::new);
 
+    // ==================== Loot Blocks ====================
+
+    public static final RegistryObject<Block> LOOT_CRATE_COMMON = registerBlock("loot_crate_common",
+            BlockLoot::createCrateCommon);
+
+    public static final RegistryObject<Block> LOOT_CRATE_UNCOMMON = registerBlock("loot_crate_uncommon",
+            BlockLoot::createCrateUncommon);
+
+    public static final RegistryObject<Block> LOOT_CRATE_RARE = registerBlock("loot_crate_rare",
+            BlockLoot::createCrateRare);
+
+    public static final RegistryObject<Block> LOOT_URN_COMMON = registerBlock("loot_urn_common",
+            BlockLoot::createUrnCommon);
+
+    public static final RegistryObject<Block> LOOT_URN_UNCOMMON = registerBlock("loot_urn_uncommon",
+            BlockLoot::createUrnUncommon);
+
+    public static final RegistryObject<Block> LOOT_URN_RARE = registerBlock("loot_urn_rare",
+            BlockLoot::createUrnRare);
+
     // ==================== Misc Blocks ====================
 
     public static final RegistryObject<Block> HOLE = registerBlockNoItem("hole",
@@ -533,6 +571,57 @@ public class ModBlocks {
 
     public static final RegistryObject<Block> EVERFULL_URN = registerBlock("everfull_urn",
             BlockWaterJug::new);
+
+    // ==================== Paving Stones ====================
+
+    public static final RegistryObject<Block> PAVING_STONE = registerBlock("paving_stone",
+            BlockPavingStone::createNormal);
+
+    public static final RegistryObject<Block> PAVING_STONE_TRAVEL = registerBlock("paving_stone_travel",
+            BlockPavingStone::createTravel);
+
+    public static final RegistryObject<Block> PAVING_STONE_BARRIER = registerBlock("paving_stone_barrier",
+            BlockPavingStone::createBarrier);
+
+    public static final RegistryObject<Block> BARRIER = registerBlockNoItem("barrier",
+            BlockBarrier::new);
+
+    // ==================== Banners ====================
+
+    public static final RegistryObject<Block> BANNER_WHITE = registerBlock("banner_white",
+            BlockBannerTC::createWhite);
+    public static final RegistryObject<Block> BANNER_ORANGE = registerBlock("banner_orange",
+            BlockBannerTC::createOrange);
+    public static final RegistryObject<Block> BANNER_MAGENTA = registerBlock("banner_magenta",
+            BlockBannerTC::createMagenta);
+    public static final RegistryObject<Block> BANNER_LIGHT_BLUE = registerBlock("banner_light_blue",
+            BlockBannerTC::createLightBlue);
+    public static final RegistryObject<Block> BANNER_YELLOW = registerBlock("banner_yellow",
+            BlockBannerTC::createYellow);
+    public static final RegistryObject<Block> BANNER_LIME = registerBlock("banner_lime",
+            BlockBannerTC::createLime);
+    public static final RegistryObject<Block> BANNER_PINK = registerBlock("banner_pink",
+            BlockBannerTC::createPink);
+    public static final RegistryObject<Block> BANNER_GRAY = registerBlock("banner_gray",
+            BlockBannerTC::createGray);
+    public static final RegistryObject<Block> BANNER_LIGHT_GRAY = registerBlock("banner_light_gray",
+            BlockBannerTC::createLightGray);
+    public static final RegistryObject<Block> BANNER_CYAN = registerBlock("banner_cyan",
+            BlockBannerTC::createCyan);
+    public static final RegistryObject<Block> BANNER_PURPLE = registerBlock("banner_purple",
+            BlockBannerTC::createPurple);
+    public static final RegistryObject<Block> BANNER_BLUE = registerBlock("banner_blue",
+            BlockBannerTC::createBlue);
+    public static final RegistryObject<Block> BANNER_BROWN = registerBlock("banner_brown",
+            BlockBannerTC::createBrown);
+    public static final RegistryObject<Block> BANNER_GREEN = registerBlock("banner_green",
+            BlockBannerTC::createGreen);
+    public static final RegistryObject<Block> BANNER_RED = registerBlock("banner_red",
+            BlockBannerTC::createRed);
+    public static final RegistryObject<Block> BANNER_BLACK = registerBlock("banner_black",
+            BlockBannerTC::createBlack);
+    public static final RegistryObject<Block> BANNER_CRIMSON_CULT = registerBlock("banner_crimson_cult",
+            BlockBannerTC::createCrimsonCult);
 
     // ==================== Helper Methods ====================
 

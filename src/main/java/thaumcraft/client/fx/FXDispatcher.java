@@ -123,6 +123,18 @@ public class FXDispatcher {
         }
     }
     
+    /**
+     * Creates a slimy bubble particle effect (for liquid death / flux goo).
+     * Approximated with vanilla particles.
+     */
+    public void slimyBubbleFX(float x, float y, float z, float scale, float r, float g, float b) {
+        Level level = getWorld();
+        if (level != null) {
+            // Use bubble particles with upward motion
+            level.addParticle(ParticleTypes.BUBBLE_POP, x, y, z, 0, 0.05, 0);
+        }
+    }
+    
     // ==================== Generic Particle Drawing ====================
     
     public void drawGenericParticles(double x, double y, double z, double mx, double my, double mz, 

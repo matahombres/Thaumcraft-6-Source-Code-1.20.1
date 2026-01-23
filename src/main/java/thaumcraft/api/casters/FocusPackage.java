@@ -103,8 +103,13 @@ public class FocusPackage {
             for (int i = 0; i < nodeList.size(); i++) {
                 CompoundTag nodeTag = nodeList.getCompound(i);
                 String key = nodeTag.getString("key");
-                // TODO: Recreate focus elements from registry
-                // For now, just store complexity from NBT
+                
+                FocusNode node = FocusEngine.createFocusNode(key);
+                if (node != null) {
+                    node.deserialize(nodeTag);
+                    node.setPackage(this);
+                    nodes.add(node);
+                }
             }
         }
     }

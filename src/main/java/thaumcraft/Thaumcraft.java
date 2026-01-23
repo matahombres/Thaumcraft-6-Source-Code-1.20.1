@@ -464,6 +464,10 @@ public class Thaumcraft {
                     ModMenuTypes.PECH_TRADING.get(),
                     thaumcraft.client.gui.screens.PechScreen::new
                 );
+                net.minecraft.client.gui.screens.MenuScreens.register(
+                    ModMenuTypes.HUNGRY_CHEST.get(),
+                    thaumcraft.client.gui.screens.HungryChestScreen::new
+                );
                 LOGGER.info("Registered Thaumcraft menu screens");
             });
             

@@ -12,6 +12,7 @@ import thaumcraft.common.menu.FocalManipulatorMenu;
 import thaumcraft.common.menu.FocusPouchMenu;
 import thaumcraft.common.menu.GolemBuilderMenu;
 import thaumcraft.common.menu.HandMirrorMenu;
+import thaumcraft.common.menu.HungryChestMenu;
 import thaumcraft.common.menu.PechMenu;
 import thaumcraft.common.menu.PotionSprayerMenu;
 import thaumcraft.common.menu.ResearchTableMenu;
@@ -81,6 +82,12 @@ public class ModMenuTypes {
     public static final RegistryObject<MenuType<HandMirrorMenu>> HAND_MIRROR = 
             MENU_TYPES.register("hand_mirror", 
                     () -> IForgeMenuType.create(HandMirrorMenu::new));
+    
+    // ==================== Storage ====================
+    
+    public static final RegistryObject<MenuType<HungryChestMenu>> HUNGRY_CHEST = 
+            MENU_TYPES.register("hungry_chest", 
+                    () -> IForgeMenuType.create(HungryChestMenu::new));
     
     // ==================== Devices ====================
     

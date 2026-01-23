@@ -9,6 +9,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+
 /**
  * Central registry and engine for focus elements.
  * Handles registration, lookup, and color mapping for all focus nodes.
@@ -196,5 +200,65 @@ public class FocusEngine {
             }
         }
         return false;
+    }
+
+    /**
+     * Execute a focus package.
+     * @param caster The entity casting the spell
+     * @param pack The focus package to execute
+     * @return true if execution started successfully
+     */
+    public static boolean castFocusPackage(LivingEntity caster, FocusPackage pack) {
+        if (pack == null || caster == null) return false;
+        
+        // Set context
+        pack.setCaster(caster);
+        pack.world = caster.level();
+        
+        if (pack.nodes.isEmpty()) return false;
+        
+        // Find root node
+        IFocusElement root = pack.nodes.get(0);
+        if (root instanceof FocusNode focusNode) {
+            if (focusNode instanceof FocusMedium medium) {
+                // Create initial trajectory from caster look vector
+                Vec3 look = caster.getLookAngle();
+                Vec3 eyePos = caster.getEyePosition();
+                Trajectory trajectory = new Trajectory(eyePos, look);
+                return medium.execute(trajectory);
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Continue execution of a focus package.
+     * @param pack The focus package (remaining part)
+     * @param trajectories Trajectories supplied by previous node
+     * @param targets Targets supplied by previous node
+     */
+    public static void runFocusPackage(FocusPackage pack, Trajectory[] trajectories, HitResult[] targets) {
+        if (pack == null || pack.nodes.isEmpty()) return;
+        
+        IFocusElement element = pack.nodes.get(0);
+        if (element instanceof FocusNode node) {
+            if (node instanceof FocusEffect effect) {
+                // Execute effect on targets
+                if (targets != null) {
+                    for (int i = 0; i < targets.length; i++) {
+                        float power = 1.0f * pack.getPower();
+                        effect.execute(targets[i], (trajectories != null && i < trajectories.length) ? trajectories[i] : null, power, i);
+                    }
+                }
+            } else if (node instanceof FocusMedium medium) {
+                // Execute medium with trajectories
+                if (trajectories != null) {
+                    for (Trajectory traj : trajectories) {
+                        medium.execute(traj);
+                    }
+                }
+            }
+        }
     }
 }

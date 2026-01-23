@@ -1,0 +1,13 @@
+{
+  "type": "thaumcraft:crucible",
+  "research": "UNLOCKALCHEMY",
+  "ingredient": {
+    "item": "minecraft:rotten_flesh"
+  },
+  "aspects": {
+    "ordo": 3
+  },
+  "result": {
+    "item": "thaumcraft:tallow"
+  }
+}

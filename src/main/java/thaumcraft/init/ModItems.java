@@ -19,6 +19,7 @@ import thaumcraft.common.items.armor.ItemCultistBoots;
 import thaumcraft.common.items.consumables.ItemPhial;
 import thaumcraft.common.items.curios.ItemThaumonomicon;
 import thaumcraft.common.items.resources.ItemMaterial;
+import thaumcraft.common.items.resources.ItemMagicDust;
 import thaumcraft.common.items.tools.ItemScribingTools;
 import thaumcraft.common.items.tools.ItemThaumometer;
 import thaumcraft.common.items.tools.ItemThaumiumSword;
@@ -55,8 +56,10 @@ import thaumcraft.common.items.consumables.ItemSanitySoap;
 import thaumcraft.common.items.consumables.ItemBottleTaint;
 import thaumcraft.common.items.consumables.ItemCausalityCollapser;
 import thaumcraft.common.items.consumables.ItemLabel;
+import thaumcraft.common.items.curios.ItemCelestialNotes;
 import thaumcraft.common.items.curios.ItemLootBag;
 import thaumcraft.common.items.curios.ItemPechWand;
+import thaumcraft.common.items.curios.ItemPrimordialPearl;
 import thaumcraft.common.items.casters.ItemFocusPouch;
 import thaumcraft.common.golems.ItemGolemBell;
 import thaumcraft.common.golems.ItemGolemPlacer;
@@ -106,7 +109,7 @@ public class ModItems {
             ItemMaterial::uncommon);
 
     public static final RegistryObject<Item> SALIS_MUNDUS = ITEMS.register("salis_mundus",
-            ItemMaterial::basic);
+            ItemMagicDust::new);
 
     public static final RegistryObject<Item> BALANCED_SHARD = ITEMS.register("balanced_shard",
             ItemMaterial::uncommon);
@@ -185,6 +188,15 @@ public class ModItems {
     public static final RegistryObject<Item> MORPHIC_RESONATOR = ITEMS.register("morphic_resonator",
             ItemMaterial::uncommon);
 
+    public static final RegistryObject<Item> VIS_RESONATOR = ITEMS.register("vis_resonator",
+            ItemMaterial::uncommon);
+
+    public static final RegistryObject<Item> TALLOW = ITEMS.register("tallow",
+            ItemMaterial::basic);
+
+    public static final RegistryObject<Item> JAR_BRACE = ITEMS.register("jar_brace",
+            ItemMaterial::basic);
+
     public static final RegistryObject<Item> MIND = ITEMS.register("mind",
             ItemMaterial::basic);
 
@@ -247,7 +259,7 @@ public class ModItems {
             ItemMaterial::basic);
 
     public static final RegistryObject<Item> PRIMORDIAL_PEARL = ITEMS.register("primordial_pearl",
-            () -> new ItemMaterial(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
+            ItemPrimordialPearl::new);
 
     public static final RegistryObject<Item> TAINT_SLIME = ITEMS.register("taint_slime",
             ItemMaterial::basic);
@@ -561,6 +573,47 @@ public class ModItems {
 
     public static final RegistryObject<Item> PECH_WAND = ITEMS.register("pech_wand",
             ItemPechWand::new);
+
+    // ==================== Celestial Notes ====================
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_SUN = ITEMS.register("celestial_notes_sun",
+            ItemCelestialNotes::createSun);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_STARS_1 = ITEMS.register("celestial_notes_stars_1",
+            ItemCelestialNotes::createStars1);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_STARS_2 = ITEMS.register("celestial_notes_stars_2",
+            ItemCelestialNotes::createStars2);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_STARS_3 = ITEMS.register("celestial_notes_stars_3",
+            ItemCelestialNotes::createStars3);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_STARS_4 = ITEMS.register("celestial_notes_stars_4",
+            ItemCelestialNotes::createStars4);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_MOON_1 = ITEMS.register("celestial_notes_moon_1",
+            ItemCelestialNotes::createMoon1);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_MOON_2 = ITEMS.register("celestial_notes_moon_2",
+            ItemCelestialNotes::createMoon2);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_MOON_3 = ITEMS.register("celestial_notes_moon_3",
+            ItemCelestialNotes::createMoon3);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_MOON_4 = ITEMS.register("celestial_notes_moon_4",
+            ItemCelestialNotes::createMoon4);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_MOON_5 = ITEMS.register("celestial_notes_moon_5",
+            ItemCelestialNotes::createMoon5);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_MOON_6 = ITEMS.register("celestial_notes_moon_6",
+            ItemCelestialNotes::createMoon6);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_MOON_7 = ITEMS.register("celestial_notes_moon_7",
+            ItemCelestialNotes::createMoon7);
+
+    public static final RegistryObject<Item> CELESTIAL_NOTES_MOON_8 = ITEMS.register("celestial_notes_moon_8",
+            ItemCelestialNotes::createMoon8);
 
     // ==================== Focus Accessories ====================
 

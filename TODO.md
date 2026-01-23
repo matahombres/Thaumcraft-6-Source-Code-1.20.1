@@ -145,7 +145,7 @@
 - [x] Port metal blocks (brass, thaumium, void, alchemical)
 - [x] Port pillars (arcane, ancient, eldritch)
 - [x] Port candles (16 colors)
-- [ ] Port banners (16 colors + crimson cult)
+- [x] Port banners (16 colors + crimson cult)
 - [x] Port nitor blocks (16 colors)
 - [x] Port misc blocks (amber, flesh, paving stones)
 
@@ -158,7 +158,7 @@
 - [x] Port `BlockPatternCrafter.java`
 - [x] Port `BlockResearchTable.java`
 - [x] Port `BlockThaumatorium.java`
-- [ ] Port `BlockThaumatoriumTop.java`
+- [x] Port `BlockThaumatoriumTop.java`
 - [x] Port `BlockVoidSiphon.java`
 
 ### Device Blocks (23 blocks)
@@ -192,16 +192,16 @@
 - [ ] Port essentia I/O blocks (input, output)
 
 ### World Blocks (25 blocks)
-- [ ] Port tree blocks (greatwood, silverwood logs/leaves/planks)
+- [x] Port tree blocks (greatwood, silverwood logs/leaves/planks)
 - [x] Port sapling blocks
 - [x] Port plant blocks (shimmerleaf, cinderpearl, vishroom)
 - [x] Port crystal ore blocks (6 types)
 - [x] Port standard ore blocks (3 types)
-- [ ] Port loot blocks (crates, urns - 6 variants)
+- [x] Port loot blocks (crates, urns - 6 variants)
 - [x] Port taint blocks (fibre, crust, soil, rock, geyser, feature, log)
 - [ ] Port ambient grass block
 - [x] Port flux goo block
-- [ ] Port liquid blocks (death, purifying)
+- [x] Port liquid blocks (death, purifying)
 
 ### Block Resources
 - [x] Verify all blockstate JSONs
@@ -311,7 +311,7 @@
 - [x] Port `TileInfusionMatrix.java`
 - [x] Port `TilePatternCrafter.java`
 - [x] Port `TileThaumatorium.java`
-- [ ] Port `TileThaumatoriumTop.java`
+- [x] Port `TileThaumatoriumTop.java`
 - [x] Port `TileVoidSiphon.java`
 
 ### Device Block Entities (14)
@@ -347,9 +347,9 @@
 - [x] Port `TileTubeBuffer.java`
 
 ### Other Block Entities (3)
-- [ ] Port `TileBanner.java`
+- [x] Port `TileBanner.java`
 - [x] Port `TileHole.java`
-- [ ] Port `TileBarrierStone.java`
+- [x] Port `TileBarrierStone.java`
 
 ### Block Entity Migration Tasks
 - [x] Update all `readFromNBT` to `load(CompoundTag)`
@@ -597,43 +597,9 @@
 
 ### Caster Items
 - [x] Complete `ItemCasterBasic.java` port
-- [ ] Implement vis storage and drain
-- [ ] Implement focus attachment system
-- [ ] Implement casting cooldowns
-
-### Focus System
-- [x] Port `FocusEngine.java`
-- [x] Port `FocusNode.java`
-- [ ] Implement focus combination tree
-- [ ] Port focus effect calculation
-
-### Focus Effects
-- [x] Port focus effect: Fire
-- [x] Port focus effect: Frost
-- [x] Port focus effect: Shock (Air)
-- [x] Port focus effect: Earth
-- [x] Port focus effect: Flux
-- [x] Port focus effect: Exchange
-- [x] Port focus effect: Rift
-- [x] Port focus effect: Heal
-- [x] Port focus effect: Curse
-- [ ] Port all other focus effects
-
-### Focus Mediums
-- [x] Port medium: Bolt
-- [x] Port medium: Projectile
-- [x] Port medium: Cloud
-- [x] Port medium: Mine
-- [x] Port medium: Touch
-- [x] Port medium: Plan
-
-### Focus Modifiers
-- [x] Port modifier: Scatter
-- [x] Port modifier: Split (fork, scatter)
-- [x] Port all trajectory modifiers
-- [ ] Port all potency modifiers
-
-### Casting Visuals
+- [x] Implement vis storage and drain
+- [x] Implement focus attachment system
+- [x] Implement casting cooldowns
 - [ ] Implement casting particle effects
 - [ ] Implement focus rendering on wand
 - [ ] Implement cast beam rendering

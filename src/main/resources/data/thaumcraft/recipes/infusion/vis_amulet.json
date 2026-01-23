@@ -1,0 +1,36 @@
+{
+  "type": "thaumcraft:infusion",
+  "research": "VISAMULET",
+  "instability": 6,
+  "center": {
+    "item": "thaumcraft:baubles_amulet"
+  },
+  "ingredients": [
+    {
+      "item": "thaumcraft:vis_resonator"
+    },
+    {
+      "item": "thaumcraft:crystal_essence_aer"
+    },
+    {
+      "item": "thaumcraft:crystal_essence_ignis"
+    },
+    {
+      "item": "thaumcraft:crystal_essence_aqua"
+    },
+    {
+      "item": "thaumcraft:crystal_essence_terra"
+    },
+    {
+      "item": "thaumcraft:crystal_essence_ordo"
+    }
+  ],
+  "aspects": {
+    "auram": 50,
+    "potentia": 100,
+    "vacuos": 50
+  },
+  "result": {
+    "item": "thaumcraft:amulet_vis"
+  }
+}

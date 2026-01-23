@@ -2,14 +2,20 @@ package thaumcraft.common.blocks.devices;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -19,6 +25,8 @@ import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -27,6 +35,10 @@ import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraftforge.network.NetworkHooks;
+import thaumcraft.common.menu.HungryChestMenu;
+import thaumcraft.common.tiles.devices.TileHungryChest;
+import thaumcraft.init.ModBlockEntities;
 
 import javax.annotation.Nullable;
 
@@ -80,10 +92,20 @@ public class BlockHungryChest extends Block implements EntityBlock {
         }
 
         BlockEntity blockEntity = level.getBlockEntity(pos);
-        // TODO: Open chest GUI when TileHungryChest is implemented
-        // if (blockEntity instanceof Container) {
-        //     player.openMenu((MenuProvider) blockEntity);
-        // }
+        if (blockEntity instanceof TileHungryChest chest) {
+            // Open the chest menu
+            NetworkHooks.openScreen((ServerPlayer) player, new MenuProvider() {
+                @Override
+                public Component getDisplayName() {
+                    return Component.translatable("container.thaumcraft.hungry_chest");
+                }
+
+                @Override
+                public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
+                    return new HungryChestMenu(containerId, playerInventory, chest);
+                }
+            }, pos);
+        }
 
         return InteractionResult.CONSUME;
     }
@@ -94,34 +116,33 @@ public class BlockHungryChest extends Block implements EntityBlock {
             return;
         }
 
-        if (itemEntity.isRemoved()) {
+        if (itemEntity.isRemoved() || itemEntity.hasPickUpDelay()) {
             return;
         }
 
         BlockEntity blockEntity = level.getBlockEntity(pos);
-        // TODO: Insert item into chest inventory when TileHungryChest is implemented
-        // For now, just play a sound as placeholder
-        // if (blockEntity instanceof TileHungryChest chest) {
-        //     ItemStack remaining = chest.insertItem(itemEntity.getItem());
-        //     if (remaining.isEmpty()) {
-        //         itemEntity.discard();
-        //         level.playSound(null, pos, SoundEvents.GENERIC_EAT, SoundSource.BLOCKS, 0.25f, 
-        //                 (level.random.nextFloat() - level.random.nextFloat()) * 0.2f + 1.0f);
-        //     } else {
-        //         itemEntity.setItem(remaining);
-        //     }
-        // }
+        if (blockEntity instanceof TileHungryChest chest) {
+            ItemStack remaining = chest.insertItem(itemEntity.getItem());
+            if (remaining.isEmpty()) {
+                itemEntity.discard();
+                level.playSound(null, pos, SoundEvents.GENERIC_EAT, SoundSource.BLOCKS, 0.25f, 
+                        (level.random.nextFloat() - level.random.nextFloat()) * 0.2f + 1.0f);
+            } else if (remaining.getCount() < itemEntity.getItem().getCount()) {
+                itemEntity.setItem(remaining);
+                level.playSound(null, pos, SoundEvents.GENERIC_EAT, SoundSource.BLOCKS, 0.25f, 
+                        (level.random.nextFloat() - level.random.nextFloat()) * 0.2f + 1.0f);
+            }
+        }
     }
 
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
-            // TODO: Drop chest contents when TileHungryChest is implemented
-            // if (blockEntity instanceof Container container) {
-            //     Containers.dropContents(level, pos, container);
-            //     level.updateNeighbourForOutputSignal(pos, this);
-            // }
+            if (blockEntity instanceof TileHungryChest chest) {
+                Containers.dropContents(level, pos, chest);
+                level.updateNeighbourForOutputSignal(pos, this);
+            }
             super.onRemove(state, level, pos, newState, isMoving);
         }
     }
@@ -133,14 +154,38 @@ public class BlockHungryChest extends Block implements EntityBlock {
 
     @Override
     public int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos) {
-        // TODO: Return container signal when TileHungryChest is implemented
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof TileHungryChest chest) {
+            return AbstractContainerMenu.getRedstoneSignalFromContainer(chest);
+        }
         return 0;
     }
 
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        // TODO: Return TileHungryChest when implemented
+        return new TileHungryChest(pos, state);
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (type == ModBlockEntities.HUNGRY_CHEST.get()) {
+            return (lvl, pos, blockState, tile) -> {
+                if (lvl.isClientSide) {
+                    TileHungryChest.clientTick(lvl, pos, blockState, (TileHungryChest) tile);
+                } else {
+                    TileHungryChest.serverTick(lvl, pos, blockState, (TileHungryChest) tile);
+                }
+            };
+        }
         return null;
+    }
+
+    @Override
+    public boolean triggerEvent(BlockState state, Level level, BlockPos pos, int id, int param) {
+        super.triggerEvent(state, level, pos, id, param);
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        return blockEntity != null && blockEntity.triggerEvent(id, param);
     }
 }
