@@ -1,16 +1,20 @@
 package thaumcraft.common.items.tools;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
@@ -20,7 +24,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.network.NetworkHooks;
+import thaumcraft.common.menu.HandMirrorMenu;
+import thaumcraft.common.tiles.devices.TileMirror;
 import thaumcraft.init.ModBlocks;
+import thaumcraft.init.ModSounds;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -73,7 +81,7 @@ public class ItemHandMirror extends Item {
             tag.putInt("linkZ", pos.getZ());
             tag.putString("linkDim", level.dimension().location().toString());
 
-            // TODO: Play linking sound (SoundsTC.jar)
+            player.playSound(ModSounds.JAR.get(), 1.0f, 1.0f);
             player.sendSystemMessage(Component.translatable("tc.handmirrorlinked"));
             player.inventoryMenu.broadcastChanges();
         }
@@ -115,18 +123,93 @@ public class ItemHandMirror extends Item {
                 if (te == null || !targetLevel.getBlockState(targetPos).is(ModBlocks.MIRROR_ITEM.get())) {
                     // Mirror is gone, clear link
                     stack.setTag(null);
-                    // TODO: Play error sound (SoundsTC.zap)
+                    player.playSound(ModSounds.ZAP.get(), 1.0f, 1.0f);
                     player.sendSystemMessage(Component.translatable("tc.handmirrorerror"));
                     return InteractionResultHolder.fail(stack);
                 }
 
-                // TODO: Open mirror GUI
-                // player.openMenu(...);
-                player.sendSystemMessage(Component.translatable("tc.handmirror.notimplemented"));
+                // Open mirror GUI
+                if (player instanceof ServerPlayer serverPlayer) {
+                    final InteractionHand usedHand = hand;
+                    NetworkHooks.openScreen(serverPlayer, new MenuProvider() {
+                        @Override
+                        public Component getDisplayName() {
+                            return Component.translatable("container.thaumcraft.hand_mirror");
+                        }
+
+                        @Override
+                        public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player menuPlayer) {
+                            return new HandMirrorMenu(containerId, playerInventory, usedHand);
+                        }
+                    }, (FriendlyByteBuf buf) -> {
+                        buf.writeEnum(usedHand);
+                    });
+                    return InteractionResultHolder.success(stack);
+                }
             }
         }
 
         return InteractionResultHolder.pass(stack);
+    }
+
+    /**
+     * Transport an item through a linked mirror.
+     * 
+     * @param mirror The hand mirror item with link data
+     * @param items The item to transport
+     * @param player The player using the mirror
+     * @param level The current level
+     * @return true if transport was successful
+     */
+    public static boolean transport(ItemStack mirror, ItemStack items, Player player, Level level) {
+        if (!mirror.hasTag()) {
+            return false;
+        }
+
+        CompoundTag tag = mirror.getTag();
+        if (tag == null || !tag.contains("linkX")) {
+            return false;
+        }
+
+        int lx = tag.getInt("linkX");
+        int ly = tag.getInt("linkY");
+        int lz = tag.getInt("linkZ");
+        String dimKey = tag.getString("linkDim");
+
+        // Find target dimension
+        ServerLevel targetLevel = null;
+        if (level.getServer() != null) {
+            for (ServerLevel serverLevel : level.getServer().getAllLevels()) {
+                if (serverLevel.dimension().location().toString().equals(dimKey)) {
+                    targetLevel = serverLevel;
+                    break;
+                }
+            }
+        }
+
+        if (targetLevel == null) {
+            return false;
+        }
+
+        BlockPos targetPos = new BlockPos(lx, ly, lz);
+        BlockEntity te = targetLevel.getBlockEntity(targetPos);
+
+        if (te == null || !(te instanceof TileMirror tileMirror)) {
+            // Mirror is gone, clear link
+            mirror.setTag(null);
+            player.playSound(ModSounds.ZAP.get(), 1.0f, 0.8f);
+            player.sendSystemMessage(Component.translatable("tc.handmirrorerror"));
+            return false;
+        }
+
+        // Try to transport the item
+        if (tileMirror.transportDirect(items)) {
+            items.setCount(0);
+            player.playSound(SoundEvents.ENDERMAN_TELEPORT, 0.1f, 1.0f);
+            return true;
+        }
+
+        return false;
     }
 
     @Override

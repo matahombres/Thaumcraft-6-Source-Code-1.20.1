@@ -8,6 +8,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
+import thaumcraft.init.ModSounds;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -179,20 +180,17 @@ public abstract class EntityOwnedConstruct extends PathfinderMob implements Owna
     
     @Override
     protected SoundEvent getAmbientSound() {
-        // TODO: Return SoundsTC.clack when implemented
-        return SoundEvents.IRON_GOLEM_STEP;
+        return ModSounds.CLACK.get();
     }
     
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        // TODO: Return SoundsTC.clack when implemented
-        return SoundEvents.IRON_GOLEM_HURT;
+        return ModSounds.CLACK.get();
     }
     
     @Override
     protected SoundEvent getDeathSound() {
-        // TODO: Return SoundsTC.tool when implemented
-        return SoundEvents.IRON_GOLEM_DEATH;
+        return ModSounds.TOOL.get();
     }
     
     @Override

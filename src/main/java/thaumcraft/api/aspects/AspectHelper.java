@@ -2,10 +2,11 @@ package thaumcraft.api.aspects;
 
 import java.util.HashMap;
 import java.util.Map;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 
 /**
  * AspectHelper - Utility class for working with aspects.
@@ -98,6 +99,19 @@ public class AspectHelper {
             return null;
         }
         return entityTags.get(entityId.toString());
+    }
+    
+    /**
+     * Get the aspects associated with an entity instance
+     * @param entity the entity to query
+     * @return the aspects for this entity, or null if none
+     */
+    public static AspectList getEntityAspects(Entity entity) {
+        if (entity == null) {
+            return null;
+        }
+        ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+        return getEntityAspects(entityId);
     }
     
     /**

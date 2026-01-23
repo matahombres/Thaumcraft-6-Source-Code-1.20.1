@@ -27,6 +27,7 @@ import thaumcraft.common.entities.monster.cult.EntityCultist;
 import thaumcraft.common.entities.monster.cult.EntityCultistCleric;
 import thaumcraft.common.entities.monster.cult.EntityCultistKnight;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModItems;
 
 import java.util.List;
 
@@ -342,8 +343,8 @@ public class EntityCultistPortalGreater extends Monster {
     
     @Override
     protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
-        // TODO: Drop primordial pearl when implemented
-        spawnAtLocation(new ItemStack(Items.ENDER_EYE));
+        // Drop primordial pearl
+        spawnAtLocation(new ItemStack(ModItems.PRIMORDIAL_PEARL.get()));
     }
     
     // ==================== Status Effects ====================

@@ -15,6 +15,8 @@ import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.casters.FocusEffect;
 import thaumcraft.api.casters.NodeSetting;
 import thaumcraft.api.casters.Trajectory;
+import thaumcraft.init.ModBlocks;
+import net.minecraft.core.BlockPos;
 
 import javax.annotation.Nullable;
 
@@ -116,11 +118,32 @@ public class FocusEffectCurse extends FocusEffect {
             }
             
             return true;
+        } else {
+            // Block curse effect - spawn sap effect blocks in area
+            BlockPos hitPos = BlockPos.containing(target.getLocation());
+            int power = getSettingValue("power");
+            int radius = 1 + power / 2;
+            
+            for (int x = -radius; x <= radius; x++) {
+                for (int z = -radius; z <= radius; z++) {
+                    BlockPos checkPos = hitPos.offset(x, 0, z);
+                    // Find surface
+                    for (int y = 2; y >= -2; y--) {
+                        BlockPos surfacePos = checkPos.offset(0, y, 0);
+                        BlockPos abovePos = surfacePos.above();
+                        
+                        if (!world.isEmptyBlock(surfacePos) && world.isEmptyBlock(abovePos)) {
+                            if (world.random.nextFloat() < 0.7f) {
+                                world.setBlock(abovePos, ModBlocks.EFFECT_SAP.get().defaultBlockState(), 3);
+                                world.scheduleTick(abovePos, ModBlocks.EFFECT_SAP.get(), 40 + world.random.nextInt(60));
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            return true;
         }
-        // TODO: Block curse effect - spawn sap effect blocks in area
-        // Original spawned BlocksTC.effectSap on solid blocks in radius
-        
-        return false;
     }
 
     @Override

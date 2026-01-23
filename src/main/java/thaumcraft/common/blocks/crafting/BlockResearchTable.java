@@ -24,6 +24,9 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.network.NetworkHooks;
+import thaumcraft.common.tiles.crafting.TileResearchTable;
 
 import javax.annotation.Nullable;
 
@@ -76,10 +79,13 @@ public class BlockResearchTable extends Block implements EntityBlock {
             return InteractionResult.SUCCESS;
         }
 
-        // TODO: Open research table GUI when implemented
-        // player.openMenu(...)
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof TileResearchTable tile) {
+            NetworkHooks.openScreen((ServerPlayer) player, tile, pos);
+            return InteractionResult.CONSUME;
+        }
         
-        return InteractionResult.CONSUME;
+        return InteractionResult.PASS;
     }
 
     @Override
@@ -92,7 +98,9 @@ public class BlockResearchTable extends Block implements EntityBlock {
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
-            // TODO: Drop research table contents when TileResearchTable is implemented
+            if (blockEntity instanceof TileResearchTable tile) {
+                tile.dropContents();
+            }
             super.onRemove(state, level, pos, newState, isMoving);
         }
     }
@@ -100,7 +108,6 @@ public class BlockResearchTable extends Block implements EntityBlock {
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        // TODO: Return TileResearchTable when implemented
-        return null;
+        return new TileResearchTable(pos, state);
     }
 }

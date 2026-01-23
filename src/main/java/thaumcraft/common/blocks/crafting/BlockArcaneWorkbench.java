@@ -17,7 +17,10 @@ import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraftforge.network.NetworkHooks;
 import thaumcraft.common.blocks.BlockTCDevice;
+import thaumcraft.common.tiles.crafting.TileArcaneWorkbench;
+import thaumcraft.init.ModBlockEntities;
 
 import javax.annotation.Nullable;
 
@@ -53,9 +56,8 @@ public class BlockArcaneWorkbench extends BlockTCDevice {
         }
 
         BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (blockEntity != null && player instanceof ServerPlayer serverPlayer) {
-            // TODO: Open the arcane workbench GUI
-            // NetworkHooks.openScreen(serverPlayer, (MenuProvider) blockEntity, pos);
+        if (blockEntity instanceof TileArcaneWorkbench workbench && player instanceof ServerPlayer serverPlayer) {
+            NetworkHooks.openScreen(serverPlayer, workbench, pos);
         }
 
         return InteractionResult.CONSUME;
@@ -65,9 +67,8 @@ public class BlockArcaneWorkbench extends BlockTCDevice {
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (blockEntity != null) {
-                // TODO: Drop inventory contents when TileArcaneWorkbench is implemented
-                // Containers.dropContents(level, pos, ((TileArcaneWorkbench) blockEntity).getInventory());
+            if (blockEntity instanceof TileArcaneWorkbench workbench) {
+                workbench.dropContents();
             }
             super.onRemove(state, level, pos, newState, isMoving);
         }
@@ -76,7 +77,6 @@ public class BlockArcaneWorkbench extends BlockTCDevice {
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        // TODO: Return TileArcaneWorkbench when implemented
-        return null;
+        return ModBlockEntities.ARCANE_WORKBENCH.get().create(pos, state);
     }
 }

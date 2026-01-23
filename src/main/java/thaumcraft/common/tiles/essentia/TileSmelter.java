@@ -3,8 +3,12 @@ package thaumcraft.common.tiles.essentia;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.Container;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -15,9 +19,12 @@ import net.minecraftforge.common.ForgeHooks;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
 import thaumcraft.api.aura.AuraHelper;
+import thaumcraft.common.menu.SmelterMenu;
 import thaumcraft.common.tiles.TileThaumcraftInventory;
 import thaumcraft.common.tiles.devices.TileBellows;
 import thaumcraft.init.ModBlockEntities;
+
+import javax.annotation.Nullable;
 
 /**
  * Alchemical smelter tile entity - breaks down items into their component aspects.
@@ -25,7 +32,7 @@ import thaumcraft.init.ModBlockEntities;
  * 
  * Has 3 tiers: Basic (80% efficiency), Thaumium (90%), Void (95%)
  */
-public class TileSmelter extends TileThaumcraftInventory implements Container {
+public class TileSmelter extends TileThaumcraftInventory implements Container, MenuProvider {
 
     // Slot indices
     public static final int SLOT_INPUT = 0;
@@ -394,5 +401,18 @@ public class TileSmelter extends TileThaumcraftInventory implements Container {
 
     public boolean isBurning() {
         return furnaceBurnTime > 0;
+    }
+
+    // ==================== MenuProvider ====================
+
+    @Override
+    public Component getDisplayName() {
+        return Component.translatable("block.thaumcraft.smelter");
+    }
+
+    @Nullable
+    @Override
+    public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
+        return new SmelterMenu(containerId, playerInventory, this);
     }
 }

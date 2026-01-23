@@ -10,6 +10,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
+import thaumcraft.init.ModSounds;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -39,7 +40,13 @@ import thaumcraft.api.golems.IGolemAPI;
 import thaumcraft.api.golems.IGolemProperties;
 import thaumcraft.api.golems.tasks.Task;
 import thaumcraft.common.entities.construct.EntityOwnedConstruct;
+import thaumcraft.common.golems.ai.AIGotoBlock;
+import thaumcraft.common.golems.ai.AIGotoEntity;
+import thaumcraft.common.golems.ai.AIGotoHome;
+import thaumcraft.common.golems.ai.AIOwnerHurtByTarget;
+import thaumcraft.common.golems.ai.AIOwnerHurtTarget;
 import thaumcraft.common.golems.tasks.TaskHandler;
+import thaumcraft.init.ModItems;
 
 import java.nio.ByteBuffer;
 
@@ -201,22 +208,26 @@ public class EntityThaumcraftGolem extends EntityOwnedConstruct implements IGole
         
         IGolemProperties props = getProperties();
         
+        // Swimming for non-flyers
+        if (!(this.navigation instanceof FlyingPathNavigation)) {
+            this.goalSelector.addGoal(0, new FloatGoal(this));
+        }
+        
         if (isFollowingOwner()) {
             // Follow owner mode
             this.goalSelector.addGoal(4, new FollowOwnerGoal(this, 1.0, 10.0f, 2.0f));
         } else {
-            // Work mode - Task-based AI will be added later
+            // Work mode - Task-based AI
+            this.goalSelector.addGoal(3, new AIGotoBlock(this));
+            this.goalSelector.addGoal(3, new AIGotoEntity(this));
             this.goalSelector.addGoal(5, new RandomStrollGoal(this, 0.5));
+            this.goalSelector.addGoal(6, new AIGotoHome(this));
         }
         
         this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
         this.goalSelector.addGoal(9, new RandomLookAroundGoal(this));
         
         if (props.hasTrait(EnumGolemTrait.FIGHTER)) {
-            if (!(this.navigation instanceof FlyingPathNavigation)) {
-                this.goalSelector.addGoal(0, new FloatGoal(this));
-            }
-            
             if (props.hasTrait(EnumGolemTrait.RANGED) && props.getArms().function != null) {
                 RangedAttackGoal rangedAI = props.getArms().function.getRangedAttackAI(this);
                 if (rangedAI != null) {
@@ -227,7 +238,9 @@ public class EntityThaumcraftGolem extends EntityOwnedConstruct implements IGole
             this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.15, false));
             
             if (isFollowingOwner()) {
-                // TODO: Add owner hurt target goals
+                // Attack what owner attacks and what attacks owner
+                this.targetSelector.addGoal(1, new AIOwnerHurtByTarget(this));
+                this.targetSelector.addGoal(2, new AIOwnerHurtTarget(this));
             }
             
             this.targetSelector.addGoal(3, new HurtByTargetGoal(this));
@@ -501,6 +514,14 @@ public class EntityThaumcraftGolem extends EntityOwnedConstruct implements IGole
 
     // ==================== XP/Rank ====================
 
+    public int getRankXp() {
+        return rankXp;
+    }
+
+    public void setRankXp(int xp) {
+        this.rankXp = xp;
+    }
+
     @Override
     public void addRankXp(int xp) {
         if (!getProperties().hasTrait(EnumGolemTrait.SMART) || level().isClientSide) {
@@ -675,18 +696,17 @@ public class EntityThaumcraftGolem extends EntityOwnedConstruct implements IGole
             
             if (player.isShiftKeyDown()) {
                 // Pick up golem
-                playSound(SoundEvents.ITEM_PICKUP, 1.0f, 1.0f);
+                playSound(ModSounds.ZAP.get(), 1.0f, 1.0f);
                 if (task != null) {
                     task.setReserved(false);
                 }
                 dropCarried();
                 
                 // Create golem placer item with saved data
-                // TODO: Create ItemGolemPlacer when implemented
-                // ItemStack placer = new ItemStack(ItemsTC.golemPlacer);
-                // placer.getOrCreateTag().putLong("props", getProperties().toLong());
-                // placer.getOrCreateTag().putInt("xp", rankXp);
-                // spawnAtLocation(placer, 0.5f);
+                ItemStack placer = new ItemStack(ModItems.GOLEM_PLACER.get());
+                placer.getOrCreateTag().putLong("props", getProperties().toLong());
+                placer.getTag().putInt("xp", rankXp);
+                spawnAtLocation(placer, 0.5f);
                 
                 discard();
                 player.swing(hand);
@@ -698,12 +718,18 @@ public class EntityThaumcraftGolem extends EntityOwnedConstruct implements IGole
                 DyeColor color = dyeItem.getDyeColor();
                 setGolemColor((byte) (16 - color.getId()));
                 heldItem.shrink(1);
-                playSound(SoundEvents.ITEM_PICKUP, 1.0f, 1.5f);
+                playSound(ModSounds.ZAP.get(), 1.0f, 1.5f);
                 player.swing(hand);
                 return InteractionResult.SUCCESS;
             }
             
-            // TODO: Handle golem bell for follow/stay toggle
+            // Handle golem bell for follow/stay toggle
+            if (heldItem.getItem() == ModItems.GOLEM_BELL.get()) {
+                setFollowingOwner(!isFollowingOwner());
+                playSound(ModSounds.SCAN.get(), 1.0f, 1.0f);
+                player.swing(hand);
+                return InteractionResult.SUCCESS;
+            }
             
             return InteractionResult.SUCCESS;
         }

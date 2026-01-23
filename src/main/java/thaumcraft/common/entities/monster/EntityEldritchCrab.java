@@ -38,6 +38,7 @@ import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import thaumcraft.api.entities.IEldritchMob;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModSounds;
 
 import javax.annotation.Nullable;
 
@@ -201,8 +202,7 @@ public class EntityEldritchCrab extends Monster implements IEldritchMob {
     @Override
     public boolean doHurtTarget(Entity target) {
         if (super.doHurtTarget(target)) {
-            // TODO: Play SoundsTC.crabclaw
-            playSound(SoundEvents.SPIDER_HURT, 1.0f, 0.9f + random.nextFloat() * 0.2f);
+            playSound(ModSounds.CRAB_CLAW.get(), 1.0f, 0.9f + random.nextFloat() * 0.2f);
             return true;
         }
         return false;
@@ -238,19 +238,17 @@ public class EntityEldritchCrab extends Monster implements IEldritchMob {
     
     @Override
     protected SoundEvent getAmbientSound() {
-        // TODO: Return SoundsTC.crabtalk
-        return SoundEvents.SPIDER_AMBIENT;
+        return ModSounds.CRAB_TALK.get();
     }
     
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.GENERIC_HURT;
+        return ModSounds.CRAB_CLAW.get();
     }
     
     @Override
     protected SoundEvent getDeathSound() {
-        // TODO: Return SoundsTC.crabdeath
-        return SoundEvents.SPIDER_DEATH;
+        return ModSounds.CRAB_DEATH.get();
     }
     
     @Override

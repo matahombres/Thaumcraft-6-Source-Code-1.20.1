@@ -41,6 +41,8 @@ import thaumcraft.common.entities.monster.cult.EntityCultistCleric;
 import thaumcraft.common.entities.monster.cult.EntityCultistKnight;
 import thaumcraft.common.entities.projectile.EntityGolemOrb;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModItems;
+import thaumcraft.init.ModSounds;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -236,8 +238,7 @@ public class EntityCultistLeader extends EntityThaumcraftBoss implements RangedA
             // Shoot with some vertical adjustment
             orb.shoot(dx, dy + 2.0, dz, 0.66f, 3.0f);
             
-            // TODO: Play SoundsTC.egattack when implemented
-            playSound(SoundEvents.EVOKER_CAST_SPELL, 1.0f, 1.0f + random.nextFloat() * 0.1f);
+            playSound(ModSounds.EG_ATTACK.get(), 1.0f, 1.0f + random.nextFloat() * 0.1f);
             level().addFreshEntity(orb);
         }
     }
@@ -275,8 +276,7 @@ public class EntityCultistLeader extends EntityThaumcraftBoss implements RangedA
     @Override
     protected void dropCustomDeathLoot(net.minecraft.world.damagesource.DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
         super.dropCustomDeathLoot(source, lootingLevel, wasRecentlyHit);
-        // TODO: Drop ItemsTC.lootBag (tier 2) when implemented
-        // For now drop something placeholder
-        spawnAtLocation(new ItemStack(Items.ENCHANTED_GOLDEN_APPLE));
+        // Drop tier 2 (uncommon) loot bag
+        spawnAtLocation(new ItemStack(ModItems.LOOT_BAG_UNCOMMON.get()));
     }
 }

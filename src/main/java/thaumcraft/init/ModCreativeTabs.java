@@ -8,6 +8,14 @@ import net.minecraft.world.item.Items;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 import thaumcraft.Thaumcraft;
+import thaumcraft.api.golems.IGolemProperties;
+import thaumcraft.api.golems.parts.GolemAddon;
+import thaumcraft.api.golems.parts.GolemArm;
+import thaumcraft.api.golems.parts.GolemHead;
+import thaumcraft.api.golems.parts.GolemLeg;
+import thaumcraft.api.golems.parts.GolemMaterial;
+import thaumcraft.common.golems.GolemProperties;
+import thaumcraft.common.golems.ItemGolemPlacer;
 
 /**
  * Creative mode tabs for Thaumcraft.
@@ -376,8 +384,60 @@ public class ModCreativeTabs {
                         // === Focus Accessories ===
                         output.accept(ModItems.FOCUS_POUCH.get());
 
+                        // === Golem Items ===
+                        output.accept(ModItems.GOLEM_PLACER.get());
+                        output.accept(ModItems.GOLEM_BELL.get());
+                        
+                        // Golem variants - different material/part combinations
+                        // Access parts by index since they're dynamically registered
+                        // Materials: 0=WOOD, 1=IRON, 2=CLAY, 3=BRASS, 4=THAUMIUM, 5=VOID
+                        // Heads: 0=BASIC, 1=SMART, 2=SCOUT
+                        // Arms: 0=BASIC, 1=FINE, 2=CLAWS, 3=BREAKERS
+                        // Legs: 0=WALKER, 1=ROLLER, 2=CLIMBER, 3=FLYER
+                        // Addons: 0=NONE, 1=ARMORED, 2=FIGHTER, 3=HAULER
+                        
+                        // Wood golem (basic)
+                        output.accept(createGolemStackById(0, 0, 0, 0, 0));
+                        // Wood golem with smart head
+                        output.accept(createGolemStackById(0, 1, 1, 0, 0));
+                        // Clay golem
+                        output.accept(createGolemStackById(2, 0, 0, 0, 0));
+                        // Iron golem with claws
+                        output.accept(createGolemStackById(1, 1, 2, 0, 2));
+                        // Brass golem with hauler
+                        output.accept(createGolemStackById(3, 1, 1, 1, 3));
+                        // Thaumium golem (advanced)
+                        output.accept(createGolemStackById(4, 1, 3, 2, 1));
+                        // Void golem (endgame)
+                        output.accept(createGolemStackById(5, 2, 2, 3, 2));
+                        
+                        // === Golem Builder ===
+                        output.accept(ModBlocks.GOLEM_BUILDER.get());
+
                         // === Golem Seals ===
                         output.accept(ModItems.SEAL_BLANK.get());
+                        output.accept(ModItems.SEAL_PICKUP.get());
+                        output.accept(ModItems.SEAL_EMPTY.get());
+                        output.accept(ModItems.SEAL_FILL.get());
+                        output.accept(ModItems.SEAL_GUARD.get());
+                        output.accept(ModItems.SEAL_BUTCHER.get());
+                        output.accept(ModItems.SEAL_HARVEST.get());
+                        output.accept(ModItems.SEAL_LUMBER.get());
+                        output.accept(ModItems.SEAL_BREAKER.get());
+                        output.accept(ModItems.SEAL_PROVIDE.get());
                     })
                     .build());
+
+    /**
+     * Create a golem placer ItemStack with parts specified by ID.
+     */
+    private static ItemStack createGolemStackById(int materialId, int headId, int armsId, int legsId, int addonId) {
+        IGolemProperties props = new GolemProperties();
+        props.setMaterial(GolemMaterial.getById(materialId));
+        props.setHead(GolemHead.getById(headId));
+        props.setArms(GolemArm.getById(armsId));
+        props.setLegs(GolemLeg.getById(legsId));
+        props.setAddon(GolemAddon.getById(addonId));
+        return ItemGolemPlacer.createGolemStack(ModItems.GOLEM_PLACER.get(), props, 0);
+    }
 }

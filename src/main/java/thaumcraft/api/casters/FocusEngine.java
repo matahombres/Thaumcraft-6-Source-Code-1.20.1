@@ -167,4 +167,34 @@ public class FocusEngine {
         FOCUS_REGISTRY.clear();
         ELEMENT_COLORS.clear();
     }
+    
+    /**
+     * Get a focus element (creates a new instance) by key.
+     * This is an alias for createFocusNode() for backwards compatibility.
+     */
+    @Nullable
+    public static IFocusElement getElement(String key) {
+        return createFocusNode(key);
+    }
+    
+    /**
+     * Check if a FocusPackage contains a specific element type.
+     * Searches through all nodes in the package.
+     * 
+     * @param pack The focus package to search
+     * @param elementKey The element key to look for (e.g., "thaumcraft.PLAN")
+     * @return true if the element is found anywhere in the package
+     */
+    public static boolean doesPackageContainElement(FocusPackage pack, String elementKey) {
+        if (pack == null || elementKey == null || pack.nodes == null) {
+            return false;
+        }
+        
+        for (IFocusElement element : pack.nodes) {
+            if (element != null && elementKey.equals(element.getKey())) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

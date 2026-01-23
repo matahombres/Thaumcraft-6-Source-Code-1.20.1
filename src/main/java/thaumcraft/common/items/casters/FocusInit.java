@@ -22,6 +22,7 @@ public class FocusInit {
         FocusEngine.registerFocusNode("thaumcraft.CLOUD", FocusMediumCloud::new);
         FocusEngine.registerFocusNode("thaumcraft.MINE", FocusMediumMine::new);
         FocusEngine.registerFocusNode("thaumcraft.PLAN", FocusMediumPlan::new);
+        FocusEngine.registerFocusNode("thaumcraft.SPELLBAT", FocusMediumSpellBat::new);
         
         // ==================== Effects ====================
         // Elemental effects
@@ -58,6 +59,7 @@ public class FocusInit {
             "thaumcraft.CLOUD",
             "thaumcraft.MINE",
             "thaumcraft.PLAN",
+            "thaumcraft.SPELLBAT",
             
             // Effects
             "thaumcraft.FIRE",

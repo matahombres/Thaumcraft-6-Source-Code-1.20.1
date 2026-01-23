@@ -59,7 +59,8 @@ public class BlockTube extends Block implements EntityBlock {
         RESTRICTED,
         FILTER,
         VALVE,
-        BUFFER
+        BUFFER,
+        ONEWAY
     }
 
     private final TubeType tubeType;
@@ -201,5 +202,12 @@ public class BlockTube extends Block implements EntityBlock {
      */
     public static BlockTube createBuffer() {
         return new BlockTube(TubeType.BUFFER);
+    }
+
+    /**
+     * Create a one-way tube (directional flow only).
+     */
+    public static BlockTube createOneway() {
+        return new BlockTube(TubeType.ONEWAY);
     }
 }

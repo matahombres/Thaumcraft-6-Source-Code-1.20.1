@@ -58,7 +58,13 @@ import thaumcraft.common.items.consumables.ItemLabel;
 import thaumcraft.common.items.curios.ItemLootBag;
 import thaumcraft.common.items.curios.ItemPechWand;
 import thaumcraft.common.items.casters.ItemFocusPouch;
+import thaumcraft.common.golems.ItemGolemBell;
+import thaumcraft.common.golems.ItemGolemPlacer;
 import thaumcraft.common.golems.seals.ItemSealPlacer;
+import thaumcraft.common.items.resources.ItemCrystalEssence;
+import thaumcraft.common.entities.construct.ItemTurretPlacer;
+import thaumcraft.common.items.misc.ItemCreativeFluxSponge;
+import thaumcraft.common.items.misc.ItemCreativePlacer;
 
 /**
  * Registry for all Thaumcraft items.
@@ -251,6 +257,12 @@ public class ModItems {
 
     public static final RegistryObject<Item> ZOMBIE_BRAIN = ITEMS.register("zombie_brain",
             ItemMaterial::basic);
+
+    public static final RegistryObject<Item> FLUX_CRYSTAL = ITEMS.register("flux_crystal",
+            ItemMaterial::uncommon);
+
+    public static final RegistryObject<Item> VOID_SEED = ITEMS.register("void_seed",
+            () -> new ItemMaterial(new Item.Properties().rarity(Rarity.RARE)));
 
     // ==================== Food ====================
 
@@ -555,8 +567,80 @@ public class ModItems {
     public static final RegistryObject<Item> FOCUS_POUCH = ITEMS.register("focus_pouch",
             ItemFocusPouch::new);
 
+    // ==================== Golem Items ====================
+
+    public static final RegistryObject<Item> GOLEM_PLACER = ITEMS.register("golem_placer",
+            ItemGolemPlacer::new);
+
+    public static final RegistryObject<Item> GOLEM_BELL = ITEMS.register("golem_bell",
+            ItemGolemBell::new);
+
     // ==================== Golem Seals ====================
 
     public static final RegistryObject<Item> SEAL_BLANK = ITEMS.register("seal_blank",
             ItemSealPlacer::createBlank);
+
+    // Seal types - one item per seal
+    public static final RegistryObject<Item> SEAL_PICKUP = ITEMS.register("seal_pickup",
+            () -> ItemSealPlacer.create("thaumcraft:pickup"));
+
+    public static final RegistryObject<Item> SEAL_EMPTY = ITEMS.register("seal_empty",
+            () -> ItemSealPlacer.create("thaumcraft:empty"));
+
+    public static final RegistryObject<Item> SEAL_FILL = ITEMS.register("seal_fill",
+            () -> ItemSealPlacer.create("thaumcraft:fill"));
+
+    public static final RegistryObject<Item> SEAL_GUARD = ITEMS.register("seal_guard",
+            () -> ItemSealPlacer.create("thaumcraft:guard"));
+
+    public static final RegistryObject<Item> SEAL_BUTCHER = ITEMS.register("seal_butcher",
+            () -> ItemSealPlacer.create("thaumcraft:butcher"));
+
+    public static final RegistryObject<Item> SEAL_HARVEST = ITEMS.register("seal_harvest",
+            () -> ItemSealPlacer.create("thaumcraft:harvest"));
+
+    public static final RegistryObject<Item> SEAL_LUMBER = ITEMS.register("seal_lumber",
+            () -> ItemSealPlacer.create("thaumcraft:lumber"));
+
+    public static final RegistryObject<Item> SEAL_BREAKER = ITEMS.register("seal_breaker",
+            () -> ItemSealPlacer.create("thaumcraft:breaker"));
+
+    public static final RegistryObject<Item> SEAL_PROVIDE = ITEMS.register("seal_provide",
+            () -> ItemSealPlacer.create("thaumcraft:provide"));
+
+    public static final RegistryObject<Item> SEAL_STOCK = ITEMS.register("seal_stock",
+            () -> ItemSealPlacer.create("thaumcraft:stock"));
+
+    public static final RegistryObject<Item> SEAL_USE = ITEMS.register("seal_use",
+            () -> ItemSealPlacer.create("thaumcraft:use"));
+
+    public static final RegistryObject<Item> SEAL_BREAKER_ADVANCED = ITEMS.register("seal_breaker_advanced",
+            () -> ItemSealPlacer.create("thaumcraft:breaker_advanced"));
+
+    public static final RegistryObject<Item> SEAL_PICKUP_ADVANCED = ITEMS.register("seal_pickup_advanced",
+            () -> ItemSealPlacer.create("thaumcraft:pickup_advanced"));
+
+    // ==================== Crystal Essence ====================
+
+    public static final RegistryObject<Item> CRYSTAL_ESSENCE = ITEMS.register("crystal_essence",
+            ItemCrystalEssence::new);
+
+    // ==================== Turret Placers ====================
+
+    public static final RegistryObject<Item> TURRET_PLACER_BASIC = ITEMS.register("turret_placer_basic",
+            ItemTurretPlacer::createBasic);
+
+    public static final RegistryObject<Item> TURRET_PLACER_ADVANCED = ITEMS.register("turret_placer_advanced",
+            ItemTurretPlacer::createAdvanced);
+
+    public static final RegistryObject<Item> TURRET_PLACER_BORE = ITEMS.register("turret_placer_bore",
+            ItemTurretPlacer::createBore);
+
+    // ==================== Creative-Only Items ====================
+
+    public static final RegistryObject<Item> CREATIVE_FLUX_SPONGE = ITEMS.register("creative_flux_sponge",
+            () -> new ItemCreativeFluxSponge(new Item.Properties()));
+
+    public static final RegistryObject<Item> CREATIVE_PLACER = ITEMS.register("creative_placer",
+            () -> new ItemCreativePlacer(new Item.Properties()));
 }

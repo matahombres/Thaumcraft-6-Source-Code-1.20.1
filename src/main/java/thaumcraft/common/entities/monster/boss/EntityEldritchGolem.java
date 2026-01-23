@@ -38,6 +38,7 @@ import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.entities.IEldritchMob;
 import thaumcraft.common.entities.projectile.EntityGolemOrb;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModSounds;
 
 import javax.annotation.Nullable;
 
@@ -296,8 +297,7 @@ public class EntityEldritchGolem extends EntityThaumcraftBoss implements IEldrit
             
             orb.shoot(dx, dy, dz, 0.66f, 5.0f);
             
-            // TODO: Play SoundsTC.egattack when implemented
-            playSound(SoundEvents.EVOKER_CAST_SPELL, 1.0f, 1.0f + random.nextFloat() * 0.1f);
+            playSound(ModSounds.EG_ATTACK.get(), 1.0f, 1.0f + random.nextFloat() * 0.1f);
             level().addFreshEntity(orb);
         }
     }

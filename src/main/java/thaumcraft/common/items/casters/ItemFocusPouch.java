@@ -2,11 +2,16 @@ package thaumcraft.common.items.casters;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
@@ -14,6 +19,8 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.network.NetworkHooks;
+import thaumcraft.common.menu.FocusPouchMenu;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -37,10 +44,21 @@ public class ItemFocusPouch extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         
-        if (!level.isClientSide()) {
-            // TODO: Open focus pouch GUI
-            // player.openMenu(...)
-            player.sendSystemMessage(Component.translatable("item.thaumcraft.focus_pouch.notimplemented"));
+        if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
+            final InteractionHand usedHand = hand;
+            NetworkHooks.openScreen(serverPlayer, new MenuProvider() {
+                @Override
+                public Component getDisplayName() {
+                    return Component.translatable("container.thaumcraft.focus_pouch");
+                }
+
+                @Override
+                public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player menuPlayer) {
+                    return new FocusPouchMenu(containerId, playerInventory, usedHand);
+                }
+            }, (FriendlyByteBuf buf) -> {
+                buf.writeEnum(usedHand);
+            });
         }
         
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());

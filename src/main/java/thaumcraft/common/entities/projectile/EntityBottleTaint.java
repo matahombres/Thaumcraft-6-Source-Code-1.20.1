@@ -6,10 +6,14 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.ThrowableProjectile;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
+import thaumcraft.api.entities.ITaintedMob;
+import thaumcraft.common.blocks.world.taint.BlockFluxGoo;
+import thaumcraft.init.ModBlocks;
+import thaumcraft.init.ModEffects;
 import thaumcraft.init.ModEntities;
 
 import java.util.List;
@@ -81,14 +85,9 @@ public class EntityBottleTaint extends ThrowableProjectile {
             
             for (LivingEntity entity : entities) {
                 // Skip tainted mobs and undead
-                // TODO: Check for ITaintedMob interface when implemented
-                if (!entity.isInvertedHealAndHarm()) { // isInvertedHealAndHarm() returns true for undead
-                    // TODO: Apply PotionFluxTaint effect when implemented
-                    // entity.addEffect(new MobEffectInstance(ModEffects.FLUX_TAINT.get(), 100, 0, false, true));
-                    
-                    // For now, apply wither as a placeholder for taint damage
-                    entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                        net.minecraft.world.effect.MobEffects.WITHER, 100, 0, false, true));
+                if (!(entity instanceof ITaintedMob) && !entity.isInvertedHealAndHarm()) {
+                    // Apply flux taint effect
+                    entity.addEffect(new MobEffectInstance(ModEffects.FLUX_TAINT.get(), 100, 0, false, true));
                 }
             }
             
@@ -131,13 +130,10 @@ public class EntityBottleTaint extends ThrowableProjectile {
     }
     
     /**
-     * Places flux goo at the given position.
-     * TODO: Replace with actual BlockFluxGoo when implemented
+     * Places flux goo at the given position with a random level.
      */
     private void placeFluxGoo(BlockPos pos) {
-        // TODO: Replace with ModBlocks.FLUX_GOO when implemented
-        // For now, place slime block as a visual placeholder
-        level().setBlockAndUpdate(pos, Blocks.SLIME_BLOCK.defaultBlockState());
+        level().setBlockAndUpdate(pos, BlockFluxGoo.withLevel(ModBlocks.FLUX_GOO.get(), 4 + random.nextInt(4)));
     }
     
     @Override

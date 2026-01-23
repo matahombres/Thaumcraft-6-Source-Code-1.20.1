@@ -1,8 +1,13 @@
 package thaumcraft.api.aura;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import thaumcraft.common.lib.network.PacketHandler;
+import thaumcraft.common.lib.network.fx.PacketFXPollute;
 import thaumcraft.common.world.aura.AuraHandler;
 
 /**
@@ -71,7 +76,16 @@ public class AuraHelper {
      */
     public static void polluteAura(Level level, BlockPos pos, float amount, boolean showEffect) {
         AuraHandler.addFlux(level, pos, amount);
-        // TODO: Add particle and sound effects when showEffect is true
+        
+        if (showEffect && level instanceof ServerLevel serverLevel) {
+            // Send pollution particle effect packet
+            PacketHandler.sendToAllTrackingChunk(new PacketFXPollute(pos, amount), serverLevel, pos);
+            
+            // Play pollution sound
+            level.playSound(null, pos, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS, 
+                    0.2f + level.random.nextFloat() * 0.1f, 
+                    0.9f + level.random.nextFloat() * 0.2f);
+        }
     }
 
     /**

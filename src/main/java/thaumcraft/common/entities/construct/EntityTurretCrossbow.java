@@ -44,6 +44,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import thaumcraft.init.ModItems;
+import thaumcraft.init.ModSounds;
 
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -222,8 +224,7 @@ public class EntityTurretCrossbow extends EntityOwnedConstruct implements Ranged
                             ItemStack stack = dispenser.getItem(i);
                             if (!stack.isEmpty() && stack.getItem() instanceof ArrowItem) {
                                 setItemInHand(InteractionHand.MAIN_HAND, dispenser.removeItem(i, stack.getCount()));
-                                // TODO: playSound(SoundsTC.ticks, 1.0f, 1.0f);
-                                playSound(SoundEvents.CROSSBOW_LOADING_END, 1.0f, 1.0f);
+                                playSound(ModSounds.TICKS.get(), 1.0f, 1.0f);
                                 level().broadcastEntityEvent(this, (byte) 17);
                                 break;
                             }
@@ -321,11 +322,10 @@ public class EntityTurretCrossbow extends EntityOwnedConstruct implements Ranged
         if (!level().isClientSide && isOwner(player) && !isRemoved()) {
             if (player.isShiftKeyDown()) {
                 // Pick up turret
-                // TODO: playSound(SoundsTC.zap, 1.0f, 1.0f);
-                playSound(SoundEvents.ITEM_PICKUP, 1.0f, 1.0f);
+                playSound(ModSounds.ZAP.get(), 1.0f, 1.0f);
                 dropAmmo();
-                // TODO: Drop turret placer item when implemented
-                // spawnAtLocation(new ItemStack(ItemsTC.turretPlacer, 1, 0), 0.5f);
+                // Drop turret placer item
+                spawnAtLocation(new ItemStack(ModItems.TURRET_PLACER_BASIC.get()), 0.5f);
                 discard();
                 player.swing(hand);
                 return InteractionResult.SUCCESS;

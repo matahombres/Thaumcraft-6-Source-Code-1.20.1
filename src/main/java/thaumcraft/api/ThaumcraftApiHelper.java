@@ -2,14 +2,18 @@ package thaumcraft.api;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.common.Tags;
 import net.minecraftforge.common.crafting.StrictNBTIngredient;
+import net.minecraftforge.registries.ForgeRegistries;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
+import thaumcraft.api.aspects.IEssentiaContainerItem;
 import thaumcraft.api.aspects.IEssentiaTransport;
 
 import java.nio.ByteBuffer;
@@ -108,8 +112,7 @@ public class ThaumcraftApiHelper {
     // ==================== Crystal Creation ====================
 
     /**
-     * Create a crystal itemstack from an aspect.
-     * TODO: Implement when crystal items are ported
+     * Create a crystal essence itemstack from an aspect.
      *
      * @param aspect the aspect for the crystal
      * @param stackSize the stack size
@@ -117,8 +120,18 @@ public class ThaumcraftApiHelper {
      */
     public static ItemStack makeCrystal(Aspect aspect, int stackSize) {
         if (aspect == null) return ItemStack.EMPTY;
-        // TODO: Implement when ItemsTC.crystalEssence is ported
-        return ItemStack.EMPTY;
+        
+        // Get the crystal essence item from the registry
+        Item crystalItem = ForgeRegistries.ITEMS.getValue(
+                new ResourceLocation("thaumcraft", "crystal_essence"));
+        
+        if (crystalItem == null) return ItemStack.EMPTY;
+        
+        ItemStack stack = new ItemStack(crystalItem, stackSize);
+        if (crystalItem instanceof IEssentiaContainerItem container) {
+            container.setAspects(stack, new AspectList().add(aspect, 1));
+        }
+        return stack;
     }
 
     /**

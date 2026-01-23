@@ -219,4 +219,11 @@ public class ScanningManager {
     public static boolean knowsResearch(Player player, String researchKey) {
         return ThaumcraftCapabilities.isResearchKnown(player, researchKey);
     }
+    
+    /**
+     * Get the number of registered scannable things.
+     */
+    public static int getScannableCount() {
+        return things.size();
+    }
 }

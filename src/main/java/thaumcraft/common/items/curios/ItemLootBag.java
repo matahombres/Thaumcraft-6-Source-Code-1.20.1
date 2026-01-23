@@ -12,6 +12,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import thaumcraft.init.ModSounds;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -81,7 +82,7 @@ public class ItemLootBag extends Item {
                 }
             }
 
-            // TODO: Play coin/loot sound (SoundsTC.coins)
+            player.playSound(ModSounds.COINS.get(), 0.5f, 1.0f);
         }
 
         stack.shrink(1);

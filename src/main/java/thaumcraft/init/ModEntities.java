@@ -49,8 +49,10 @@ import thaumcraft.common.entities.monster.boss.EntityCultistPortalGreater;
 import thaumcraft.common.entities.monster.boss.EntityEldritchGolem;
 import thaumcraft.common.entities.monster.boss.EntityEldritchWarden;
 import thaumcraft.common.entities.monster.EntityPech;
+import thaumcraft.common.entities.construct.EntityArcaneBore;
 import thaumcraft.common.entities.construct.EntityTurretCrossbow;
 import thaumcraft.common.entities.construct.EntityTurretCrossbowAdvanced;
+import thaumcraft.common.golems.EntityThaumcraftGolem;
 
 /**
  * Registry for all Thaumcraft entities.
@@ -400,11 +402,21 @@ public class ModEntities {
                     .updateInterval(3)
                     .build(new ResourceLocation(Thaumcraft.MODID, "turret_crossbow_advanced").toString()));
     
-    /*
-     * Construct entities remaining to port:
-     * - EntityArcaneBore (complex - ~585 lines)
-     * - Golem system (complex - needs separate planning)
-     */
+    public static final RegistryObject<EntityType<EntityThaumcraftGolem>> THAUMCRAFT_GOLEM = 
+            ENTITY_TYPES.register("thaumcraft_golem", () -> 
+                EntityType.Builder.<EntityThaumcraftGolem>of(EntityThaumcraftGolem::new, MobCategory.MISC)
+                    .sized(0.7f, 1.0f)
+                    .clientTrackingRange(8)
+                    .updateInterval(3)
+                    .build(new ResourceLocation(Thaumcraft.MODID, "thaumcraft_golem").toString()));
+    
+    public static final RegistryObject<EntityType<EntityArcaneBore>> ARCANE_BORE = 
+            ENTITY_TYPES.register("arcane_bore", () -> 
+                EntityType.Builder.<EntityArcaneBore>of(EntityArcaneBore::new, MobCategory.MISC)
+                    .sized(0.9f, 0.9f)
+                    .clientTrackingRange(8)
+                    .updateInterval(3)
+                    .build(new ResourceLocation(Thaumcraft.MODID, "arcane_bore").toString()));
     
     // ==================== Misc Entities ====================
     

@@ -95,8 +95,10 @@ public class PlayerWarp {
         
         @Override
         public void sync(@Nonnull ServerPlayer player) {
-            // TODO: Send sync packet when network system is implemented
-            // PacketHandler.sendTo(new PacketSyncWarp(player), player);
+            thaumcraft.common.lib.network.PacketHandler.sendToPlayer(
+                new thaumcraft.common.lib.network.playerdata.PacketSyncWarp(player), 
+                player
+            );
         }
         
         @Override

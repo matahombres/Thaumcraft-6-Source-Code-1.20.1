@@ -26,7 +26,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.entities.ITaintedMob;
+import thaumcraft.init.ModEffects;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModItems;
+import thaumcraft.init.ModSounds;
 
 import java.util.List;
 
@@ -72,8 +75,7 @@ public class EntityTaintSeed extends Monster implements ITaintedMob {
     @Override
     public boolean doHurtTarget(Entity target) {
         level().broadcastEntityEvent(this, (byte) 16);
-        // TODO: Play SoundsTC.tentacle
-        playSound(SoundEvents.SLIME_ATTACK, getSoundVolume(), getVoicePitch());
+        playSound(ModSounds.TENTACLE.get(), getSoundVolume(), getVoicePitch());
         return super.doHurtTarget(target);
     }
     
@@ -163,8 +165,8 @@ public class EntityTaintSeed extends Monster implements ITaintedMob {
                             e -> !(e instanceof ITaintedMob));
                     
                     for (LivingEntity entity : nearby) {
-                        // TODO: Apply PotionFluxTaint when implemented
-                        entity.addEffect(new MobEffectInstance(MobEffects.POISON, 100, getArea() - 1, false, true));
+                        // Apply flux taint effect
+                        entity.addEffect(new MobEffectInstance(ModEffects.FLUX_TAINT.get(), 100, getArea() - 1, false, true));
                     }
                 }
             }
@@ -206,8 +208,7 @@ public class EntityTaintSeed extends Monster implements ITaintedMob {
                 0.0f, 0.0f);
         level().addFreshEntity(tentacle);
         
-        // TODO: Play SoundsTC.tentacle
-        playSound(SoundEvents.SLIME_SQUISH, getSoundVolume(), getVoicePitch());
+        playSound(ModSounds.TENTACLE.get(), getSoundVolume(), getVoicePitch());
     }
     
     @Override
@@ -217,7 +218,7 @@ public class EntityTaintSeed extends Monster implements ITaintedMob {
     
     @Override
     protected SoundEvent getAmbientSound() {
-        return SoundEvents.CHORUS_FLOWER_DEATH;
+        return ModSounds.TENTACLE.get();
     }
     
     @Override
@@ -232,20 +233,18 @@ public class EntityTaintSeed extends Monster implements ITaintedMob {
     
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        // TODO: Return SoundsTC.tentacle
-        return SoundEvents.SLIME_HURT;
+        return ModSounds.TENTACLE.get();
     }
     
     @Override
     protected SoundEvent getDeathSound() {
-        // TODO: Return SoundsTC.tentacle
-        return SoundEvents.SLIME_DEATH;
+        return ModSounds.TENTACLE.get();
     }
     
     @Override
     protected void dropCustomDeathLoot(DamageSource source, int lootingLevel, boolean wasRecentlyHit) {
-        // TODO: Drop flux crystal when implemented
-        spawnAtLocation(new ItemStack(Items.SLIME_BALL));
+        // Drop flux crystal
+        spawnAtLocation(new ItemStack(ModItems.FLUX_CRYSTAL.get()));
     }
     
     @Override

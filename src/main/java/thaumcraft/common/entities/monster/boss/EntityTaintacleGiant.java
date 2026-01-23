@@ -28,6 +28,7 @@ import thaumcraft.api.entities.IEldritchMob;
 import thaumcraft.api.entities.ITaintedMob;
 import thaumcraft.common.entities.monster.tainted.EntityTaintacle;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModItems;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -205,9 +206,7 @@ public class EntityTaintacleGiant extends EntityTaintacle implements ITaintedMob
                 e -> e != this && e.isAlive());
         
         if (others.isEmpty()) {
-            // TODO: Drop ItemsTC.primordialPearl when implemented
-            // For now drop placeholder
-            spawnAtLocation(new ItemStack(Items.ENDER_PEARL));
+            spawnAtLocation(new ItemStack(ModItems.PRIMORDIAL_PEARL.get()));
         }
     }
     

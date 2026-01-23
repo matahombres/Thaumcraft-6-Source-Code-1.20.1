@@ -24,7 +24,10 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import thaumcraft.init.ModBlocks;
+import thaumcraft.init.ModEffects;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModItems;
 
 /**
  * EntityTaintCrawler - A small tainted bug that spreads taint fibers.
@@ -134,12 +137,15 @@ public class EntityTaintCrawler extends Monster {
         if (!level().isClientSide && isAlive() && tickCount % 40 == 0 && !lastPos.equals(blockPosition())) {
             lastPos = blockPosition();
             
-            BlockState state = level().getBlockState(blockPosition());
+            BlockPos pos = blockPosition();
+            BlockState stateAt = level().getBlockState(pos);
+            BlockState stateBelow = level().getBlockState(pos.below());
             
-            // TODO: Check for taint material and place taint fiber when blocks are implemented
-            // if (canPlaceTaintFiber(state)) {
-            //     level().setBlockAndUpdate(blockPosition(), ModBlocks.TAINT_FIBER.get().defaultBlockState());
-            // }
+            // Place taint fiber if there's air and solid ground below
+            if (stateAt.isAir() && stateBelow.isSolidRender(level(), pos.below())) {
+                // Place taint fiber - connections are calculated automatically
+                level().setBlockAndUpdate(pos, ModBlocks.TAINT_FIBRE.get().defaultBlockState());
+            }
         }
     }
     
@@ -158,11 +164,8 @@ public class EntityTaintCrawler extends Monster {
                 }
                 
                 if (duration > 0 && random.nextInt(duration + 1) > 2) {
-                    // TODO: Apply PotionFluxTaint when implemented
-                    // living.addEffect(new MobEffectInstance(ModEffects.FLUX_TAINT.get(), duration * 20, 0));
-                    
-                    // Placeholder: Apply poison as substitute
-                    living.addEffect(new MobEffectInstance(MobEffects.POISON, duration * 20, 0));
+                    // Apply flux taint effect
+                    living.addEffect(new MobEffectInstance(ModEffects.FLUX_TAINT.get(), duration * 20, 0));
                 }
             }
             return true;
@@ -176,8 +179,7 @@ public class EntityTaintCrawler extends Monster {
         
         // 1/8 chance to drop flux crystal
         if (random.nextInt(8) == 0) {
-            // TODO: Drop ConfigItems.FLUX_CRYSTAL when implemented
-            // this.spawnAtLocation(ConfigItems.FLUX_CRYSTAL.copy(), getBbHeight() / 2.0f);
+            this.spawnAtLocation(new net.minecraft.world.item.ItemStack(ModItems.FLUX_CRYSTAL.get()), getBbHeight() / 2.0f);
         }
     }
 }

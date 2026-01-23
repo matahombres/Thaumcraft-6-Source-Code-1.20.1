@@ -8,6 +8,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import thaumcraft.common.tiles.TileThaumcraft;
 import thaumcraft.init.ModBlockEntities;
+import thaumcraft.init.ModBlocks;
 
 /**
  * Arcane lamp tile entity - places invisible light sources in dark areas.
@@ -53,10 +54,8 @@ public class TileLampArcane extends TileThaumcraft {
             level.getBrightness(LightLayer.BLOCK, targetPos) < 11 &&
             hasLineOfSight(level, pos, targetPos)) {
             
-            // TODO: Place BlocksTC.effectGlimmer when implemented
-            // For now, place a light_block as placeholder
-            // In the full implementation, this would be an invisible light source block
-            // level.setBlock(targetPos, ModBlocks.EFFECT_GLIMMER.get().defaultBlockState(), 3);
+            // Place invisible light source
+            level.setBlock(targetPos, ModBlocks.EFFECT_GLIMMER.get().defaultBlockState(), 3);
         }
     }
 
@@ -108,11 +107,10 @@ public class TileLampArcane extends TileThaumcraft {
             for (int y = -RANGE; y <= RANGE; y++) {
                 for (int z = -RANGE; z <= RANGE; z++) {
                     BlockPos checkPos = worldPosition.offset(x, y, z);
-                    // TODO: Check for and remove BlocksTC.effectGlimmer blocks
-                    // BlockState state = level.getBlockState(checkPos);
-                    // if (state.is(ModBlocks.EFFECT_GLIMMER.get())) {
-                    //     level.setBlock(checkPos, Blocks.AIR.defaultBlockState(), 3);
-                    // }
+                    BlockState state = level.getBlockState(checkPos);
+                    if (state.is(ModBlocks.EFFECT_GLIMMER.get())) {
+                        level.setBlock(checkPos, Blocks.AIR.defaultBlockState(), 3);
+                    }
                 }
             }
         }

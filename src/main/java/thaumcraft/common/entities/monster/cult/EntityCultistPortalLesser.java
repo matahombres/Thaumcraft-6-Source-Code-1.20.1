@@ -22,6 +22,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModSounds;
 
 import java.util.List;
 
@@ -139,8 +140,7 @@ public class EntityCultistPortalLesser extends Monster {
                     Player player = level().getNearestPlayer(this, 32.0);
                     if (player != null) {
                         setActive(true);
-                        // TODO: Play SoundsTC.craftstart when implemented
-                        playSound(SoundEvents.BEACON_ACTIVATE, 1.0f, 1.0f);
+                        playSound(ModSounds.CRAFT_START.get(), 1.0f, 1.0f);
                     }
                 }
             } else if (stageCounter-- <= 0) {
@@ -230,8 +230,7 @@ public class EntityCultistPortalLesser extends Monster {
         level().addFreshEntity(cultist);
         cultist.spawnExplosionParticle();
         
-        // TODO: Play SoundsTC.wandfail when implemented
-        cultist.playSound(SoundEvents.EVOKER_CAST_SPELL, 1.0f, 1.0f);
+        cultist.playSound(ModSounds.WAND_FAIL.get(), 1.0f, 1.0f);
         
         // Portal takes damage when spawning
         hurt(damageSources().magic(), 5 + random.nextInt(5));
@@ -242,8 +241,7 @@ public class EntityCultistPortalLesser extends Monster {
         // Damage players that get too close
         if (distanceToSqr(player) < 3.0) {
             if (player.hurt(damageSources().indirectMagic(this, this), 4.0f)) {
-                // TODO: Play SoundsTC.zap when implemented
-                playSound(SoundEvents.GENERIC_BURN, 1.0f, (random.nextFloat() - random.nextFloat()) * 0.1f + 1.0f);
+                playSound(ModSounds.ZAP.get(), 1.0f, (random.nextFloat() - random.nextFloat()) * 0.1f + 1.0f);
             }
         }
     }
@@ -260,20 +258,17 @@ public class EntityCultistPortalLesser extends Monster {
     
     @Override
     protected SoundEvent getAmbientSound() {
-        // TODO: Return SoundsTC.monolith when implemented
-        return SoundEvents.AMBIENT_CAVE.value();
+        return ModSounds.MONOLITH.get();
     }
     
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        // TODO: Return SoundsTC.zap when implemented
-        return SoundEvents.GENERIC_BURN;
+        return ModSounds.ZAP.get();
     }
     
     @Override
     protected SoundEvent getDeathSound() {
-        // TODO: Return SoundsTC.shock when implemented
-        return SoundEvents.GENERIC_EXPLODE;
+        return ModSounds.SHOCK.get();
     }
     
     @Override

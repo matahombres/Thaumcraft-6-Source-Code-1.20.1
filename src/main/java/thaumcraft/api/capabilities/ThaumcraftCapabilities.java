@@ -106,6 +106,17 @@ public class ThaumcraftCapabilities {
         return true;
     }
 
+    /**
+     * Simple check if player knows a specific research.
+     * @param player The player to check
+     * @param researchKey The research key to check
+     * @return true if the research is known
+     */
+    public static boolean isResearchKnown(@Nonnull Player player, @Nonnull String researchKey) {
+        IPlayerKnowledge knowledge = getKnowledge(player);
+        return knowledge != null && knowledge.isResearchKnown(researchKey);
+    }
+
     // ==================== Player Warp ====================
 
     /**

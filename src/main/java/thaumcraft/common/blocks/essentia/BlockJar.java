@@ -20,6 +20,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import thaumcraft.common.tiles.essentia.TileJar;
+import thaumcraft.common.tiles.essentia.TileJarBrain;
+import thaumcraft.common.tiles.essentia.TileJarVoid;
 import thaumcraft.init.ModBlockEntities;
 
 import javax.annotation.Nullable;
@@ -112,21 +114,36 @@ public class BlockJar extends Block implements EntityBlock {
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        if (jarType == JarType.BRAIN) {
-            // TODO: Return TileJarBrain when implemented
-            return null;
-        }
-        return new TileJar(pos, state);
+        return switch (jarType) {
+            case BRAIN -> new TileJarBrain(pos, state);
+            case VOID -> new TileJarVoid(pos, state);
+            default -> new TileJar(pos, state);
+        };
     }
 
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        if (level.isClientSide || jarType == JarType.BRAIN) {
+        if (level.isClientSide && jarType != JarType.BRAIN) {
             return null;
         }
-        return type == ModBlockEntities.JAR.get() ? 
-                (lvl, pos, st, te) -> TileJar.serverTick(lvl, pos, st, (TileJar) te) : null;
+        
+        return switch (jarType) {
+            case BRAIN -> {
+                if (type == ModBlockEntities.JAR_BRAIN.get()) {
+                    if (level.isClientSide) {
+                        yield (lvl, pos, st, te) -> TileJarBrain.clientTick(lvl, pos, st, (TileJarBrain) te);
+                    } else {
+                        yield (lvl, pos, st, te) -> TileJarBrain.serverTick(lvl, pos, st, (TileJarBrain) te);
+                    }
+                }
+                yield null;
+            }
+            case VOID -> type == ModBlockEntities.JAR_VOID.get() ?
+                    (lvl, pos, st, te) -> TileJarVoid.serverTick(lvl, pos, st, (TileJarVoid) te) : null;
+            default -> type == ModBlockEntities.JAR.get() ? 
+                    (lvl, pos, st, te) -> TileJar.serverTick(lvl, pos, st, (TileJar) te) : null;
+        };
     }
 
     /**

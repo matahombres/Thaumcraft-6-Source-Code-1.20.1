@@ -14,6 +14,7 @@ import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.casters.FocusEffect;
 import thaumcraft.api.casters.NodeSetting;
 import thaumcraft.api.casters.Trajectory;
+import thaumcraft.common.blocks.misc.BlockHole;
 
 import javax.annotation.Nullable;
 
@@ -97,12 +98,14 @@ public class FocusEffectRift extends FocusEffect {
     
     /**
      * Creates a temporary hole through blocks.
-     * TODO: Implement properly with TileHole block entity that stores original block
-     * and restores it after countdown.
+     * Uses BlockHole which stores original block and restores it after countdown.
      */
     private void createHole(Level world, BlockPos startPos, Direction side, byte count, int duration) {
         Direction drillDir = side.getOpposite();
         BlockPos pos = startPos;
+        
+        // Duration in ticks (setting is in seconds)
+        short durationTicks = (short)(duration * 20);
         
         for (int i = 0; i < count; i++) {
             BlockState currentState = world.getBlockState(pos);
@@ -113,17 +116,12 @@ public class FocusEffectRift extends FocusEffect {
                 !currentState.is(Blocks.BEDROCK) &&
                 !isPortableHoleBlacklisted(currentState)) {
                 
-                // TODO: Replace with BlocksTC.hole which stores original block
-                // and restores after duration expires
-                // For now, just destroy the block (placeholder behavior)
-                // world.setBlock(pos, ModBlocks.HOLE.get().defaultBlockState(), 3);
-                // TileHole tile = (TileHole) world.getBlockEntity(pos);
-                // tile.setOriginalBlock(currentState);
-                // tile.setCountdown(duration);
-                // tile.setDirection(side);
+                // Create hole that stores original block and restores after duration
+                // First block gets full depth, subsequent blocks get depth 1
+                byte depth = (i == 0) ? count : (byte)1;
+                Direction dir = (i == 0) ? side : null;
                 
-                // Temporary: just set to air (proper implementation needs hole block)
-                world.destroyBlock(pos, false);
+                BlockHole.createHole(world, pos, currentState, durationTicks, depth, dir);
             }
             
             pos = pos.relative(drillDir);

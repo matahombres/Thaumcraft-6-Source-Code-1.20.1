@@ -6,8 +6,26 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import thaumcraft.Thaumcraft;
 import thaumcraft.common.tiles.crafting.*;
+import thaumcraft.common.tiles.crafting.TileFocalManipulator;
+import thaumcraft.common.tiles.crafting.TileGolemBuilder;
+import thaumcraft.common.tiles.crafting.TileThaumatorium;
+import thaumcraft.common.tiles.crafting.TileVoidSiphon;
 import thaumcraft.common.tiles.devices.*;
+import thaumcraft.common.tiles.devices.TileDioptra;
+import thaumcraft.common.tiles.devices.TileLevitator;
+import thaumcraft.common.tiles.devices.TilePotionSprayer;
+import thaumcraft.common.tiles.devices.TileRechargePedestal;
+import thaumcraft.common.tiles.devices.TileFluxScrubber;
+import thaumcraft.common.tiles.devices.TileInfernalFurnace;
+import thaumcraft.common.tiles.devices.TileSpa;
+import thaumcraft.common.tiles.devices.TileVisRelay;
+import thaumcraft.common.tiles.devices.TileWaterJug;
 import thaumcraft.common.tiles.essentia.*;
+import thaumcraft.common.tiles.essentia.TileCentrifuge;
+import thaumcraft.common.tiles.essentia.TileEssentiaReservoir;
+import thaumcraft.common.tiles.essentia.TileJarBrain;
+import thaumcraft.common.tiles.essentia.TileJarVoid;
+import thaumcraft.common.tiles.misc.TileHole;
 
 /**
  * Registry for all Thaumcraft block entities (tile entities).
@@ -23,8 +41,19 @@ public class ModBlockEntities {
     public static final RegistryObject<BlockEntityType<TileJar>> JAR =
             BLOCK_ENTITIES.register("jar",
                     () -> BlockEntityType.Builder.of(TileJar::new,
-                            ModBlocks.JAR_NORMAL.get(),
+                            ModBlocks.JAR_NORMAL.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileJarVoid>> JAR_VOID =
+            BLOCK_ENTITIES.register("jar_void",
+                    () -> BlockEntityType.Builder.of(TileJarVoid::new,
                             ModBlocks.JAR_VOID.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileJarBrain>> JAR_BRAIN =
+            BLOCK_ENTITIES.register("jar_brain",
+                    () -> BlockEntityType.Builder.of(TileJarBrain::new,
+                            ModBlocks.JAR_BRAIN.get()
                     ).build(null));
 
     public static final RegistryObject<BlockEntityType<TileAlembic>> ALEMBIC =
@@ -64,6 +93,30 @@ public class ModBlockEntities {
                             ModBlocks.TUBE_BUFFER.get()
                     ).build(null));
 
+    public static final RegistryObject<BlockEntityType<TileTubeOneway>> TUBE_ONEWAY =
+            BLOCK_ENTITIES.register("tube_oneway",
+                    () -> BlockEntityType.Builder.of(TileTubeOneway::new,
+                            ModBlocks.TUBE_ONEWAY.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileTubeRestrict>> TUBE_RESTRICT =
+            BLOCK_ENTITIES.register("tube_restrict",
+                    () -> BlockEntityType.Builder.of(TileTubeRestrict::new,
+                            ModBlocks.TUBE_RESTRICTED.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileCentrifuge>> CENTRIFUGE =
+            BLOCK_ENTITIES.register("centrifuge",
+                    () -> BlockEntityType.Builder.of(TileCentrifuge::new,
+                            ModBlocks.CENTRIFUGE.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileEssentiaReservoir>> ESSENTIA_RESERVOIR =
+            BLOCK_ENTITIES.register("essentia_reservoir",
+                    () -> BlockEntityType.Builder.of(TileEssentiaReservoir::new,
+                            ModBlocks.ESSENTIA_RESERVOIR.get()
+                    ).build(null));
+
     // ==================== Crafting ====================
 
     public static final RegistryObject<BlockEntityType<TilePedestal>> PEDESTAL =
@@ -96,6 +149,24 @@ public class ModBlockEntities {
             BLOCK_ENTITIES.register("infusion_matrix",
                     () -> BlockEntityType.Builder.of(TileInfusionMatrix::new,
                             ModBlocks.INFUSION_MATRIX.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileFocalManipulator>> FOCAL_MANIPULATOR =
+            BLOCK_ENTITIES.register("focal_manipulator",
+                    () -> BlockEntityType.Builder.of(TileFocalManipulator::new,
+                            ModBlocks.FOCAL_MANIPULATOR.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileThaumatorium>> THAUMATORIUM =
+            BLOCK_ENTITIES.register("thaumatorium",
+                    () -> BlockEntityType.Builder.of(TileThaumatorium::new,
+                            ModBlocks.THAUMATORIUM.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TilePatternCrafter>> PATTERN_CRAFTER =
+            BLOCK_ENTITIES.register("pattern_crafter",
+                    () -> BlockEntityType.Builder.of(TilePatternCrafter::new,
+                            ModBlocks.PATTERN_CRAFTER.get()
                     ).build(null));
 
     // ==================== Devices ====================
@@ -171,5 +242,83 @@ public class ModBlockEntities {
             BLOCK_ENTITIES.register("redstone_relay",
                     () -> BlockEntityType.Builder.of(TileRedstoneRelay::new,
                             ModBlocks.REDSTONE_RELAY.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileInfernalFurnace>> INFERNAL_FURNACE =
+            BLOCK_ENTITIES.register("infernal_furnace",
+                    () -> BlockEntityType.Builder.of(TileInfernalFurnace::new,
+                            ModBlocks.INFERNAL_FURNACE.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileSpa>> SPA =
+            BLOCK_ENTITIES.register("spa",
+                    () -> BlockEntityType.Builder.of(TileSpa::new,
+                            ModBlocks.SPA.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileFluxScrubber>> FLUX_SCRUBBER =
+            BLOCK_ENTITIES.register("flux_scrubber",
+                    () -> BlockEntityType.Builder.of(TileFluxScrubber::new,
+                            ModBlocks.FLUX_SCRUBBER.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileVisRelay>> VIS_RELAY =
+            BLOCK_ENTITIES.register("vis_relay",
+                    () -> BlockEntityType.Builder.of(TileVisRelay::new,
+                            ModBlocks.VIS_RELAY.get()
+                    ).build(null));
+
+    // ==================== Golem Crafting ====================
+
+    public static final RegistryObject<BlockEntityType<TileGolemBuilder>> GOLEM_BUILDER =
+            BLOCK_ENTITIES.register("golem_builder",
+                    () -> BlockEntityType.Builder.of(TileGolemBuilder::new,
+                            ModBlocks.GOLEM_BUILDER.get()
+                    ).build(null));
+
+    // ==================== Misc ====================
+
+    public static final RegistryObject<BlockEntityType<TileHole>> HOLE =
+            BLOCK_ENTITIES.register("hole",
+                    () -> BlockEntityType.Builder.of(TileHole::new,
+                            ModBlocks.HOLE.get()
+                    ).build(null));
+
+    // ==================== New Devices ====================
+
+    public static final RegistryObject<BlockEntityType<TileLevitator>> LEVITATOR =
+            BLOCK_ENTITIES.register("levitator",
+                    () -> BlockEntityType.Builder.of(TileLevitator::new,
+                            ModBlocks.LEVITATOR.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileRechargePedestal>> RECHARGE_PEDESTAL =
+            BLOCK_ENTITIES.register("recharge_pedestal",
+                    () -> BlockEntityType.Builder.of(TileRechargePedestal::new,
+                            ModBlocks.RECHARGE_PEDESTAL.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileDioptra>> DIOPTRA =
+            BLOCK_ENTITIES.register("dioptra",
+                    () -> BlockEntityType.Builder.of(TileDioptra::new,
+                            ModBlocks.DIOPTRA.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileVoidSiphon>> VOID_SIPHON =
+            BLOCK_ENTITIES.register("void_siphon",
+                    () -> BlockEntityType.Builder.of(TileVoidSiphon::new,
+                            ModBlocks.VOID_SIPHON.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TilePotionSprayer>> POTION_SPRAYER =
+            BLOCK_ENTITIES.register("potion_sprayer",
+                    () -> BlockEntityType.Builder.of(TilePotionSprayer::new,
+                            ModBlocks.POTION_SPRAYER.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<TileWaterJug>> WATER_JUG =
+            BLOCK_ENTITIES.register("water_jug",
+                    () -> BlockEntityType.Builder.of(TileWaterJug::new,
+                            ModBlocks.EVERFULL_URN.get()
                     ).build(null));
 }

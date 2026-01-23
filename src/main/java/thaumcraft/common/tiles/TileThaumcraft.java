@@ -5,9 +5,12 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import thaumcraft.common.lib.network.PacketHandler;
+import thaumcraft.common.lib.network.tiles.PacketTileToClient;
 
 import javax.annotation.Nullable;
 
@@ -83,5 +86,46 @@ public abstract class TileThaumcraft extends BlockEntity {
     public void markDirtyAndSync() {
         setChanged();
         syncTile(false);
+    }
+
+    // ==================== Custom Packet Messaging ====================
+
+    /**
+     * Handle a message received from the server.
+     * Override in subclasses to process specific messages.
+     * @param nbt The message data
+     */
+    public void messageFromServer(CompoundTag nbt) {
+        // Override in subclasses
+    }
+
+    /**
+     * Handle a message received from a client.
+     * Override in subclasses to process specific messages.
+     * @param nbt The message data
+     * @param player The player who sent the message
+     */
+    public void messageFromClient(CompoundTag nbt, ServerPlayer player) {
+        // Override in subclasses
+    }
+
+    /**
+     * Send a custom message to all tracking clients.
+     * @param nbt The message data
+     */
+    public void sendMessageToClients(CompoundTag nbt) {
+        if (level != null && !level.isClientSide) {
+            PacketHandler.sendToAllTracking(new PacketTileToClient(worldPosition, nbt), this);
+        }
+    }
+
+    /**
+     * Send a custom message to the server.
+     * @param nbt The message data
+     */
+    public void sendMessageToServer(CompoundTag nbt) {
+        if (level != null && level.isClientSide) {
+            PacketHandler.sendToServer(new thaumcraft.common.lib.network.tiles.PacketTileToServer(worldPosition, nbt));
+        }
     }
 }

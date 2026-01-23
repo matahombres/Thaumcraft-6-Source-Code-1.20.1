@@ -1,8 +1,11 @@
 package thaumcraft.api.items;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import thaumcraft.api.aura.AuraHelper;
 
 /**
  * Helper class for managing rechargeable item charge levels.
@@ -96,5 +99,43 @@ public class RechargeHelper {
             return;
         }
         setCharge(stack, rechargable.getMaxCharge(stack, entity), entity);
+    }
+    
+    /**
+     * Recharge an item from the ambient aura.
+     * 
+     * @param level The world
+     * @param stack The item to recharge
+     * @param pos Position to drain vis from
+     * @param entity The entity holding the item (can be null)
+     * @param maxAmount Maximum vis to drain per call
+     * @return The amount actually recharged
+     */
+    public static float rechargeItem(Level level, ItemStack stack, BlockPos pos, LivingEntity entity, int maxAmount) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof IRechargable rechargable)) {
+            return 0;
+        }
+        
+        int current = getCharge(stack);
+        int max = rechargable.getMaxCharge(stack, entity);
+        
+        if (current >= max) {
+            return 0;
+        }
+        
+        int needed = Math.min(maxAmount, max - current);
+        
+        // Drain vis from aura
+        float drained = AuraHelper.drainVis(level, pos, needed / 100.0f, false);
+        if (drained <= 0) {
+            return 0;
+        }
+        
+        int toAdd = (int)(drained * 100);
+        if (toAdd > 0) {
+            setCharge(stack, current + toAdd, entity);
+        }
+        
+        return drained;
     }
 }

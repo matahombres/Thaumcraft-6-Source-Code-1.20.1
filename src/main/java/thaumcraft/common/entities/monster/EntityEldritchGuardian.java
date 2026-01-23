@@ -33,10 +33,13 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import thaumcraft.api.ThaumcraftApi;
+import thaumcraft.api.capabilities.IPlayerWarp;
 import thaumcraft.api.entities.IEldritchMob;
 import thaumcraft.common.entities.monster.cult.EntityCultist;
 import thaumcraft.common.entities.projectile.EntityEldritchOrb;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModSounds;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -161,8 +164,7 @@ public class EntityEldritchGuardian extends Monster implements RangedAttackMob, 
             Vec3 direction = target.position().add(targetVel).subtract(position()).normalize();
             
             orb.shoot(direction.x, direction.y, direction.z, 1.1f, 2.0f);
-            // TODO: Play SoundsTC.egattack
-            playSound(SoundEvents.BLAZE_SHOOT, 2.0f, 1.0f + random.nextFloat() * 0.1f);
+            playSound(ModSounds.EG_ATTACK.get(), 2.0f, 1.0f + random.nextFloat() * 0.1f);
             level().addFreshEntity(orb);
         } else if (hasLineOfSight(target)) {
             // Sonic scream attack - applies wither effect
@@ -173,12 +175,10 @@ public class EntityEldritchGuardian extends Monster implements RangedAttackMob, 
             
             // Add warp to players
             if (target instanceof Player player) {
-                // TODO: Add warp when capability is integrated
-                // ThaumcraftApi.internalMethods.addWarpToPlayer(player, 1 + random.nextInt(3), IPlayerWarp.EnumWarpType.TEMPORARY);
+                ThaumcraftApi.internalMethods.addWarpToPlayer(player, 1 + random.nextInt(3), IPlayerWarp.EnumWarpType.TEMPORARY);
             }
             
-            // TODO: Play SoundsTC.egscreech
-            playSound(SoundEvents.WARDEN_SONIC_BOOM, 3.0f, 1.0f + random.nextFloat() * 0.1f);
+            playSound(ModSounds.EG_SCREECH.get(), 3.0f, 1.0f + random.nextFloat() * 0.1f);
         }
     }
     
@@ -197,14 +197,12 @@ public class EntityEldritchGuardian extends Monster implements RangedAttackMob, 
     
     @Override
     protected SoundEvent getAmbientSound() {
-        // TODO: Return SoundsTC.egidle
-        return SoundEvents.WARDEN_AMBIENT;
+        return ModSounds.EG_IDLE.get();
     }
     
     @Override
     protected SoundEvent getDeathSound() {
-        // TODO: Return SoundsTC.egdeath
-        return SoundEvents.WARDEN_DEATH;
+        return ModSounds.EG_DEATH.get();
     }
     
     @Override

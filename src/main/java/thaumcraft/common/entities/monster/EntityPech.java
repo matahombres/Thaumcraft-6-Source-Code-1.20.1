@@ -45,6 +45,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.phys.AABB;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModSounds;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -81,6 +82,13 @@ public class EntityPech extends Monster implements RangedAttackMob {
     // Animation
     public float mumble = 0.0f;
     private int chargeCount = 0;
+    
+    /**
+     * Get the mumble animation value for rendering.
+     */
+    public float getMumble() {
+        return mumble;
+    }
     
     // AI goals that need to be swapped based on equipment
     private RangedAttackGoal aiArrowAttack;
@@ -278,8 +286,7 @@ public class EntityPech extends Monster implements RangedAttackMob {
         
         if (getAnger() <= 0) {
             level().broadcastEntityEvent(this, (byte) 19);
-            // TODO: Play SoundsTC.pech_charge when implemented
-            playSound(SoundEvents.PILLAGER_AMBIENT, getSoundVolume(), getVoicePitch());
+            playSound(ModSounds.PECH_CHARGE.get(), getSoundVolume(), getVoicePitch());
         }
         
         if (target instanceof LivingEntity living) {
@@ -331,8 +338,7 @@ public class EntityPech extends Monster implements RangedAttackMob {
             }
             if (chargeCount == 0) {
                 chargeCount = 100;
-                // TODO: Play SoundsTC.pech_charge when implemented
-                playSound(SoundEvents.PILLAGER_AMBIENT, getSoundVolume(), getVoicePitch());
+                playSound(ModSounds.PECH_CHARGE.get(), getSoundVolume(), getVoicePitch());
             }
             level().broadcastEntityEvent(this, (byte) 17);
         }
@@ -402,8 +408,7 @@ public class EntityPech extends Monster implements RangedAttackMob {
                 List<EntityPech> nearbyPechs = level().getEntitiesOfClass(EntityPech.class, searchBox, e -> e != this);
                 if (!nearbyPechs.isEmpty()) {
                     level().broadcastEntityEvent(this, (byte) 17);
-                    // TODO: Play SoundsTC.pech_trade when implemented
-                    playSound(SoundEvents.VILLAGER_TRADE, getSoundVolume(), getVoicePitch());
+                    playSound(ModSounds.PECH_TRADE.get(), getSoundVolume(), getVoicePitch());
                     return;
                 }
             }
@@ -424,20 +429,17 @@ public class EntityPech extends Monster implements RangedAttackMob {
     
     @Override
     protected SoundEvent getAmbientSound() {
-        // TODO: Return SoundsTC.pech_idle when implemented
-        return SoundEvents.VILLAGER_AMBIENT;
+        return ModSounds.PECH_IDLE.get();
     }
     
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        // TODO: Return SoundsTC.pech_hit when implemented
-        return SoundEvents.VILLAGER_HURT;
+        return ModSounds.PECH_HIT.get();
     }
     
     @Override
     protected SoundEvent getDeathSound() {
-        // TODO: Return SoundsTC.pech_death when implemented
-        return SoundEvents.VILLAGER_DEATH;
+        return ModSounds.PECH_DEATH.get();
     }
     
     // ==================== Status Events ====================
@@ -530,5 +532,70 @@ public class EntityPech extends Monster implements RangedAttackMob {
     @Override
     public boolean canBeLeashed(Player player) {
         return false;
+    }
+    
+    // ==================== Trading ====================
+    
+    /**
+     * Check if the Pech values this item for trading.
+     * Items with high DESIRE aspect are valued.
+     * 
+     * @param item The item to check
+     * @return true if the Pech will accept this for trading
+     */
+    public boolean isValued(ItemStack item) {
+        if (item == null || item.isEmpty()) {
+            return false;
+        }
+        
+        // Check if it's in the valued items map
+        if (valuedItems.containsKey(item.getItem())) {
+            return true;
+        }
+        
+        // Check if it has high DESIRE aspect
+        // TODO: Use ThaumcraftCraftingManager.getObjectTags when aspect system is complete
+        // For now, accept most non-common items
+        return !item.getItem().builtInRegistryHolder().is(net.minecraft.tags.ItemTags.DIRT) &&
+               item.getRarity() != net.minecraft.world.item.Rarity.COMMON;
+    }
+    
+    /**
+     * Get the trade value of an item.
+     * Higher value = better trades.
+     * 
+     * @param item The item to evaluate
+     * @return The trade value (0-32)
+     */
+    public int getValue(ItemStack item) {
+        if (item == null || item.isEmpty()) {
+            return 0;
+        }
+        
+        // Check valued items map first
+        if (valuedItems.containsKey(item.getItem())) {
+            return valuedItems.get(item.getItem());
+        }
+        
+        // Base value on rarity
+        return switch (item.getRarity()) {
+            case UNCOMMON -> 4;
+            case RARE -> 8;
+            case EPIC -> 16;
+            default -> 2;
+        };
+    }
+    
+    // Static trade data
+    private static final java.util.HashMap<net.minecraft.world.item.Item, Integer> valuedItems = new java.util.HashMap<>();
+    
+    static {
+        // Initialize valued items
+        // TODO: Populate with proper valued items list
+        valuedItems.put(net.minecraft.world.item.Items.GOLD_INGOT, 4);
+        valuedItems.put(net.minecraft.world.item.Items.DIAMOND, 8);
+        valuedItems.put(net.minecraft.world.item.Items.EMERALD, 6);
+        valuedItems.put(net.minecraft.world.item.Items.LAPIS_LAZULI, 2);
+        valuedItems.put(net.minecraft.world.item.Items.AMETHYST_SHARD, 3);
     }
 }

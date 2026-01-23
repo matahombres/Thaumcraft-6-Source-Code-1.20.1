@@ -15,6 +15,7 @@ import net.minecraftforge.fml.common.Mod;
 import thaumcraft.Thaumcraft;
 import thaumcraft.api.capabilities.IPlayerKnowledge;
 import thaumcraft.api.capabilities.IPlayerWarp;
+import thaumcraft.common.golems.seals.SealHandler;
 
 /**
  * ThaumcraftCapabilities - Holds references to all Thaumcraft capabilities
@@ -136,6 +137,8 @@ public class ThaumcraftCapabilities {
             getKnowledge(serverPlayer).ifPresent(k -> k.sync(serverPlayer));
             // Sync warp to client
             getWarp(serverPlayer).ifPresent(w -> w.sync(serverPlayer));
+            // Sync all seals in the player's dimension
+            SealHandler.syncAllSealsToPlayer(serverPlayer);
         }
     }
     
@@ -149,6 +152,8 @@ public class ThaumcraftCapabilities {
             getKnowledge(serverPlayer).ifPresent(k -> k.sync(serverPlayer));
             // Sync warp to client
             getWarp(serverPlayer).ifPresent(w -> w.sync(serverPlayer));
+            // Sync all seals in the new dimension
+            SealHandler.syncAllSealsToPlayer(serverPlayer);
         }
     }
 }

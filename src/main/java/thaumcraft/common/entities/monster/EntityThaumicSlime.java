@@ -15,9 +15,11 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.phys.Vec3;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModItems;
 
 import javax.annotation.Nullable;
 
@@ -255,8 +257,7 @@ public class EntityThaumicSlime extends Slime {
         
         // Drop flux crystal if large enough
         if (getSize() > 1) {
-            // TODO: Drop ConfigItems.FLUX_CRYSTAL when implemented
-            // this.spawnAtLocation(ConfigItems.FLUX_CRYSTAL.copy(), getBbHeight() / 2.0f);
+            this.spawnAtLocation(new ItemStack(ModItems.FLUX_CRYSTAL.get()), getBbHeight() / 2.0f);
         }
     }
     

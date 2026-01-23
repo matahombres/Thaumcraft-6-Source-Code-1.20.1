@@ -3,22 +3,29 @@ package thaumcraft.common.tiles.crafting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import thaumcraft.api.aura.AuraHelper;
+import thaumcraft.common.menu.ArcaneWorkbenchMenu;
 import thaumcraft.common.tiles.TileThaumcraft;
 import thaumcraft.init.ModBlockEntities;
 import thaumcraft.init.ModBlocks;
+
+import javax.annotation.Nullable;
 
 /**
  * Arcane workbench tile entity - handles vis-based crafting.
  * Stores the crafting grid contents and tracks available vis from the aura.
  */
-public class TileArcaneWorkbench extends TileThaumcraft {
+public class TileArcaneWorkbench extends TileThaumcraft implements MenuProvider {
 
     // Crafting grid: 9 slots for 3x3 grid + 6 crystal slots
     public static final int GRID_SIZE = 9;
@@ -194,5 +201,18 @@ public class TileArcaneWorkbench extends TileThaumcraft {
             return false;
         }
         return player.distanceToSqr(worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5) <= 64.0;
+    }
+
+    // ==================== MenuProvider ====================
+
+    @Override
+    public Component getDisplayName() {
+        return Component.translatable("block.thaumcraft.arcane_workbench");
+    }
+
+    @Nullable
+    @Override
+    public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
+        return new ArcaneWorkbenchMenu(containerId, playerInventory, this);
     }
 }

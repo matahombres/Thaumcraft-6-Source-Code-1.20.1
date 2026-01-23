@@ -27,7 +27,9 @@ import net.minecraft.world.entity.ai.goal.target.TargetGoal;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import thaumcraft.init.ModItems;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.Team;
@@ -218,8 +220,8 @@ public class EntityTurretCrossbowAdvanced extends EntityTurretCrossbow {
                 // Pick up turret
                 playSound(SoundEvents.ITEM_PICKUP, 1.0f, 1.0f);
                 dropAmmo();
-                // TODO: Drop advanced turret placer when implemented
-                // spawnAtLocation(new ItemStack(ItemsTC.turretPlacer, 1, 1), 0.5f);
+                // Drop advanced turret placer
+                spawnAtLocation(new ItemStack(ModItems.TURRET_PLACER_ADVANCED.get()), 0.5f);
                 discard();
                 player.swing(hand);
                 return InteractionResult.SUCCESS;

@@ -41,6 +41,7 @@ import net.minecraftforge.entity.IEntityAdditionalSpawnData;
 import thaumcraft.common.entities.monster.EntityEldritchGuardian;
 import thaumcraft.common.entities.projectile.EntityGolemOrb;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModSounds;
 
 /**
  * EntityCultistCleric - A ranged spellcaster of the Crimson Cult.
@@ -142,8 +143,7 @@ public class EntityCultistCleric extends EntityCultist implements RangedAttackMo
             Vec3 direction = target.position().add(targetVel).subtract(position()).normalize();
             orb.setPos(orb.getX() + direction.x, orb.getY() + direction.y, orb.getZ() + direction.z);
             orb.shoot(direction.x, direction.y, direction.z, 0.66f, 3.0f);
-            // TODO: Play SoundsTC.egattack
-            playSound(SoundEvents.BLAZE_SHOOT, 1.0f, 1.0f + random.nextFloat() * 0.1f);
+            playSound(ModSounds.EG_ATTACK.get(), 1.0f, 1.0f + random.nextFloat() * 0.1f);
             level().addFreshEntity(orb);
         } else {
             // Fire small fireballs
@@ -210,8 +210,7 @@ public class EntityCultistCleric extends EntityCultist implements RangedAttackMo
     
     @Override
     protected SoundEvent getAmbientSound() {
-        // TODO: Return SoundsTC.chant
-        return SoundEvents.EVOKER_AMBIENT;
+        return ModSounds.CHANT.get();
     }
     
     @Override

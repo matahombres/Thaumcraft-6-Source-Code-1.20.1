@@ -134,6 +134,24 @@ public class FocusPackage {
         return pack;
     }
     
+    // ==================== Node Management ====================
+    
+    /**
+     * Add a focus node to this package.
+     */
+    public void addNode(FocusNode node) {
+        if (node != null) {
+            nodes.add(node);
+        }
+    }
+    
+    /**
+     * Set the complexity directly (used during crafting).
+     */
+    public void setComplexity(int complexity) {
+        this.complexity = complexity;
+    }
+    
     // ==================== Power ====================
     
     public float getPower() {

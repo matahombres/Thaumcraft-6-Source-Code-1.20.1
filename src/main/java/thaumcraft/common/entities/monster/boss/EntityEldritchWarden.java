@@ -28,6 +28,7 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.MoveTowardsRestrictionGoal;
+import thaumcraft.init.ModBlocks;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.RangedAttackGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
@@ -38,11 +39,14 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
+import thaumcraft.api.ThaumcraftApi;
+import thaumcraft.api.capabilities.IPlayerWarp;
 import thaumcraft.api.entities.IEldritchMob;
 import thaumcraft.common.entities.monster.EntityEldritchGuardian;
 import thaumcraft.common.entities.monster.cult.EntityCultist;
 import thaumcraft.common.entities.projectile.EntityEldritchOrb;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModSounds;
 
 import javax.annotation.Nullable;
 
@@ -257,7 +261,8 @@ public class EntityEldritchWarden extends EntityThaumcraftBoss implements Ranged
                 BlockPos bp = new BlockPos(bi, bj, bk);
                 
                 if (level().isEmptyBlock(bp)) {
-                    // TODO: Place BlocksTC.effectSap when implemented
+                    level().setBlock(bp, ModBlocks.EFFECT_SAP.get().defaultBlockState(), 3);
+                    level().scheduleTick(bp, ModBlocks.EFFECT_SAP.get(), 20 + random.nextInt(20));
                 }
             }
             
@@ -293,11 +298,8 @@ public class EntityEldritchWarden extends EntityThaumcraftBoss implements Ranged
                 if (level().isEmptyBlock(bp)) {
                     BlockState below = level().getBlockState(bp.below());
                     if (below.isSolidRender(level(), bp.below())) {
-                        // TODO: Place BlocksTC.effectSap with scheduled tick when implemented
-                        // For now spawn particles
-                        if (random.nextFloat() < 0.3f) {
-                            // TODO: Lightning arc effect
-                        }
+                        level().setBlock(bp, ModBlocks.EFFECT_SAP.get().defaultBlockState(), 3);
+                        level().scheduleTick(bp, ModBlocks.EFFECT_SAP.get(), 20 + random.nextInt(40));
                     }
                 }
             }
@@ -402,8 +404,7 @@ public class EntityEldritchWarden extends EntityThaumcraftBoss implements Ranged
             
             orb.shoot(dx, dy, dz, 1.0f, 2.0f);
             
-            // TODO: Play SoundsTC.egattack when implemented
-            playSound(SoundEvents.EVOKER_CAST_SPELL, 2.0f, 1.0f + random.nextFloat() * 0.1f);
+            playSound(ModSounds.EG_ATTACK.get(), 2.0f, 1.0f + random.nextFloat() * 0.1f);
             level().addFreshEntity(orb);
         } else if (hasLineOfSight(target)) {
             // Sonic blast attack
@@ -422,11 +423,10 @@ public class EntityEldritchWarden extends EntityThaumcraftBoss implements Ranged
             
             // Add warp to player
             if (target instanceof Player player) {
-                // TODO: ThaumcraftApi.internalMethods.addWarpToPlayer when implemented
+                ThaumcraftApi.internalMethods.addWarpToPlayer(player, 1, IPlayerWarp.EnumWarpType.NORMAL);
             }
             
-            // TODO: Play SoundsTC.egscreech when implemented
-            playSound(SoundEvents.WARDEN_SONIC_BOOM, 4.0f, 1.0f + random.nextFloat() * 0.1f);
+            playSound(ModSounds.EG_SCREECH.get(), 4.0f, 1.0f + random.nextFloat() * 0.1f);
         }
     }
     
@@ -462,14 +462,12 @@ public class EntityEldritchWarden extends EntityThaumcraftBoss implements Ranged
     
     @Override
     protected SoundEvent getAmbientSound() {
-        // TODO: Return SoundsTC.egidle when implemented
-        return SoundEvents.WARDEN_AMBIENT;
+        return ModSounds.EG_IDLE.get();
     }
     
     @Override
     protected SoundEvent getDeathSound() {
-        // TODO: Return SoundsTC.egdeath when implemented
-        return SoundEvents.WARDEN_DEATH;
+        return ModSounds.EG_DEATH.get();
     }
     
     @Override

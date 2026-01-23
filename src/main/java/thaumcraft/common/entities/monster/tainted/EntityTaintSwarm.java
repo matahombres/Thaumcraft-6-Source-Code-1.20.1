@@ -20,8 +20,11 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModItems;
+import thaumcraft.init.ModSounds;
 
 /**
  * EntityTaintSwarm - A flying swarm of tainted insects.
@@ -104,19 +107,17 @@ public class EntityTaintSwarm extends Monster {
     
     @Override
     protected SoundEvent getAmbientSound() {
-        // TODO: Return SoundsTC.swarm when implemented
-        return SoundEvents.BEEHIVE_WORK;
+        return ModSounds.SWARM.get();
     }
     
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        // TODO: Return SoundsTC.swarmattack when implemented
-        return SoundEvents.BEEHIVE_DRIP;
+        return ModSounds.SWARM_ATTACK.get();
     }
     
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.BEEHIVE_DRIP;
+        return ModSounds.SWARM_ATTACK.get();
     }
     
     @Override
@@ -221,8 +222,7 @@ public class EntityTaintSwarm extends Monster {
                     target.setDeltaMovement(targetMotion);
                     target.hurtMarked = false;
                     
-                    // TODO: Play SoundsTC.swarmattack when implemented
-                    playSound(SoundEvents.BEEHIVE_DRIP, 0.3f, 0.9f + random.nextFloat() * 0.2f);
+                    playSound(ModSounds.SWARM_ATTACK.get(), 0.3f, 0.9f + random.nextFloat() * 0.2f);
                 }
             } else if (!target.isAlive()) {
                 setTarget(null);
@@ -263,7 +263,7 @@ public class EntityTaintSwarm extends Monster {
         
         // 50% chance to drop flux crystal
         if (random.nextBoolean()) {
-            // TODO: Drop ConfigItems.FLUX_CRYSTAL when implemented
+            this.spawnAtLocation(new ItemStack(ModItems.FLUX_CRYSTAL.get()));
         }
     }
     

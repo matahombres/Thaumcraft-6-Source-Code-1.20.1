@@ -16,6 +16,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.research.ScanningManager;
 import thaumcraft.common.items.ItemTC;
+import thaumcraft.init.ModSounds;
 
 /**
  * Thaumometer - the basic scanning tool of Thaumcraft.
@@ -36,11 +37,13 @@ public class ItemThaumometer extends ItemTC {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
 
+        // Play scan sound (works on both sides, but server broadcasts to nearby players)
+        level.playSound(player, player.getX(), player.getY(), player.getZ(), 
+                ModSounds.SCAN.get(), SoundSource.PLAYERS, 0.5f, 1.0f);
+
         if (level.isClientSide()) {
-            // Client-side: play sound and spawn particles
-            // TODO: FXDispatcher effects
-            // level.playLocalSound(player.getX(), player.getY(), player.getZ(), 
-            //         SoundsTC.scan, SoundSource.PLAYERS, 0.5f, 1.0f, false);
+            // Client-side: spawn particles
+            // TODO: FXDispatcher effects - scanning beam, highlight effects
             return InteractionResultHolder.success(stack);
         }
 

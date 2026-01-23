@@ -38,8 +38,7 @@ public class EntityBrainyZombie extends Zombie {
         
         // Drop zombie brain with chance affected by looting
         if (random.nextInt(10) - lootingLevel <= 4) {
-            // TODO: Use ModItems.ZOMBIE_BRAIN when implemented
-            // this.spawnAtLocation(new ItemStack(ModItems.ZOMBIE_BRAIN.get()), 1.5f);
+            this.spawnAtLocation(new ItemStack(ModItems.ZOMBIE_BRAIN.get()), 1.5f);
         }
     }
     

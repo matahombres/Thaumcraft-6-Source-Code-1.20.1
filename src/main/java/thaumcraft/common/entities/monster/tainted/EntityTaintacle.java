@@ -21,6 +21,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModSounds;
 
 /**
  * EntityTaintacle - A stationary tainted tentacle that attacks nearby players.
@@ -152,8 +153,7 @@ public class EntityTaintacle extends Monster {
                 0.0f, 0.0f);
         level().addFreshEntity(smallTentacle);
         
-        // TODO: Play SoundsTC.tentacle when implemented
-        playSound(SoundEvents.CHORUS_FLOWER_DEATH, getSoundVolume(), getVoicePitch());
+        playSound(ModSounds.TENTACLE.get(), getSoundVolume(), getVoicePitch());
     }
     
     /**
@@ -180,7 +180,7 @@ public class EntityTaintacle extends Monster {
     
     @Override
     protected SoundEvent getAmbientSound() {
-        return SoundEvents.CHORUS_FLOWER_DEATH;
+        return ModSounds.TENTACLE.get();
     }
     
     @Override
@@ -195,13 +195,12 @@ public class EntityTaintacle extends Monster {
     
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        // TODO: Return SoundsTC.tentacle when implemented
-        return SoundEvents.SLIME_HURT;
+        return ModSounds.TENTACLE.get();
     }
     
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.SLIME_DEATH;
+        return ModSounds.TENTACLE.get();
     }
     
     @Override

@@ -26,8 +26,13 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.ClipContext;
+import thaumcraft.api.ThaumcraftApi;
 import thaumcraft.api.aura.AuraHelper;
+import thaumcraft.api.capabilities.IPlayerWarp;
+import thaumcraft.init.ModEffects;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModItems;
+import thaumcraft.init.ModSounds;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +60,20 @@ public class EntityFluxRift extends Entity {
     // Rift shape points for rendering and collision
     public ArrayList<Vec3> points = new ArrayList<>();
     public ArrayList<Float> pointsWidth = new ArrayList<>();
+    
+    /**
+     * Get the list of points defining the rift shape.
+     */
+    public List<Vec3> getPoints() {
+        return points;
+    }
+    
+    /**
+     * Get the list of widths at each point.
+     */
+    public List<Float> getPointWidths() {
+        return pointsWidth;
+    }
     
     public EntityFluxRift(EntityType<?> type, Level level) {
         super(type, level);
@@ -319,7 +338,7 @@ public class EntityFluxRift extends Entity {
         
         // Ambient sound
         if (tickCount % 300 == 0) {
-            // TODO: Play SoundsTC.evilportal
+            playSound(ModSounds.EVIL_PORTAL.get(), 0.5f, 0.8f + random.nextFloat() * 0.4f);
         }
     }
     
@@ -379,14 +398,12 @@ public class EntityFluxRift extends Entity {
         
         // Chance to drop primordial pearl
         if (random.nextInt(100) < dropAmount) {
-            // TODO: Drop ItemsTC.primordialPearl when implemented
-            // spawnAtLocation(new ItemStack(ModItems.PRIMORDIAL_PEARL.get()));
+            spawnAtLocation(new ItemStack(ModItems.PRIMORDIAL_PEARL.get()));
         }
         
         // Drop void seeds
         for (int i = 0; i < dropAmount; i++) {
-            // TODO: Drop void seeds when implemented
-            // spawnAtLocation(new ItemStack(ModItems.VOID_SEED.get()));
+            spawnAtLocation(new ItemStack(ModItems.VOID_SEED.get()));
         }
         
         // Apply effects based on stability
@@ -400,7 +417,7 @@ public class EntityFluxRift extends Entity {
                     double dist = e.distanceToSqr(this);
                     int duration = (int)((1.0 - dist / 1024.0) * 120.0);
                     if (duration > 0) {
-                        e.addEffect(new MobEffectInstance(MobEffects.WITHER, duration * 20, 0));
+                        e.addEffect(new MobEffectInstance(ModEffects.FLUX_TAINT.get(), duration * 20, 0));
                     }
                 }
                 // Fall through
@@ -420,8 +437,7 @@ public class EntityFluxRift extends Entity {
                         double dist = e.distanceToSqr(this);
                         int warp = (int)((1.0 - dist / 1024.0) * 25.0);
                         if (warp > 0) {
-                            // TODO: Add warp when capability is integrated
-                            // ThaumcraftCapabilities.getWarp(player).add(IPlayerWarp.EnumWarpType.NORMAL, warp);
+                            ThaumcraftApi.internalMethods.addWarpToPlayer(player, warp, IPlayerWarp.EnumWarpType.NORMAL);
                         }
                     }
                 }

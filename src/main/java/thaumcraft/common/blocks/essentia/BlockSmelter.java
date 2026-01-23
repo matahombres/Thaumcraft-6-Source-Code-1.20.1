@@ -3,6 +3,7 @@ package thaumcraft.common.blocks.essentia;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
@@ -26,6 +27,9 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraftforge.network.NetworkHooks;
+import thaumcraft.common.tiles.essentia.TileSmelter;
+import thaumcraft.init.ModBlockEntities;
 
 import javax.annotation.Nullable;
 
@@ -70,8 +74,9 @@ public class BlockSmelter extends Block implements EntityBlock {
         }
 
         BlockEntity blockEntity = level.getBlockEntity(pos);
-        // TODO: Open smelter GUI when TileSmelter is implemented
-        // player.openMenu((MenuProvider) blockEntity);
+        if (blockEntity instanceof TileSmelter smelter && player instanceof ServerPlayer serverPlayer) {
+            NetworkHooks.openScreen(serverPlayer, smelter, pos);
+        }
 
         return InteractionResult.CONSUME;
     }
@@ -80,7 +85,16 @@ public class BlockSmelter extends Block implements EntityBlock {
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
-            // TODO: Drop inventory and release vis as flux when TileSmelter is implemented
+            if (blockEntity instanceof TileSmelter smelter) {
+                // Drop inventory contents
+                for (int i = 0; i < smelter.getContainerSize(); i++) {
+                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), smelter.getItem(i));
+                }
+                // Release stored vis as flux
+                if (smelter.vis > 0) {
+                    thaumcraft.api.aura.AuraHelper.polluteAura(level, pos, smelter.vis / 10, true);
+                }
+            }
             super.onRemove(state, level, pos, newState, isMoving);
         }
     }
@@ -131,14 +145,17 @@ public class BlockSmelter extends Block implements EntityBlock {
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        // TODO: Return TileSmelter when implemented
-        return null;
+        return new TileSmelter(pos, state);
     }
 
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        // TODO: Return ticker when TileSmelter is implemented
+        if (type == ModBlockEntities.SMELTER.get()) {
+            if (!level.isClientSide) {
+                return (lvl, pos, st, be) -> TileSmelter.serverTick(lvl, pos, st, (TileSmelter) be);
+            }
+        }
         return null;
     }
 }

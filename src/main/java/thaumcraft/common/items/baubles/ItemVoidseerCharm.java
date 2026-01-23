@@ -8,6 +8,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import thaumcraft.api.ThaumcraftApi;
+import thaumcraft.api.capabilities.IPlayerWarp;
+import thaumcraft.api.capabilities.ThaumcraftCapabilities;
 import thaumcraft.api.items.IVisDiscountGear;
 import thaumcraft.api.items.IWarpingGear;
 
@@ -49,11 +52,12 @@ public class ItemVoidseerCharm extends Item implements IVisDiscountGear, IWarpin
     
     /**
      * Get the player's permanent warp level.
-     * TODO: Implement with actual warp capability system.
      */
     private int getPlayerPermanentWarp(Player player) {
-        // Placeholder - will be replaced with actual capability check
-        // ThaumcraftCapabilities.getWarp(player).get(IPlayerWarp.EnumWarpType.PERMANENT)
+        IPlayerWarp warp = ThaumcraftCapabilities.getWarp(player);
+        if (warp != null) {
+            return warp.get(IPlayerWarp.EnumWarpType.PERMANENT);
+        }
         return 0;
     }
     

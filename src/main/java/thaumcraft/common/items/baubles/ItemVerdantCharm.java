@@ -13,6 +13,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import thaumcraft.api.items.IRechargable;
 import thaumcraft.api.items.RechargeHelper;
+import thaumcraft.init.ModEffects;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -92,7 +93,11 @@ public class ItemVerdantCharm extends Item implements IRechargable {
             return;
         }
         
-        // TODO: Remove flux taint effect when taint system is implemented
+        // Remove flux taint effect (costs 5 charge)
+        if (player.hasEffect(ModEffects.FLUX_TAINT.get()) && RechargeHelper.consumeCharge(stack, player, 5)) {
+            player.removeEffect(ModEffects.FLUX_TAINT.get());
+            return;
+        }
         
         // Life variant: regenerate health
         if (type == CharmType.LIFE) {

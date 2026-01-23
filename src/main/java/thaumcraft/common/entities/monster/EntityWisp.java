@@ -25,7 +25,9 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import thaumcraft.api.aspects.Aspect;
+import thaumcraft.api.ThaumcraftApiHelper;
 import thaumcraft.init.ModEntities;
+import thaumcraft.init.ModSounds;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -252,8 +254,7 @@ public class EntityWisp extends FlyingMob implements Enemy {
                 
                 if (attackCounter == 20) {
                     // Zap attack!
-                    // TODO: Play zap sound via SoundsTC.zap when implemented
-                    playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.1f);
+                    playSound(ModSounds.ZAP.get(), 1.0f, 1.1f);
                     
                     // TODO: Send zap visual packet when networking is implemented
                     
@@ -301,19 +302,17 @@ public class EntityWisp extends FlyingMob implements Enemy {
     
     @Override
     protected SoundEvent getAmbientSound() {
-        // TODO: Return SoundsTC.wisplive when implemented
-        return SoundEvents.AMETHYST_BLOCK_CHIME;
+        return ModSounds.WISP_LIVE.get();
     }
     
     @Override
     protected SoundEvent getHurtSound(DamageSource source) {
-        return SoundEvents.LAVA_EXTINGUISH;
+        return ModSounds.ZAP.get();
     }
     
     @Override
     protected SoundEvent getDeathSound() {
-        // TODO: Return SoundsTC.wispdead when implemented
-        return SoundEvents.LAVA_EXTINGUISH;
+        return ModSounds.WISP_DEAD.get();
     }
     
     @Override
@@ -328,8 +327,7 @@ public class EntityWisp extends FlyingMob implements Enemy {
         // Drop crystal of wisp's aspect type
         Aspect aspect = getAspect();
         if (aspect != null) {
-            // TODO: Drop crystal essence of aspect type when ThaumcraftApiHelper.makeCrystal is implemented
-            // this.spawnAtLocation(ThaumcraftApiHelper.makeCrystal(aspect));
+            this.spawnAtLocation(ThaumcraftApiHelper.makeCrystal(aspect));
         }
     }
     

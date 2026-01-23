@@ -13,6 +13,8 @@ import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
 import thaumcraft.api.capabilities.IPlayerWarp;
 import thaumcraft.api.capabilities.ThaumcraftCapabilities;
+import thaumcraft.init.ModEffects;
+import thaumcraft.init.ModSounds;
 
 /**
  * Sanity Soap - Use to scrub away your warp.
@@ -74,7 +76,11 @@ public class ItemSanitySoap extends Item {
                 if (warp != null) {
                     int amountToRemove = 1;
 
-                    // TODO: Check for Warp Ward potion effect - adds +1
+                    // Check for Warp Ward potion effect - adds +1
+                    if (player.hasEffect(ModEffects.WARP_WARD.get())) {
+                        amountToRemove++;
+                    }
+                    
                     // TODO: Check if standing in purifying fluid - adds +1
 
                     // Remove normal warp
@@ -94,9 +100,8 @@ public class ItemSanitySoap extends Item {
                 }
             } else {
                 // Play success sound and particles on client
-                // TODO: Play SoundsTC.craftstart
                 level.playLocalSound(entity.getX(), entity.getY(), entity.getZ(),
-                        SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS,
+                        ModSounds.CRAFT_START.get(), SoundSource.PLAYERS,
                         0.25f, 1.0f, false);
                 // TODO: Add more bubble particles
             }

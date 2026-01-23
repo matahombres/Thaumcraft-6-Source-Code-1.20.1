@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.RenderShape;
@@ -20,6 +21,8 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import thaumcraft.common.tiles.devices.TileBellows;
+import thaumcraft.init.ModBlockEntities;
 
 import javax.annotation.Nullable;
 
@@ -71,14 +74,19 @@ public class BlockBellows extends Block implements EntityBlock {
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        // TODO: Return TileBellows when implemented
-        return null;
+        return new TileBellows(pos, state);
     }
 
     @Nullable
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(net.minecraft.world.level.Level level, BlockState state, BlockEntityType<T> type) {
-        // TODO: Return ticker when TileBellows is implemented
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        if (type == ModBlockEntities.BELLOWS.get()) {
+            if (level.isClientSide) {
+                return (lvl, pos, st, be) -> TileBellows.clientTick(lvl, pos, st, (TileBellows) be);
+            } else {
+                return (lvl, pos, st, be) -> TileBellows.serverTick(lvl, pos, st, (TileBellows) be);
+            }
+        }
         return null;
     }
 }

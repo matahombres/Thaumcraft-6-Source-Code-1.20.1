@@ -112,7 +112,7 @@ public class TileBellows extends TileThaumcraft {
         return true;
     }
 
-    private static Direction getFacing(BlockState state) {
+    public static Direction getFacing(BlockState state) {
         if (state.hasProperty(BlockStateProperties.FACING)) {
             return state.getValue(BlockStateProperties.FACING);
         }

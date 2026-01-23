@@ -18,19 +18,32 @@ import thaumcraft.common.blocks.BlockTC;
 import thaumcraft.common.blocks.basic.*;
 import thaumcraft.common.blocks.crafting.BlockArcaneWorkbench;
 import thaumcraft.common.blocks.crafting.BlockCrucible;
+import thaumcraft.common.blocks.crafting.BlockFocalManipulator;
+import thaumcraft.common.blocks.crafting.BlockGolemBuilder;
 import thaumcraft.common.blocks.crafting.BlockInfusionMatrix;
+import thaumcraft.common.blocks.crafting.BlockPatternCrafter;
 import thaumcraft.common.blocks.crafting.BlockResearchTable;
+import thaumcraft.common.blocks.crafting.BlockThaumatorium;
 import thaumcraft.common.blocks.devices.*;
 import thaumcraft.common.blocks.essentia.BlockAlembic;
+import thaumcraft.common.blocks.essentia.BlockCentrifuge;
+import thaumcraft.common.blocks.essentia.BlockEssentiaReservoir;
 import thaumcraft.common.blocks.essentia.BlockJar;
 import thaumcraft.common.blocks.essentia.BlockSmelter;
 import thaumcraft.common.blocks.essentia.BlockTube;
+import thaumcraft.common.blocks.misc.BlockEffect;
+import thaumcraft.common.blocks.misc.BlockHole;
 import thaumcraft.common.blocks.misc.BlockNitor;
 import thaumcraft.common.blocks.world.ore.BlockCrystalTC;
 import thaumcraft.common.blocks.world.ore.BlockOreTC;
+import thaumcraft.common.blocks.world.plants.BlockCinderpearl;
 import thaumcraft.common.blocks.world.plants.BlockLeavesTC;
 import thaumcraft.common.blocks.world.plants.BlockPlantTC;
 import thaumcraft.common.blocks.world.plants.BlockSaplingTC;
+import thaumcraft.common.blocks.world.plants.BlockShimmerleaf;
+import thaumcraft.common.blocks.world.plants.BlockVishroom;
+import thaumcraft.common.blocks.world.taint.BlockFluxGoo;
+import thaumcraft.common.blocks.world.taint.BlockTaintFibre;
 
 import java.util.function.Supplier;
 
@@ -248,13 +261,13 @@ public class ModBlocks {
     // ==================== Plant Blocks ====================
 
     public static final RegistryObject<Block> SHIMMERLEAF = registerBlock("shimmerleaf",
-            BlockPlantTC::createShimmerleaf);
+            BlockShimmerleaf::new);
 
     public static final RegistryObject<Block> CINDERPEARL = registerBlock("cinderpearl",
-            BlockPlantTC::createCinderpearl);
+            BlockCinderpearl::new);
 
     public static final RegistryObject<Block> VISHROOM = registerBlock("vishroom",
-            BlockPlantTC::createVishroom);
+            BlockVishroom::new);
 
     // ==================== Tree Blocks ====================
 
@@ -385,6 +398,9 @@ public class ModBlocks {
     public static final RegistryObject<Block> TUBE_BUFFER = registerBlock("tube_buffer",
             BlockTube::createBuffer);
 
+    public static final RegistryObject<Block> TUBE_ONEWAY = registerBlock("tube_oneway",
+            BlockTube::createOneway);
+
     // ==================== Advanced Crafting ====================
 
     public static final RegistryObject<Block> RESEARCH_TABLE = registerBlock("research_table",
@@ -392,6 +408,15 @@ public class ModBlocks {
 
     public static final RegistryObject<Block> INFUSION_MATRIX = registerBlock("infusion_matrix",
             BlockInfusionMatrix::new);
+
+    public static final RegistryObject<Block> FOCAL_MANIPULATOR = registerBlock("focal_manipulator",
+            BlockFocalManipulator::new);
+
+    public static final RegistryObject<Block> THAUMATORIUM = registerBlock("thaumatorium",
+            BlockThaumatorium::new);
+
+    public static final RegistryObject<Block> PATTERN_CRAFTER = registerBlock("pattern_crafter",
+            BlockPatternCrafter::new);
 
     // ==================== More Device Blocks ====================
 
@@ -442,6 +467,73 @@ public class ModBlocks {
     public static final RegistryObject<Block> SMELTER = registerBlock("smelter",
             BlockSmelter::new);
 
+    public static final RegistryObject<Block> CENTRIFUGE = registerBlock("centrifuge",
+            BlockCentrifuge::new);
+
+    public static final RegistryObject<Block> INFERNAL_FURNACE = registerBlock("infernal_furnace",
+            BlockInfernalFurnace::new);
+
+    public static final RegistryObject<Block> ESSENTIA_RESERVOIR = registerBlock("essentia_reservoir",
+            BlockEssentiaReservoir::new);
+
+    public static final RegistryObject<Block> SPA = registerBlock("spa",
+            BlockSpa::new);
+
+    public static final RegistryObject<Block> FLUX_SCRUBBER = registerBlock("flux_scrubber",
+            BlockFluxScrubber::new);
+
+    public static final RegistryObject<Block> VIS_RELAY = registerBlock("vis_relay",
+            BlockVisRelay::new);
+
+    // ==================== Golem Crafting ====================
+
+    public static final RegistryObject<Block> GOLEM_BUILDER = registerBlock("golem_builder",
+            BlockGolemBuilder::new);
+
+    // ==================== Effect Blocks ====================
+
+    public static final RegistryObject<Block> EFFECT_SAP = registerBlockNoItem("effect_sap",
+            BlockEffect::createSap);
+
+    public static final RegistryObject<Block> EFFECT_SHOCK = registerBlockNoItem("effect_shock",
+            BlockEffect::createShock);
+
+    public static final RegistryObject<Block> EFFECT_GLIMMER = registerBlockNoItem("effect_glimmer",
+            BlockEffect::createGlimmer);
+
+    // ==================== Taint Blocks ====================
+
+    public static final RegistryObject<Block> FLUX_GOO = registerBlockNoItem("flux_goo",
+            BlockFluxGoo::new);
+
+    public static final RegistryObject<Block> TAINT_FIBRE = registerBlockNoItem("taint_fibre",
+            BlockTaintFibre::new);
+
+    // ==================== Additional Devices ====================
+
+    public static final RegistryObject<Block> LEVITATOR = registerBlock("levitator",
+            BlockLevitator::new);
+
+    public static final RegistryObject<Block> RECHARGE_PEDESTAL = registerBlock("recharge_pedestal",
+            BlockRechargePedestal::new);
+
+    public static final RegistryObject<Block> DIOPTRA = registerBlock("dioptra",
+            BlockDioptra::new);
+
+    public static final RegistryObject<Block> VOID_SIPHON = registerBlock("void_siphon",
+            BlockVoidSiphon::new);
+
+    public static final RegistryObject<Block> POTION_SPRAYER = registerBlock("potion_sprayer",
+            BlockPotionSprayer::new);
+
+    // ==================== Misc Blocks ====================
+
+    public static final RegistryObject<Block> HOLE = registerBlockNoItem("hole",
+            BlockHole::new);
+
+    public static final RegistryObject<Block> EVERFULL_URN = registerBlock("everfull_urn",
+            BlockWaterJug::new);
+
     // ==================== Helper Methods ====================
 
     /**
@@ -451,6 +543,14 @@ public class ModBlocks {
         RegistryObject<T> blockObj = BLOCKS.register(name, block);
         registerBlockItem(name, blockObj);
         return blockObj;
+    }
+
+    /**
+     * Register a block without a corresponding item.
+     * Used for effect blocks, holes, and other non-obtainable blocks.
+     */
+    private static <T extends Block> RegistryObject<T> registerBlockNoItem(String name, Supplier<T> block) {
+        return BLOCKS.register(name, block);
     }
 
     /**
