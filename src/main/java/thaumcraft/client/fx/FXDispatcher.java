@@ -17,8 +17,14 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import thaumcraft.client.fx.beams.FXArc;
+import thaumcraft.client.fx.beams.FXBolt;
+import thaumcraft.client.fx.particles.FXBlockRunes;
 import thaumcraft.client.fx.particles.FXFireMote;
 import thaumcraft.client.fx.particles.FXGeneric;
+import thaumcraft.client.fx.particles.FXGenericP2P;
+import thaumcraft.client.fx.particles.FXSmokeSpiral;
+import thaumcraft.client.fx.particles.FXVent;
 import thaumcraft.client.fx.particles.FXVisSparkle;
 import thaumcraft.client.fx.particles.FXWisp;
 import thaumcraft.init.ModSounds;
@@ -394,17 +400,21 @@ public class FXDispatcher {
     // ==================== Essentia Effects ====================
     
     public void essentiaTrailFx(BlockPos p1, BlockPos p2, int count, int color, float scale, int ext) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level == null) return;
         
         Color c = new Color(color);
-        // Spawn particles along the path
+        // Spawn point-to-point particles
         for (int i = 0; i < count; i++) {
-            double t = i / (double) count;
-            double x = p1.getX() + 0.5 + (p2.getX() - p1.getX()) * t;
-            double y = p1.getY() + 0.5 + (p2.getY() - p1.getY()) * t;
-            double z = p1.getZ() + 0.5 + (p2.getZ() - p1.getZ()) * t;
-            level.addParticle(ParticleTypes.ENCHANT, x, y, z, 0, 0, 0);
+            double startX = p1.getX() + 0.5 + rand.nextGaussian() * 0.1;
+            double startY = p1.getY() + 0.5 + rand.nextGaussian() * 0.1;
+            double startZ = p1.getZ() + 0.5 + rand.nextGaussian() * 0.1;
+            
+            FXGenericP2P particle = new FXGenericP2P(level, startX, startY, startZ, 
+                    p2.getX() + 0.5, p2.getY() + 0.5, p2.getZ() + 0.5);
+            particle.setColor(c.getRed() / 255f, c.getGreen() / 255f, c.getBlue() / 255f);
+            particle.setScale(scale);
+            addParticle(particle);
         }
     }
     
@@ -416,18 +426,24 @@ public class FXDispatcher {
     }
     
     public void drawVentParticles(double x, double y, double z, double x2, double y2, double z2, int color) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.SMOKE, x, y, z, x2, y2, z2);
+            FXVent vent = new FXVent(level, x, y, z, x2, y2, z2, color);
+            addParticle(vent);
         }
     }
     
     public void drawVentParticles(double x, double y, double z, double x2, double y2, double z2, int color, float scale) {
-        drawVentParticles(x, y, z, x2, y2, z2, color);
+        ClientLevel level = getClientLevel();
+        if (level != null) {
+            FXVent vent = new FXVent(level, x, y, z, x2, y2, z2, color);
+            vent.setScale(scale);
+            addParticle(vent);
+        }
     }
     
     public void drawVentParticles2(double x, double y, double z, double x2, double y2, double z2, int color, float scale) {
-        drawVentParticles(x, y, z, x2, y2, z2, color);
+        drawVentParticles(x, y, z, x2, y2, z2, color, scale);
     }
     
     public void jarSplashFx(double x, double y, double z) {
@@ -476,22 +492,19 @@ public class FXDispatcher {
     // ==================== Arc/Lightning ====================
     
     public void arcLightning(double x, double y, double z, double tx, double ty, double tz, float r, float g, float b, float h) {
-        Level level = getWorld();
-        if (level == null) return;
-        
-        // Spawn electric sparks along the arc
-        int steps = (int) Math.sqrt((tx-x)*(tx-x) + (ty-y)*(ty-y) + (tz-z)*(tz-z)) * 4;
-        for (int i = 0; i < steps; i++) {
-            double t = i / (double) steps;
-            double px = x + (tx - x) * t + rand.nextGaussian() * 0.1;
-            double py = y + (ty - y) * t + rand.nextGaussian() * 0.1;
-            double pz = z + (tz - z) * t + rand.nextGaussian() * 0.1;
-            level.addParticle(ParticleTypes.ELECTRIC_SPARK, px, py, pz, 0, 0, 0);
+        ClientLevel level = getClientLevel();
+        if (level != null) {
+            FXArc arc = new FXArc(level, x, y, z, tx, ty, tz, r, g, b, h);
+            addParticle(arc);
         }
     }
     
     public void arcBolt(double x, double y, double z, double tx, double ty, double tz, float r, float g, float b, float width) {
-        arcLightning(x, y, z, tx, ty, tz, r, g, b, width);
+        ClientLevel level = getClientLevel();
+        if (level != null) {
+            FXBolt bolt = new FXBolt(level, x, y, z, tx, ty, tz, r, g, b, width);
+            addParticle(bolt);
+        }
     }
     
     // ==================== Beam Effects (stubs) ====================
@@ -523,9 +536,11 @@ public class FXDispatcher {
     }
     
     public void blockRunes(double x, double y, double z, float r, float g, float b, int dur, float grav) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.ENCHANT, x, y, z, 0, -grav, 0);
+            FXBlockRunes runes = new FXBlockRunes(level, x, y, z, r, g, b, dur);
+            runes.setGravity(grav);
+            addParticle(runes);
         }
     }
     
@@ -553,9 +568,12 @@ public class FXDispatcher {
     }
     
     public void smokeSpiral(double x, double y, double z, float rad, int start, int miny, int color) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, x, y, z, 0, 0.05, 0);
+            Color c = new Color(color);
+            FXSmokeSpiral spiral = new FXSmokeSpiral(level, x, y, z, rad, start, miny);
+            spiral.setColor(c.getRed() / 255f, c.getGreen() / 255f, c.getBlue() / 255f);
+            addParticle(spiral);
         }
     }
     
