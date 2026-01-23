@@ -22,6 +22,7 @@ import thaumcraft.common.menu.SpaMenu;
 import thaumcraft.common.menu.ThaumatoriumMenu;
 import thaumcraft.common.menu.TurretMenu;
 import thaumcraft.common.menu.VoidSiphonMenu;
+import thaumcraft.common.menu.LogisticsMenu;
 
 /**
  * Registry for all Thaumcraft menu types.
@@ -125,6 +126,9 @@ public class ModMenuTypes {
             MENU_TYPES.register("pech_trading", 
                     () -> IForgeMenuType.create(PechMenu::new));
     
-    // Future menu types:
-    // - LOGISTICS (complex)
+    // ==================== Logistics ====================
+    
+    public static final RegistryObject<MenuType<LogisticsMenu>> LOGISTICS = 
+            MENU_TYPES.register("logistics", 
+                    () -> IForgeMenuType.create(LogisticsMenu::new));
 }

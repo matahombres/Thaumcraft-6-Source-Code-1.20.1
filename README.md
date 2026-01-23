@@ -2,10 +2,10 @@
 
 This repository contains the ongoing effort to port **Thaumcraft 6** from Minecraft 1.12.2 (Forge) to Minecraft 1.20.1 (Forge).
 
-## 📊 Feature Parity: ~92%
+## 📊 Feature Parity: ~93%
 
 ```
-███████████████████████░░ 92%
+███████████████████████░░ 93%
 ```
 
 The port is nearly complete with all core systems functional and all recipes implemented. Remaining work focuses on visual polish, GUI completion, and testing.
@@ -18,15 +18,15 @@ The port is nearly complete with all core systems functional and all recipes imp
 
 | Category | Ported | Original | Parity | Status |
 |----------|--------|----------|--------|--------|
-| **Java Files** | 685 | 901 | 76% | 🔄 In Progress |
+| **Java Files** | 698 | 901 | 77% | 🔄 In Progress |
 | **Blocks** | 191 | 91+ | 100%+ | ✅ Complete |
 | **Items** | 175 | 90+ | 100%+ | ✅ Complete |
 | **Block Entities** | 50 | 31 | 100%+ | ✅ Complete |
 | **Entities** | 46 | 35+ | 100%+ | ✅ Complete |
 | **Mob Effects** | 9 | 9 | 100% | ✅ Complete |
-| **Menus/GUIs** | 17 | 22 | 77% | 🔄 In Progress |
-| **Entity Renderers** | 29 | ~40 | 73% | 🔄 In Progress |
-| **Block Entity Renderers** | 21 | ~25 | 84% | 🔄 In Progress |
+| **Menus/GUIs** | 20 | 22 | 91% | 🔄 In Progress |
+| **Entity Renderers** | 34 | ~40 | 85% | 🔄 In Progress |
+| **Block Entity Renderers** | 23 | ~25 | 92% | 🔄 In Progress |
 
 ### Recipe Progress
 

@@ -502,6 +502,14 @@ public class Thaumcraft {
                     ModMenuTypes.HUNGRY_CHEST.get(),
                     thaumcraft.client.gui.screens.HungryChestScreen::new
                 );
+                net.minecraft.client.gui.screens.MenuScreens.register(
+                    ModMenuTypes.LOGISTICS.get(),
+                    thaumcraft.client.gui.screens.LogisticsScreen::new
+                );
+                net.minecraft.client.gui.screens.MenuScreens.register(
+                    ModMenuTypes.SEAL.get(),
+                    thaumcraft.client.gui.screens.SealScreen::new
+                );
                 LOGGER.info("Registered Thaumcraft menu screens");
             });
             
@@ -567,6 +575,10 @@ public class Thaumcraft {
             event.registerLayerDefinition(
                 thaumcraft.client.models.block.BrainModel.LAYER_LOCATION,
                 thaumcraft.client.models.block.BrainModel::createBodyLayer
+            );
+            event.registerLayerDefinition(
+                thaumcraft.client.models.block.BannerModel.LAYER_LOCATION,
+                thaumcraft.client.models.block.BannerModel::createBodyLayer
             );
             LOGGER.info("Registered Thaumcraft model layers");
         }
@@ -647,6 +659,12 @@ public class Thaumcraft {
             event.registerBlockEntityRenderer(
                 ModBlockEntities.JAR_BRAIN.get(),
                 thaumcraft.client.renderers.tile.JarBrainRenderer::new
+            );
+            
+            // Banner renderer
+            event.registerBlockEntityRenderer(
+                ModBlockEntities.BANNER.get(),
+                thaumcraft.client.renderers.tile.BannerRenderer::new
             );
             LOGGER.info("Registered Thaumcraft block entity renderers");
         }

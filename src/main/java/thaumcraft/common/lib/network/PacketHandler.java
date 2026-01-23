@@ -15,6 +15,7 @@ import thaumcraft.common.lib.network.misc.PacketBiomeChange;
 import thaumcraft.common.lib.network.misc.PacketKnowledgeGain;
 import thaumcraft.common.lib.network.misc.PacketLogisticsRequestToServer;
 import thaumcraft.common.lib.network.misc.PacketMiscEvent;
+import thaumcraft.common.lib.network.misc.PacketMiscStringToServer;
 import thaumcraft.common.lib.network.misc.PacketSealFilterToClient;
 import thaumcraft.common.lib.network.misc.PacketSealToClient;
 import thaumcraft.common.lib.network.misc.PacketSelectThaumotoriumRecipeToServer;
@@ -292,6 +293,12 @@ public class PacketHandler {
                 .encoder(PacketLogisticsRequestToServer::encode)
                 .decoder(PacketLogisticsRequestToServer::decode)
                 .consumerMainThread(PacketLogisticsRequestToServer::handle)
+                .add();
+        
+        INSTANCE.messageBuilder(PacketMiscStringToServer.class, nextId(), NetworkDirection.PLAY_TO_SERVER)
+                .encoder(PacketMiscStringToServer::encode)
+                .decoder(PacketMiscStringToServer::decode)
+                .consumerMainThread(PacketMiscStringToServer::handle)
                 .add();
         
         // Research/Crafting packets (client -> server)

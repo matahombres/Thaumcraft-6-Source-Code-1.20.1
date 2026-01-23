@@ -119,7 +119,7 @@ public class SealProvide extends SealFiltered implements ISealConfigToggles {
             if (!inRange) continue;
             
             // Check if we have the requested item and it matches our filter
-            if (matchesFilter(pr.getStack()) && countItems(inv, pr.getStack()) > (props[5].getValue() ? 1 : 0)) {
+            if (matchesFilters(pr.getStack()) && countItems(inv, pr.getStack()) > (props[5].getValue() ? 1 : 0)) {
                 Task task = new Task(seal.getSealPos(), seal.getSealPos().pos);
                 task.setPriority(pr.getSeal() != null ? pr.getSeal().getPriority() : (byte) 5);
                 task.setLifespan((short) (pr.getSeal() != null ? 10 : 31000));
@@ -153,7 +153,11 @@ public class SealProvide extends SealFiltered implements ISealConfigToggles {
         return count;
     }
     
-    private boolean matchesFilter(ItemStack stack) {
+    /**
+     * Check if an item stack matches the seal's filter configuration.
+     * Public so it can be used by LogisticsMenu.
+     */
+    public boolean matchesFilters(ItemStack stack) {
         if (stack.isEmpty()) return false;
         
         boolean filterEmpty = true;

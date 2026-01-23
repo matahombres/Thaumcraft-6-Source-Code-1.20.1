@@ -10,12 +10,12 @@
 
 | Category | Ported | Original | Status |
 |----------|--------|----------|--------|
-| Java Files | 685 | 901 | 76% Complete |
+| Java Files | 698 | 901 | 77% Complete |
 | Blocks | 191 | 91+ | ✅ Complete |
 | Items | 175 | 90+ | ✅ Complete |
 | Entities | 46 | 35+ | ✅ Complete |
 | Block Entities | 50 | 31 | ✅ Complete |
-| GUIs | 17 | 22 | 77% Complete |
+| GUIs | 19 | 22 | 86% Complete |
 | Recipes | 270 | 265 | ✅ Complete |
 | Particles | - | 100+ | Pending |
 
@@ -468,7 +468,7 @@
 - [x] Port `GuiResearchPage.java`
 - [ ] Port `GuiResearchRecipe.java`
 - [ ] Update research rendering system
-- [ ] Port theorycraft minigame GUI
+- [x] Port theorycraft minigame GUI (ResearchTableScreen with full card animation)
 
 ### GUI Migration Tasks
 - [ ] Update all `drawGuiContainerBackgroundLayer` to `renderBg`
@@ -600,7 +600,7 @@
 - [ ] Implement part combination system
 
 ### Golem GUI
-- [ ] Port golem command GUI
+- [x] Port golem command GUI (SealScreen)
 - [x] Port seal configuration GUI
 - [x] Port golem builder GUI
 
