@@ -41,9 +41,17 @@ public class BlockFocalManipulator extends BlockTCDevice {
                 .mapColor(MapColor.STONE)
                 .strength(2.0f, 10.0f)
                 .sound(SoundType.STONE)
-                .noOcclusion(),
-                false,  // no facing
-                false); // no enabled state
+                .noOcclusion());
+    }
+
+    @Override
+    protected boolean hasFacing() {
+        return false;
+    }
+
+    @Override
+    protected boolean hasEnabled() {
+        return false;
     }
     
     @Override

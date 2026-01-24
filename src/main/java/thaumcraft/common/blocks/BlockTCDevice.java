@@ -26,30 +26,40 @@ public abstract class BlockTCDevice extends Block implements EntityBlock {
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
     public static final BooleanProperty ENABLED = BlockStateProperties.ENABLED;
 
-    private final boolean hasFacing;
-    private final boolean hasEnabled;
-
-    public BlockTCDevice(Properties properties, boolean hasFacing, boolean hasEnabled) {
+    public BlockTCDevice(Properties properties) {
         super(properties);
-        this.hasFacing = hasFacing;
-        this.hasEnabled = hasEnabled;
-
+        
+        // Set default state based on what properties this block has
         BlockState defaultState = this.stateDefinition.any();
-        if (hasFacing) {
+        if (hasFacing()) {
             defaultState = defaultState.setValue(FACING, Direction.NORTH);
         }
-        if (hasEnabled) {
+        if (hasEnabled()) {
             defaultState = defaultState.setValue(ENABLED, true);
         }
         this.registerDefaultState(defaultState);
     }
 
+    /**
+     * Override to return true if this device block should have a FACING property.
+     */
+    protected boolean hasFacing() {
+        return true;
+    }
+
+    /**
+     * Override to return true if this device block should have an ENABLED property.
+     */
+    protected boolean hasEnabled() {
+        return false;
+    }
+
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        if (hasFacing) {
+        if (hasFacing()) {
             builder.add(FACING);
         }
-        if (hasEnabled) {
+        if (hasEnabled()) {
             builder.add(ENABLED);
         }
     }
@@ -58,14 +68,14 @@ public abstract class BlockTCDevice extends Block implements EntityBlock {
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         BlockState state = this.defaultBlockState();
         
-        if (hasFacing) {
+        if (hasFacing()) {
             Direction facing = context.getPlayer() != null && context.getPlayer().isShiftKeyDown()
                     ? context.getHorizontalDirection()
                     : context.getHorizontalDirection().getOpposite();
             state = state.setValue(FACING, facing);
         }
         
-        if (hasEnabled) {
+        if (hasEnabled()) {
             state = state.setValue(ENABLED, !context.getLevel().hasNeighborSignal(context.getClickedPos()));
         }
         
@@ -76,7 +86,7 @@ public abstract class BlockTCDevice extends Block implements EntityBlock {
     public void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
         super.neighborChanged(state, level, pos, block, fromPos, isMoving);
         
-        if (hasEnabled && !level.isClientSide) {
+        if (hasEnabled() && !level.isClientSide) {
             boolean shouldBeEnabled = !level.hasNeighborSignal(pos);
             if (state.getValue(ENABLED) != shouldBeEnabled) {
                 level.setBlock(pos, state.setValue(ENABLED, shouldBeEnabled), 3);

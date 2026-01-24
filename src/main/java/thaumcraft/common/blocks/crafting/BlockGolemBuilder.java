@@ -41,10 +41,17 @@ public class BlockGolemBuilder extends BlockTCDevice {
         super(Properties.of()
                 .strength(2.0f, 6.0f)
                 .sound(SoundType.STONE)
-                .noOcclusion(),
-                true,  // hasFacing
-                false  // hasEnabled
-        );
+                .noOcclusion());
+    }
+
+    @Override
+    protected boolean hasFacing() {
+        return true;
+    }
+
+    @Override
+    protected boolean hasEnabled() {
+        return false;
     }
     
     @Override

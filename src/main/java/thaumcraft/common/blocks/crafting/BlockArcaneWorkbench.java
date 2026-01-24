@@ -37,10 +37,17 @@ public class BlockArcaneWorkbench extends BlockTCDevice {
                 .mapColor(MapColor.WOOD)
                 .strength(2.5f)
                 .sound(SoundType.WOOD)
-                .noOcclusion(),
-                true,  // hasFacing
-                false  // hasEnabled
-        );
+                .noOcclusion());
+    }
+
+    @Override
+    protected boolean hasFacing() {
+        return true;
+    }
+
+    @Override
+    protected boolean hasEnabled() {
+        return false;
     }
 
     @Override

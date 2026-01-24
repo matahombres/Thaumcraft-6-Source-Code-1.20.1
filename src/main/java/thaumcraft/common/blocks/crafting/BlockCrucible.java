@@ -64,10 +64,17 @@ public class BlockCrucible extends BlockTCDevice {
                 .mapColor(MapColor.METAL)
                 .strength(2.0f, 6.0f)
                 .sound(SoundType.METAL)
-                .noOcclusion(),
-                false, // hasFacing
-                false  // hasEnabled
-        );
+                .noOcclusion());
+    }
+
+    @Override
+    protected boolean hasFacing() {
+        return false;
+    }
+
+    @Override
+    protected boolean hasEnabled() {
+        return false;
     }
 
     @Override

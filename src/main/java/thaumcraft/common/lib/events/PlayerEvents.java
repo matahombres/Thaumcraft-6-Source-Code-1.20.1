@@ -1,26 +1,19 @@
 package thaumcraft.common.lib.events;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.event.AttachCapabilitiesEvent;
-import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 import thaumcraft.Thaumcraft;
 import thaumcraft.api.capabilities.IPlayerKnowledge;
 import thaumcraft.api.capabilities.IPlayerWarp;
 import thaumcraft.api.capabilities.ThaumcraftCapabilities;
-import thaumcraft.common.lib.capabilities.PlayerKnowledge;
-import thaumcraft.common.lib.capabilities.PlayerWarp;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,16 +45,8 @@ public class PlayerEvents {
     
     // ==================== Capability Events ====================
     
-    /**
-     * Attach capabilities to player entities
-     */
-    @SubscribeEvent
-    public static void attachCapabilitiesPlayer(AttachCapabilitiesEvent<Entity> event) {
-        if (event.getObject() instanceof Player) {
-            event.addCapability(PlayerKnowledge.ID, new PlayerKnowledge.Provider());
-            event.addCapability(PlayerWarp.ID, new PlayerWarp.Provider());
-        }
-    }
+    // NOTE: Capability attachment is handled by ThaumcraftCapabilities class
+    // to avoid duplicate registration errors.
     
     /**
      * Clone capabilities when player respawns or changes dimension

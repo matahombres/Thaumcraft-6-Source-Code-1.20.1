@@ -118,21 +118,21 @@ public class ResearchTableScreen extends AbstractContainerScreen<ResearchTableMe
         
         // Create Theory button (shown when no active theory)
         buttonCreate = addRenderableWidget(Button.builder(
-                Component.translatable("tc.button.create.theory"), 
+                Component.translatable("button.create.theory"), 
                 btn -> onCreateTheory())
                 .bounds(x + 103, y + 22, 50, 12)
                 .build());
         
         // Complete Theory button (shown when theory complete)
         buttonComplete = addRenderableWidget(Button.builder(
-                Component.translatable("tc.button.complete.theory"),
+                Component.translatable("button.complete.theory"),
                 btn -> onCompleteTheory())
                 .bounds(x + 166, y + 96, 50, 12)
                 .build());
         
         // Scrap Theory button (shown during active theory)
         buttonScrap = addRenderableWidget(Button.builder(
-                Component.translatable("tc.button.scrap.theory"),
+                Component.translatable("button.scrap.theory"),
                 btn -> onScrapTheory())
                 .bounds(x + 103, y + 168, 50, 12)
                 .build());
@@ -416,7 +416,7 @@ public class ResearchTableScreen extends AbstractContainerScreen<ResearchTableMe
         // Draw category icon as watermark
         if (card.getResearchCategory() != null) {
             ResearchCategory rc = ResearchCategories.getResearchCategory(card.getResearchCategory());
-            if (rc != null) {
+            if (rc != null && rc.icon != null) {
                 RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f / 6.0f);
                 pose.pushPose();
                 pose.scale(0.5f, 0.5f, 1.0f);
@@ -565,7 +565,7 @@ public class ResearchTableScreen extends AbstractContainerScreen<ResearchTableMe
             pose.scale(0.0625f, 0.0625f, 1.0f);
             
             ResearchCategory rc = ResearchCategories.getResearchCategory(cat);
-            if (rc != null) {
+            if (rc != null && rc.icon != null) {
                 graphics.blit(rc.icon, 0, 0, 0, 0, 255, 255, 256, 256);
             }
             pose.popPose();
