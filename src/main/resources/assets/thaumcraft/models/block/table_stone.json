@@ -1,9 +1,6 @@
 {
-    "parent": "thaumcraft:block/table_wood",
-    "textures": {
-        "particle": "thaumcraft:blocks/table_stone_top",
-        "top": "thaumcraft:blocks/table_stone_top",
-        "side": "thaumcraft:blocks/table_stone_side",
-        "bottom": "thaumcraft:blocks/base_stone"
-    }
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "thaumcraft:block/base_stone"
+  }
 }

@@ -1,7 +1,5 @@
 {
-    "variants": {
-        "": {
-            "model": "thaumcraft:block/deepslate_amber_ore"
-        }
-    }
+  "variants": {
+    "": { "model": "thaumcraft:block/deepslate_amber_ore" }
+  }
 }
