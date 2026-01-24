@@ -12,7 +12,26 @@ The port is nearly complete with all core systems functional and all recipes imp
 
 ---
 
-## 🚧 Status: Active Development
+## ✅ Current Status: PLAYABLE
+
+**The game runs and loads into a world successfully!**
+
+As of January 2026, the mod:
+- Compiles without errors
+- Loads in Minecraft 1.20.1 with Forge 47.3.0
+- Player can join world and play
+- Aura system runs (background threads for all dimensions)
+- Research system loads (64 entries across 7 categories)
+- Blocks and items are registered and functional
+
+### Known Issues (Non-Fatal)
+- Some research entries fail to load due to uppercase ResourceLocation names (1.20+ requires lowercase)
+- Recipe book categories for custom recipes show warnings
+- Some research JSON uses old item stack format that needs updating
+
+---
+
+## 🚧 Development Status
 
 ### Progress by Category
 
@@ -175,7 +194,8 @@ src/main/resources/
 # Build JAR
 ./gradlew build
 
-# Run Client
+# Run Client (requires Java 17)
+export JAVA_HOME=/path/to/java17
 ./gradlew runClient
 
 # Run Server  
@@ -186,26 +206,40 @@ src/main/resources/
 ./gradlew genEclipseRuns    # Eclipse
 ```
 
+### Java Version Note
+The project requires **Java 17** to run. If you have multiple Java versions installed, set `JAVA_HOME` before running:
+```bash
+# Example on Linux
+export JAVA_HOME=/home/user/.gradle/jdks/eclipse_adoptium-17-amd64-linux.2
+./gradlew runClient
+```
+
 ### Output
 `build/libs/thaumcraft-1.20.1-6.0.0.jar`
 
 ---
 
-## 📋 Remaining Work (~8%)
+## 📋 Remaining Work (~7%)
 
 ### High Priority
-- [x] ~~Create all arcane recipes~~ ✅ (81/81)
-- [x] ~~Create vanilla crafting recipes~~ ✅ (64/64)
-- [x] ~~Create smelting recipes~~ ✅ (8/8)
-- [ ] Implement golem seal-based AI switching
+- [x] ~~Create all arcane recipes~~ (81/81)
+- [x] ~~Create vanilla crafting recipes~~ (64/64)
+- [x] ~~Create smelting recipes~~ (8/8)
+- [x] ~~Fix runClient blocker~~ (mods.toml format, BlockTCDevice constructor)
+- [x] ~~Fix duplicate capability registration~~
+- [ ] Fix research JSON files (lowercase ResourceLocation names)
+- [ ] Fix item stack parsing in research system
 
 ### Medium Priority
+- [ ] Implement golem seal-based AI switching
 - [ ] Port remaining 5 GUIs (17/22)
 - [ ] Complete entity renderers (29/~40)
 - [ ] Port theorycraft minigame
 - [ ] Finish particle effects
 
 ### Lower Priority
+- [ ] Re-enable Parchment mappings (currently using official)
+- [ ] Re-enable Curios runtime dependency
 - [ ] Port multiblock detection system
 - [ ] Create structure generation (eldritch obelisk, etc.)
 - [ ] Polish and testing
@@ -232,4 +266,4 @@ Community port of Thaumcraft. Original mod by Azanor.
 
 ---
 
-*Last updated: January 2026 | Build: Passing ✅*
+*Last updated: January 23, 2026 | Build: Passing | Game: Playable*
