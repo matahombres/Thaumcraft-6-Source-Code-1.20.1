@@ -955,6 +955,23 @@ The multiblock is registered but crafting logic needs work:
 
 ## Changelog
 
+### January 25, 2026 (Session 8)
+- ✅ **Research Progression Fixed** - `PlayerEvents.java`:
+  - Added `onItemPickup` event to detect crystal pickup → grants `!gotcrystal` flag
+  - Added `onPlayerWakeUp` event to trigger dream → grants `!gotdream` flag
+  - Added thaumonomicon pickup detection → grants `!gotthaumonomicon` flag
+  - Player now sees messages guiding them to sleep after picking up first crystal
+- ✅ **Crystal Worldgen Fixed** - Created `CrystalClusterFeature.java`:
+  - Previous config tried to place crystals inside stone (broken)
+  - New feature searches for air pockets adjacent to stone in caves
+  - Places 8-16 crystals per cluster with random sizes
+  - Registered 6 features: air, fire, water, earth, order, entropy
+  - Updated all configured_feature JSON files to use custom features
+- ✅ **Localization Added** - `en_us.json`:
+  - `tc.crystal.pickup` - Message when picking up first crystal
+  - `tc.dream.1` / `tc.dream.2` - Dream messages on wake up
+  - `tc.notowned` - Message for non-owned constructs
+
 ### January 25, 2026 (Session 7)
 - ✅ **Golem Despawn Bug Fixed** - `ItemGolemPlacer.java`:
   - Added `golem.setValidSpawn()` call when spawning golems

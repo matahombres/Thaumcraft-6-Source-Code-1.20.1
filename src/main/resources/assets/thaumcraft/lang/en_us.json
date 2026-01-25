@@ -1529,5 +1529,10 @@
   
   "gui.thaumcraft.arcane_workbench": "Arcane Workbench",
   "gui.thaumcraft.crucible": "Crucible",
-  "gui.thaumcraft.infusion": "Infusion Altar"
+  "gui.thaumcraft.infusion": "Infusion Altar",
+  
+  "tc.crystal.pickup": "This crystal resonates with strange energy... Perhaps sleep would bring clarity?",
+  "tc.dream.1": "Strange dreams filled with arcane symbols haunt your sleep...",
+  "tc.dream.2": "You awaken with mysterious knowledge of how to create a Thaumonomicon.",
+  "tc.notowned": "This construct does not belong to you."
 }

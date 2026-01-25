@@ -7,6 +7,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import thaumcraft.Thaumcraft;
 import thaumcraft.common.world.features.BigMagicTreeFeature;
+import thaumcraft.common.world.features.CrystalClusterFeature;
 import thaumcraft.common.world.features.GreatwoodTreeFeature;
 import thaumcraft.common.world.features.SilverwoodTreeFeature;
 import thaumcraft.common.world.features.ThaumcraftPlantFeature;
@@ -100,16 +101,66 @@ public class ModFeatures {
                     () -> new ThaumcraftPlantFeature(NoneFeatureConfiguration.CODEC, 
                             ThaumcraftPlantFeature.PlantType.VISHROOM));
     
+    // ==================== Crystal Features ====================
+    
+    /**
+     * Air crystal cluster - spawns on cave walls.
+     * More common at high altitudes.
+     */
+    public static final RegistryObject<CrystalClusterFeature> CRYSTAL_CLUSTER_AIR = 
+            FEATURES.register("crystal_cluster_air", 
+                    () -> new CrystalClusterFeature(NoneFeatureConfiguration.CODEC, 
+                            CrystalClusterFeature.CrystalType.AIR));
+    
+    /**
+     * Fire crystal cluster - spawns on cave walls.
+     * More common near lava and in warm biomes.
+     */
+    public static final RegistryObject<CrystalClusterFeature> CRYSTAL_CLUSTER_FIRE = 
+            FEATURES.register("crystal_cluster_fire", 
+                    () -> new CrystalClusterFeature(NoneFeatureConfiguration.CODEC, 
+                            CrystalClusterFeature.CrystalType.FIRE));
+    
+    /**
+     * Water crystal cluster - spawns on cave walls.
+     * More common near water and in ocean caves.
+     */
+    public static final RegistryObject<CrystalClusterFeature> CRYSTAL_CLUSTER_WATER = 
+            FEATURES.register("crystal_cluster_water", 
+                    () -> new CrystalClusterFeature(NoneFeatureConfiguration.CODEC, 
+                            CrystalClusterFeature.CrystalType.WATER));
+    
+    /**
+     * Earth crystal cluster - spawns on cave walls.
+     * More common at low altitudes (deep caves).
+     */
+    public static final RegistryObject<CrystalClusterFeature> CRYSTAL_CLUSTER_EARTH = 
+            FEATURES.register("crystal_cluster_earth", 
+                    () -> new CrystalClusterFeature(NoneFeatureConfiguration.CODEC, 
+                            CrystalClusterFeature.CrystalType.EARTH));
+    
+    /**
+     * Order crystal cluster - spawns on cave walls.
+     * Rarest primal crystal type.
+     */
+    public static final RegistryObject<CrystalClusterFeature> CRYSTAL_CLUSTER_ORDER = 
+            FEATURES.register("crystal_cluster_order", 
+                    () -> new CrystalClusterFeature(NoneFeatureConfiguration.CODEC, 
+                            CrystalClusterFeature.CrystalType.ORDER));
+    
+    /**
+     * Entropy crystal cluster - spawns on cave walls.
+     * Rarest primal crystal type.
+     */
+    public static final RegistryObject<CrystalClusterFeature> CRYSTAL_CLUSTER_ENTROPY = 
+            FEATURES.register("crystal_cluster_entropy", 
+                    () -> new CrystalClusterFeature(NoneFeatureConfiguration.CODEC, 
+                            CrystalClusterFeature.CrystalType.ENTROPY));
+    
     // ==================== Ore Features ====================
     // Note: Ore generation in 1.20.1 typically uses vanilla OreFeature
-    // with custom OreConfiguration. For Thaumcraft ores (crystals, cinnabar, etc.),
-    // we can use datapack JSON configurations or create custom features.
-    
-    // Future features:
-    // - Crystal cluster generation (vis crystals)
-    // - Amber ore generation
-    // - Cinnabar ore generation
-    // - Quartz ore generation (Thaumcraft variant)
+    // with custom OreConfiguration. For Thaumcraft ores (cinnabar, amber, etc.),
+    // we can use datapack JSON configurations.
     
     // ==================== Structure Features ====================
     

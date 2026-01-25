@@ -1,19 +1,28 @@
 package thaumcraft.common.lib.events;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import thaumcraft.Thaumcraft;
+import thaumcraft.api.ThaumcraftApi;
 import thaumcraft.api.capabilities.IPlayerKnowledge;
 import thaumcraft.api.capabilities.IPlayerWarp;
 import thaumcraft.api.capabilities.ThaumcraftCapabilities;
+import thaumcraft.common.blocks.world.ore.BlockCrystalTC;
+import thaumcraft.common.items.resources.ItemCrystalEssence;
+import thaumcraft.init.ModBlocks;
+import thaumcraft.init.ModItems;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -135,7 +144,106 @@ public class PlayerEvents {
         }
     }
     
+    // ==================== Sleep Events ====================
+    
+    /**
+     * Handle player waking up - triggers the dream that starts Thaumcraft progression.
+     * When a player sleeps for the first time after picking up a crystal, they receive
+     * the "gotdream" research flag which allows them to craft a Thaumonomicon.
+     */
+    @SubscribeEvent
+    public static void onPlayerWakeUp(PlayerWakeUpEvent event) {
+        Player player = event.getEntity();
+        if (player.level().isClientSide || !(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+        
+        // Check if player has picked up a crystal but hasn't had the dream yet
+        IPlayerKnowledge knowledge = ThaumcraftCapabilities.getKnowledge(player);
+        if (knowledge == null) return;
+        
+        boolean hasPickedCrystal = knowledge.isResearchKnown("!gotcrystal");
+        boolean hasDream = knowledge.isResearchKnown("!gotdream");
+        
+        if (hasPickedCrystal && !hasDream) {
+            // Grant the dream research
+            ThaumcraftApi.internalMethods.completeResearch(player, "!gotdream");
+            
+            // Show dream message to player
+            player.displayClientMessage(
+                Component.translatable("tc.dream.1"), false);
+            player.displayClientMessage(
+                Component.translatable("tc.dream.2"), false);
+            
+            Thaumcraft.LOGGER.info("Player {} received the Thaumcraft dream", player.getName().getString());
+        }
+    }
+    
     // ==================== Item Events ====================
+    
+    /**
+     * Handle item pickup - triggers research progression when picking up crystals.
+     * This is essential for starting Thaumcraft progression.
+     */
+    @SubscribeEvent
+    public static void onItemPickup(PlayerEvent.ItemPickupEvent event) {
+        Player player = event.getEntity();
+        if (player == null || player.level().isClientSide) {
+            return;
+        }
+        
+        ItemStack stack = event.getStack();
+        if (stack.isEmpty()) return;
+        
+        Item item = stack.getItem();
+        
+        // Check if it's a crystal item (vis crystal, crystal essence, or crystal block)
+        boolean isCrystal = false;
+        
+        // Check for vis crystal item
+        if (item == ModItems.VIS_CRYSTAL.get()) {
+            isCrystal = true;
+        }
+        // Check for crystal essence
+        else if (item instanceof ItemCrystalEssence) {
+            isCrystal = true;
+        }
+        // Check for crystal block items
+        else if (item == ModBlocks.CRYSTAL_AIR.get().asItem() ||
+                 item == ModBlocks.CRYSTAL_FIRE.get().asItem() ||
+                 item == ModBlocks.CRYSTAL_WATER.get().asItem() ||
+                 item == ModBlocks.CRYSTAL_EARTH.get().asItem() ||
+                 item == ModBlocks.CRYSTAL_ORDER.get().asItem() ||
+                 item == ModBlocks.CRYSTAL_ENTROPY.get().asItem() ||
+                 item == ModBlocks.CRYSTAL_FLUX.get().asItem()) {
+            isCrystal = true;
+        }
+        
+        if (isCrystal) {
+            IPlayerKnowledge knowledge = ThaumcraftCapabilities.getKnowledge(player);
+            if (knowledge != null && !knowledge.isResearchKnown("!gotcrystal")) {
+                // Grant crystal pickup research
+                ThaumcraftApi.internalMethods.completeResearch(player, "!gotcrystal");
+                
+                // Show hint message
+                player.displayClientMessage(
+                    Component.translatable("tc.crystal.pickup"), true);
+                
+                Thaumcraft.LOGGER.info("Player {} picked up first crystal - sleep to receive dream!", 
+                    player.getName().getString());
+            }
+        }
+        
+        // Check for thaumonomicon pickup
+        if (item == ModItems.THAUMONOMICON.get()) {
+            IPlayerKnowledge knowledge = ThaumcraftCapabilities.getKnowledge(player);
+            if (knowledge != null && !knowledge.isResearchKnown("!gotthaumonomicon")) {
+                ThaumcraftApi.internalMethods.completeResearch(player, "!gotthaumonomicon");
+                Thaumcraft.LOGGER.info("Player {} picked up Thaumonomicon - research unlocked!", 
+                    player.getName().getString());
+            }
+        }
+    }
     
     /**
      * Track who threw an item (for item-specific mechanics)
