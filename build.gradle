@@ -96,9 +96,11 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     // Curios API (replacement for Baubles in 1.20.1)
-    // API for compile, full mod for runtime (optional - mod works without it)
+    // API for compile only - Curios has mixin issues with official mappings in dev environment
+    // The mod works without Curios installed (CuriosCompat handles this gracefully)
     compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}:api")
-    runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}")
+    // Uncomment for runtime testing with Curios (requires SRG mappings):
+    // runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}")
     
     // JEI (Just Enough Items) for recipe viewing in dev environment
     // API for compile, full mod for runtime

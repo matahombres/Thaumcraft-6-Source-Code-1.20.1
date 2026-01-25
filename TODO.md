@@ -956,6 +956,14 @@ The multiblock is registered but crafting logic needs work:
 ## Changelog
 
 ### January 25, 2026 (Session 6)
+- ✅ **Game Launch Verified** - Successfully launched and played:
+  - Curios 5.9.1 has mixin issues with official mappings; disabled as runtime dep (still compile-only)
+  - Mod loads with Forge 47.3.0, JEI 15.2.0.27
+  - Aura system threads run correctly (overworld, nether, end)
+  - World creation and saving works
+  - Research browser opens (minor texture path issues)
+  - JEI integration functional
+  - Minor cosmetic issues: some textures use old `items/` path instead of `item/`
 - ✅ **Block Models Fixed** - All missing block model texture references corrected:
   - **barrier.json** - Changed from missing `pave_ward` to `empty` (invisible effect block)
   - **effect_sap.json** - Changed from missing `sapgreen` to `empty` (invisible effect block)
