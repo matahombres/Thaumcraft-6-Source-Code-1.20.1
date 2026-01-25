@@ -2,13 +2,13 @@
 
 This repository contains the ongoing effort to port **Thaumcraft 6** from Minecraft 1.12.2 (Forge) to Minecraft 1.20.1 (Forge).
 
-## 📊 Feature Parity: ~95%
+## 📊 Feature Parity: ~96%
 
 ```
-███████████████████████░░ 95%
+████████████████████████░ 96%
 ```
 
-The port is nearly complete with all core systems functional, all recipes implemented, and **full JEI integration**. Remaining work focuses on visual polish, GUI completion, and testing.
+The port is nearly complete with all core systems functional, all recipes implemented, **full JEI integration**, and **multiblock detection working**. Remaining work focuses on visual polish and testing.
 
 ---
 
@@ -87,6 +87,7 @@ As of January 2026, the mod:
 | **Focus/Casting** | ✅ Complete | Caster, foci, effects |
 | **Curios Integration** | ✅ Complete | Replaces Baubles API |
 | **JEI Integration** | ✅ Complete | 3 custom categories, all recipes visible |
+| **Multiblock System** | ✅ Complete | 9 dust triggers, salis mundus functional |
 | **World Generation** | 🔄 Partial | Biomes, ores done; structures partial |
 | **Particles** | 🔄 Partial | Core particles; some effects pending |
 | **Networking** | ✅ Complete | PacketHandler with SimpleChannel |
@@ -247,8 +248,8 @@ export JAVA_HOME=/home/user/.gradle/jdks/eclipse_adoptium-17-amd64-linux.2
 - [x] ~~Fix duplicate capability registration~~
 - [x] ~~JEI Integration~~ (3 custom categories, all recipes visible)
 - [x] ~~Research-Recipe key alignment~~ (all 196 recipes have valid research keys)
-- [ ] Fix research JSON files (lowercase ResourceLocation names)
-- [ ] Fix item stack parsing in research system
+- [x] ~~Fix research JSON files~~ (added legacy item mappings)
+- [x] ~~Fix item stack parsing in research system~~ (legacy format support)
 
 ### Medium Priority
 - [x] ~~Implement golem seal-based AI switching~~ (fully functional)

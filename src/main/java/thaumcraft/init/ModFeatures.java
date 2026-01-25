@@ -6,9 +6,11 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import thaumcraft.Thaumcraft;
+import thaumcraft.common.world.features.BigMagicTreeFeature;
 import thaumcraft.common.world.features.GreatwoodTreeFeature;
 import thaumcraft.common.world.features.SilverwoodTreeFeature;
 import thaumcraft.common.world.features.ThaumcraftPlantFeature;
+import thaumcraft.common.world.structures.AncientStoneCircleFeature;
 import thaumcraft.common.world.structures.BarrowFeature;
 
 /**
@@ -48,6 +50,24 @@ public class ModFeatures {
     public static final RegistryObject<SilverwoodTreeFeature> SILVERWOOD_TREE = 
             FEATURES.register("silverwood_tree", 
                     () -> new SilverwoodTreeFeature(NoneFeatureConfiguration.CODEC));
+    
+    /**
+     * Big Magic Tree - Large, majestic magical tree with sprawling branches.
+     * This is the "fancy" tree variant for magical forest biomes.
+     * Taller than regular greatwood/silverwood with more complex branch structure.
+     */
+    public static final RegistryObject<BigMagicTreeFeature> BIG_MAGIC_TREE = 
+            FEATURES.register("big_magic_tree", 
+                    () -> new BigMagicTreeFeature(NoneFeatureConfiguration.CODEC));
+    
+    /**
+     * Big Silverwood Tree - Large silverwood variant for magical biomes.
+     * Uses silverwood logs and leaves instead of greatwood.
+     */
+    public static final RegistryObject<BigMagicTreeFeature> BIG_SILVERWOOD_TREE = 
+            FEATURES.register("big_silverwood_tree", 
+                    () -> new BigMagicTreeFeature(NoneFeatureConfiguration.CODEC, 
+                            BigMagicTreeFeature.TreeType.SILVERWOOD));
     
     // ==================== Plant Features ====================
     
@@ -100,8 +120,14 @@ public class ModFeatures {
             FEATURES.register("barrow", 
                     () -> new BarrowFeature(NoneFeatureConfiguration.CODEC));
     
-    // Future structure features:
-    // - Cultist portal spawning
-    // - Eldritch obelisks
-    // - Ancient stone circles
+    /**
+     * Ancient Stone Circle - Mysterious stone monuments.
+     * Can generate as:
+     * - Small circle (4-6 standing stones)
+     * - Large circle (8-12 stones with central altar)
+     * - Single obelisk with glyphed stones
+     */
+    public static final RegistryObject<AncientStoneCircleFeature> ANCIENT_STONE_CIRCLE = 
+            FEATURES.register("ancient_stone_circle", 
+                    () -> new AncientStoneCircleFeature(NoneFeatureConfiguration.CODEC));
 }
