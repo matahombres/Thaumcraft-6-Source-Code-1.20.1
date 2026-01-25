@@ -7,10 +7,10 @@
   },
   "ingredients": [
     {
-      "item": "thaumcraft:tube"
+      "item": "thaumcraft:tube_normal"
     }
   ],
   "result": {
-    "item": "thaumcraft:tube_restrict"
+    "item": "thaumcraft:tube_restricted"
   }
 }

@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:infusion",
-  "research": "VOIDMETAL",
+  "research": "VOIDROBEARMOR",
   "instability": 4,
   "input": {
     "item": "thaumcraft:thaumium_axe"

@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:infusion",
-  "research": "INFERNALBLASTFURNACE",
+  "research": "INFERNALFURNACE",
   "instability": 3,
   "input": {
     "item": "minecraft:blast_furnace"

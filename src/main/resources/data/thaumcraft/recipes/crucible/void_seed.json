@@ -1,7 +1,7 @@
 {
   "type": "thaumcraft:crucible",
-  "research": "VOIDSMELTER",
-  "ingredient": {
+  "research": "ESSENTIASMELTERVOID",
+  "catalyst": {
     "item": "thaumcraft:flux_crystal"
   },
   "aspects": {

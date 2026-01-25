@@ -6,10 +6,10 @@
     "III"
   ],
   "key": {
-    "I": {"item": "thaumcraft:ingot_brass"}
+    "I": {"item": "thaumcraft:brass_ingot"}
   },
   "result": {
-    "item": "thaumcraft:metal_brass",
+    "item": "thaumcraft:brass_block",
     "count": 1
   }
 }

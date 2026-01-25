@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:infusion",
-  "research": "THAUMIUMARMOR",
+  "research": "ARMORFORTRESS",
   "instability": 1,
   "center": {
     "item": "minecraft:iron_boots"

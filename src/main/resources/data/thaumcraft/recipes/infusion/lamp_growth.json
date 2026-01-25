@@ -13,7 +13,7 @@
       "item": "minecraft:bone_meal"
     },
     {
-      "item": "thaumcraft:crystal_essence_terra"
+      "item": "thaumcraft:crystal_essence"
     },
     {
       "tag": "forge:ingots/gold"
@@ -22,7 +22,7 @@
       "item": "minecraft:bone_meal"
     },
     {
-      "item": "thaumcraft:crystal_essence_terra"
+      "item": "thaumcraft:crystal_essence"
     }
   ],
   "aspects": {

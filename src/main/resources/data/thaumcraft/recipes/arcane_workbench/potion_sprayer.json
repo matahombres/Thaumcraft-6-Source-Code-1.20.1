@@ -16,7 +16,7 @@
     "D": {"item": "minecraft:dispenser"},
     "I": {"tag": "thaumcraft:plates/iron"},
     "A": {"item": "minecraft:brewing_stand"},
-    "C": {"item": "thaumcraft:metal_alchemical"}
+    "C": {"item": "thaumcraft:alchemical_brass_block"}
   },
   "result": {
     "item": "thaumcraft:potion_sprayer"

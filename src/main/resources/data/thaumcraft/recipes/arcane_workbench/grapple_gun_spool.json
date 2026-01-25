@@ -2,7 +2,7 @@
   "type": "thaumcraft:arcane_workbench_shaped",
   "research": "GRAPPLEGUN",
   "vis": 25,
-  "aspects": {
+  "crystals": {
     "aqua": 1
   },
   "pattern": [

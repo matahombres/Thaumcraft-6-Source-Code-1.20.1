@@ -15,13 +15,13 @@
       "item": "thaumcraft:plate_brass"
     },
     "F": {
-      "item": "thaumcraft:smelter_thaumium"
+      "item": "thaumcraft:smelter"
     },
     "I": {
       "item": "thaumcraft:plate_void"
     },
     "G": {
-      "item": "thaumcraft:metal_alchemical_advanced"
+      "item": "thaumcraft:alchemical_brass_advanced_block"
     }
   },
   "result": {

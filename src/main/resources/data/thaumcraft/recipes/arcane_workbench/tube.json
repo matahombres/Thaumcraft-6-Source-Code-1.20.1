@@ -18,11 +18,11 @@
       "tag": "forge:glass"
     },
     "B": {
-      "item": "thaumcraft:nugget_brass"
+      "item": "thaumcraft:brass_nugget"
     }
   },
   "result": {
-    "item": "thaumcraft:tube",
+    "item": "thaumcraft:tube_normal",
     "count": 8
   }
 }

@@ -84,6 +84,9 @@ public class ModItems {
     public static final RegistryObject<Item> THAUMONOMICON = ITEMS.register("thaumonomicon",
             ItemThaumonomicon::new);
 
+    public static final RegistryObject<Item> CRIMSON_RITES = ITEMS.register("crimson_rites",
+            () -> new Item(new Item.Properties().stacksTo(1).rarity(net.minecraft.world.item.Rarity.RARE)));
+
     public static final RegistryObject<Item> THAUMOMETER = ITEMS.register("thaumometer",
             ItemThaumometer::new);
 
@@ -706,6 +709,22 @@ public class ModItems {
 
     public static final RegistryObject<Item> TURRET_PLACER_BORE = ITEMS.register("turret_placer_bore",
             ItemTurretPlacer::createBore);
+
+    // ==================== Grapple Gun Components ====================
+
+    public static final RegistryObject<Item> GRAPPLE_GUN_SPOOL = ITEMS.register("grapple_gun_spool",
+            ItemMaterial::uncommon);
+
+    public static final RegistryObject<Item> GRAPPLE_GUN_TIP = ITEMS.register("grapple_gun_tip",
+            ItemMaterial::uncommon);
+
+    // ==================== Golem Modules ====================
+
+    public static final RegistryObject<Item> GOLEM_MODULE_AGGRESSION = ITEMS.register("golem_module_aggression",
+            ItemMaterial::uncommon);
+
+    public static final RegistryObject<Item> GOLEM_MODULE_VISION = ITEMS.register("golem_module_vision",
+            ItemMaterial::uncommon);
 
     // ==================== Creative-Only Items ====================
 

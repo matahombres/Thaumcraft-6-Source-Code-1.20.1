@@ -8,7 +8,7 @@
     "humanus": 10
   },
   "input": {
-    "item": "thaumcraft:seal_blank"
+    "item": "thaumcraft:blank_seal"
   },
   "ingredients": [
     {"item": "minecraft:wheat_seeds"},
@@ -19,7 +19,7 @@
     {"item": "minecraft:cactus"}
   ],
   "result": {
-    "item": "thaumcraft:seal",
+    "item": "thaumcraft:blank_seal",
     "nbt": "{seal:\"thaumcraft:harvest\"}"
   }
 }

@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:crucible",
-  "research": "VOIDMETAL",
+  "research": "VOIDROBEARMOR",
   "catalyst": {
     "item": "thaumcraft:thaumium_ingot"
   },

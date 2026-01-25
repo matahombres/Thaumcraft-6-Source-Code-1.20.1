@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:infusion",
-  "research": "UNDYINGCHARM",
+  "research": "CHARMUNDYING",
   "instability": 4,
   "input": {
     "item": "minecraft:totem_of_undying"

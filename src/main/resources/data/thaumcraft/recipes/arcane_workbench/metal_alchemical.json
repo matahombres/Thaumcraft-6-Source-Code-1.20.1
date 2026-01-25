@@ -20,14 +20,14 @@
       "item": "thaumcraft:tube_valve"
     },
     "T": {
-      "item": "thaumcraft:tube"
+      "item": "thaumcraft:tube_normal"
     },
     "W": {
-      "item": "thaumcraft:plank_greatwood"
+      "item": "thaumcraft:greatwood_planks"
     }
   },
   "result": {
-    "item": "thaumcraft:metal_alchemical",
+    "item": "thaumcraft:alchemical_brass_block",
     "count": 2
   }
 }

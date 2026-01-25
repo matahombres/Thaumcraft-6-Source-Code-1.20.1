@@ -1,5 +1,5 @@
 {
-  "type": "thaumcraft:arcane_workbench",
+  "type": "thaumcraft:arcane_workbench_shaped",
   "research": "INFUSIONELDRITCH",
   "vis": 150,
   "pattern": [
@@ -9,7 +9,7 @@
   ],
   "key": {
     "S": {
-      "item": "thaumcraft:eldritch_stone_slab"
+      "item": "thaumcraft:eldritch_stone_tile"
     },
     "B": {
       "item": "thaumcraft:eldritch_stone_tile"

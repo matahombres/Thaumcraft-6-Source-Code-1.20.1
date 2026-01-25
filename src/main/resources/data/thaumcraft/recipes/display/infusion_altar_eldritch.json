@@ -1,0 +1,14 @@
+{
+  "_comment": "Display recipe for eldritch infusion altar multiblock structure",
+  "type": "thaumcraft:display",
+  "result": {
+    "item": "thaumcraft:infusion_matrix"
+  },
+  "ingredients": [
+    { "item": "thaumcraft:infusion_matrix" },
+    { "item": "thaumcraft:pedestal_eldritch" },
+    { "item": "thaumcraft:pedestal_eldritch" },
+    { "item": "thaumcraft:pedestal_eldritch" },
+    { "item": "thaumcraft:pedestal_eldritch" }
+  ]
+}

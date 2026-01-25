@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:infusion",
-  "research": "INFUSIONSTABILIZER",
+  "research": "INFUSIONSTABLE",
   "instability": 3,
   "input": {
     "item": "thaumcraft:pedestal_arcane"

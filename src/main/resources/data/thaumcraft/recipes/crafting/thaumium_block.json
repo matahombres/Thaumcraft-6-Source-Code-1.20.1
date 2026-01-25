@@ -6,10 +6,10 @@
     "III"
   ],
   "key": {
-    "I": {"item": "thaumcraft:ingot_thaumium"}
+    "I": {"item": "thaumcraft:thaumium_ingot"}
   },
   "result": {
-    "item": "thaumcraft:metal_thaumium",
+    "item": "thaumcraft:thaumium_block",
     "count": 1
   }
 }

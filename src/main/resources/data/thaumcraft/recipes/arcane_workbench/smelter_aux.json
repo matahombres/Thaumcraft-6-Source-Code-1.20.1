@@ -13,7 +13,7 @@
   ],
   "key": {
     "W": {
-      "item": "thaumcraft:plank_greatwood"
+      "item": "thaumcraft:greatwood_planks"
     },
     "T": {
       "item": "thaumcraft:tube_filter"
@@ -22,7 +22,7 @@
       "item": "thaumcraft:plate_brass"
     },
     "G": {
-      "item": "thaumcraft:metal_alchemical"
+      "item": "thaumcraft:alchemical_brass_block"
     },
     "I": {
       "item": "thaumcraft:plate_iron"

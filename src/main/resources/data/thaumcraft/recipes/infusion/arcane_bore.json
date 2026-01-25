@@ -10,11 +10,11 @@
     "motus": 25
   },
   "input": {
-    "item": "thaumcraft:turret_placer"
+    "item": "thaumcraft:turret_placer_basic"
   },
   "ingredients": [
-    {"item": "thaumcraft:plank_greatwood"},
-    {"item": "thaumcraft:plank_greatwood"},
+    {"item": "thaumcraft:greatwood_planks"},
+    {"item": "thaumcraft:greatwood_planks"},
     {"item": "thaumcraft:mechanism_complex"},
     {"tag": "thaumcraft:plates/brass"},
     {"item": "minecraft:diamond_pickaxe"},
@@ -23,6 +23,6 @@
     {"item": "thaumcraft:nugget_rareearth"}
   ],
   "result": {
-    "item": "thaumcraft:arcane_bore_placer"
+    "item": "thaumcraft:turret_placer_bore"
   }
 }

@@ -10,8 +10,8 @@
         "stages": [
                 {
                     "text": "research.BASEARTIFICE.stage.1", 
-                    "recipes":["thaumcraft:Goggles","thaumcraft:mechanism_simple","thaumcraft:mechanism_complex",
-                               "thaumcraft:mirrorglass","thaumcraft:ironplate"]
+                    "recipes":["thaumcraft:goggles","thaumcraft:mechanism_simple","thaumcraft:mechanism_complex",
+                               "thaumcraft:mirrored_glass","thaumcraft:plate_iron"]
                 }
             ]
         },
@@ -29,7 +29,7 @@
                 },
                 {
                     "text": "research.HUNGRYCHEST.stage.2",  
-                    "recipes": ["thaumcraft:HungryChest"]
+                    "recipes": ["thaumcraft:hungry_chest"]
                 }
             ]
         },
@@ -47,7 +47,7 @@
                 },
                 {
                     "text": "research.LEVITATOR.stage.2",  
-                    "recipes": ["thaumcraft:Levitator"]
+                    "recipes": ["thaumcraft:levitator"]
                 }
             ]
         },
@@ -66,7 +66,7 @@
                 },
                 {
                     "text": "research.INFERNALFURNACE.stage.2",  
-                    "recipes": ["thaumcraft:infernalfurnace","thaumcraft:triplemeattreatfake"]
+                    "recipes": ["thaumcraft:infernal_furnace","thaumcraft:triple_meat_treat_fake"]
                 }
             ],
             "addenda": [
@@ -83,11 +83,11 @@
                 {
                     "text": "research.BELLOWS.stage.1",  
                     "required_knowledge":["OBSERVATION;GOLEMANCY;1"],  
-                    "required_item":["thaumcraft:crystal_essence;1;0;{Aspects:[{amount:1,key:'aer'}]}"]
+                    "required_item":["thaumcraft:crystal_essence;1;{Aspects:[{amount:1,key:'aer'}]}"]
                 },
                 {
                     "text": "research.BELLOWS.stage.2",  
-                    "recipes": ["thaumcraft:Bellows"]
+                    "recipes": ["thaumcraft:bellows"]
                 }
             ]
         },
@@ -106,7 +106,7 @@
                 },
                 {
                     "text": "research.REDSTONERELAY.stage.2",  
-                    "recipes": ["thaumcraft:RedstoneRelay"]
+                    "recipes": ["thaumcraft:redstone_relay"]
                 }
             ]
         },
@@ -125,7 +125,7 @@
                 },
                 {
                     "text": "research.ARCANEEAR.stage.2",  
-                    "recipes": ["thaumcraft:ArcaneEar","thaumcraft:ArcaneEarToggle"]
+                    "recipes": ["thaumcraft:arcane_ear","thaumcraft:arcane_ear_toggle"]
                 }
             ]
         },
@@ -163,7 +163,7 @@
                 },
                 {
                     "text": "research.MIRROR.stage.2",  
-                    "recipes": ["thaumcraft:Mirror"]
+                    "recipes": ["thaumcraft:mirror"]
                 }
             ]
         },
@@ -180,7 +180,7 @@
                 },
                 {
                     "text": "research.MIRRORHAND.stage.2",  
-                    "recipes": ["thaumcraft:MirrorHand"]
+                    "recipes": ["thaumcraft:hand_mirror"]
                 }
             ]
         },
@@ -197,14 +197,14 @@
                 },
                 {
                     "text": "research.MIRRORESSENTIA.stage.2",  
-                    "recipes": ["thaumcraft:MirrorEssentia"]
+                    "recipes": ["thaumcraft:mirror_essentia"]
                 }
             ]
         },
         {
         "key": "ARCANELAMP",    
         "name": "research.ARCANELAMP.title",
-        "icons": [ "thaumcraft:lamp_arcane" ],
+        "icons": [ "thaumcraft:arcane_lamp" ],
         "category": "ARTIFICE", "location": [ -3,0 ], 
         "parents": [ "BASEARTIFICE" ],       
         "stages": [
@@ -215,7 +215,7 @@
                 },
                 {
                     "text": "research.ARCANELAMP.stage.2",  
-                    "recipes": ["thaumcraft:ArcaneLamp"]
+                    "recipes": ["thaumcraft:arcane_lamp"]
                 }
             ]
         },
@@ -230,11 +230,11 @@
                     "text": "research.LAMPGROWTH.stage.1",
                     "required_knowledge":["THEORY;ARTIFICE;1"],
                     "required_research":["!herba"],
-                    "required_item":["minecraft:dye;1;15"]
+                    "required_item":["minecraft:bone_meal"]
                 },
                 {
                     "text": "research.LAMPGROWTH.stage.2",  
-                    "recipes": ["thaumcraft:LampGrowth"]
+                    "recipes": ["thaumcraft:lamp_growth"]
                 }
             ]
         },
@@ -253,7 +253,7 @@
                 },
                 {
                     "text": "research.LAMPFERTILITY.stage.2",  
-                    "recipes": ["thaumcraft:LampFertility"]
+                    "recipes": ["thaumcraft:lamp_fertility"]
                 }
             ]
         },      
@@ -269,13 +269,13 @@
             },
             {
                 "text": "research.ARCANEPATTERNCRAFTER.stage.2",  
-                "recipes": ["thaumcraft:patterncrafter"]
+                "recipes": ["thaumcraft:pattern_crafter"]
             }
          ]
         },
         {
         "key": "BASICTURRET", "name": "research.BASICTURRET.title",
-        "icons": [ "thaumcraft:turret;1;0" ], "category": "ARTIFICE", "location": [ -2, -4 ], 
+        "icons": [ "thaumcraft:turret_crossbow" ], "category": "ARTIFICE", "location": [ -2, -4 ], 
         "parents": [ "MINDCLOCKWORK","ARCANEEAR" ], 
         "stages": [  
             {
@@ -285,13 +285,13 @@
             },
             {
                 "text": "research.BASICTURRET.stage.2",  
-                "recipes": ["thaumcraft:AutomatedCrossbow","thaumcraft:activatorrail"]
+                "recipes": ["thaumcraft:turret_crossbow","thaumcraft:activatorrail"]
             }
             ]
         },
         {
         "key": "ADVANCEDTURRET", "name": "research.ADVANCEDTURRET.title",
-        "icons": [ "thaumcraft:turret;1;1" ], "category": "ARTIFICE", "location": [ -4, -4 ], 
+        "icons": [ "thaumcraft:turret_crossbow_advanced" ], "category": "ARTIFICE", "location": [ -4, -4 ], 
         "parents": [ "MINDBIOTHAUMIC","BASICTURRET" ], 
         "stages": [            
             {
@@ -300,13 +300,13 @@
             },
             {
                 "text": "research.ADVANCEDTURRET.stage.2",  
-                "recipes": ["thaumcraft:AdvancedCrossbow"]
+                "recipes": ["thaumcraft:turret_crossbow_advanced"]
             }
         ]
         },
         {
         "key": "ARCANEBORE", "name": "research.ARCANEBORE.title",
-        "icons": [ "thaumcraft:turret;1;2" ], "category": "ARTIFICE", "location": [ -3, -6 ], 
+        "icons": [ "thaumcraft:arcane_bore" ], "category": "ARTIFICE", "location": [ -3, -6 ], 
         "parents": [ "INFUSION", "BASICTURRET", "FOCUSBREAK" ], 
         "stages": [    
             {
@@ -315,7 +315,7 @@
             },
             {
                 "text": "research.ARCANEBORE.stage.2",  
-                "recipes": ["thaumcraft:ArcaneBore"]
+                "recipes": ["thaumcraft:arcane_bore"]
             }
         ]
         },
@@ -328,11 +328,11 @@
             {
                 "text": "research.GRAPPLEGUN.stage.1",
                 "required_knowledge":["THEORY;ARTIFICE;1","THEORY;BASICS;1"],
-                "required_item":["thaumcraft:nugget;1;10"]
+                "required_item":["thaumcraft:quicksilver"]
             },
             {
                 "text": "research.GRAPPLEGUN.stage.2",  
-                "recipes": ["thaumcraft:GrappleGunTip","thaumcraft:GrappleGunSpool","thaumcraft:GrappleGun"]
+                "recipes": ["thaumcraft:grapple_gun_tip","thaumcraft:grapple_gun_spool","thaumcraft:grapple_gun"]
             }
         ]
         },
@@ -351,7 +351,7 @@
                 },
                 {
                     "text": "research.VISGENERATOR.stage.2",  
-                    "recipes": ["thaumcraft:VisGenerator"]
+                    "recipes": ["thaumcraft:vis_generator"]
                 }
             ]
         }

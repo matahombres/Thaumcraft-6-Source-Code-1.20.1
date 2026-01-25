@@ -1,0 +1,14 @@
+{
+  "_comment": "Display recipe for ancient infusion altar multiblock structure",
+  "type": "thaumcraft:display",
+  "result": {
+    "item": "thaumcraft:infusion_matrix"
+  },
+  "ingredients": [
+    { "item": "thaumcraft:infusion_matrix" },
+    { "item": "thaumcraft:pedestal_ancient" },
+    { "item": "thaumcraft:pedestal_ancient" },
+    { "item": "thaumcraft:pedestal_ancient" },
+    { "item": "thaumcraft:pedestal_ancient" }
+  ]
+}

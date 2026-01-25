@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:crucible",
-  "research": "PRIMALCHARM",
+  "research": "PRIMPEARL",
   "catalyst": {
     "item": "thaumcraft:shard_order"
   },

@@ -13,13 +13,13 @@
   ],
   "key": {
     "T": {
-      "item": "thaumcraft:tube"
+      "item": "thaumcraft:tube_normal"
     },
     "R": {
       "item": "thaumcraft:morphic_resonator"
     },
     "C": {
-      "item": "thaumcraft:metal_alchemical"
+      "item": "thaumcraft:alchemical_brass_block"
     },
     "P": {
       "item": "thaumcraft:mechanism_simple"

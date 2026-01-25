@@ -3,7 +3,7 @@
   "research": "FOCUSADVANCED",
   "instability": 3,
   "center": {
-    "item": "thaumcraft:focus_basic"
+    "item": "thaumcraft:focus_blank"
   },
   "ingredients": [
     {

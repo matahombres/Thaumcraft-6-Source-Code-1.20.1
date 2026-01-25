@@ -490,12 +490,23 @@ public class EntityThaumcraftGolem extends EntityOwnedConstruct implements IGole
 
     public void setFollowingOwner(boolean following) {
         byte flags = getFlags();
+        boolean wasFollowing = (flags & FLAG_FOLLOWING) != 0;
         if (following) {
             flags |= FLAG_FOLLOWING;
         } else {
             flags &= ~FLAG_FOLLOWING;
         }
         setFlags(flags);
+        
+        // Rebuild AI if follow state changed (server-side only)
+        if (!level().isClientSide && wasFollowing != following) {
+            // Clear current task when switching modes
+            if (task != null) {
+                task.setReserved(false);
+                task = null;
+            }
+            rebuildAI();
+        }
     }
 
     // ==================== Tasks ====================

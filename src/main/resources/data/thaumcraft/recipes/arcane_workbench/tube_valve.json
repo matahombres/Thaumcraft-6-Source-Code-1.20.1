@@ -4,7 +4,7 @@
   "vis": 10,
   "ingredients": [
     {
-      "item": "thaumcraft:tube"
+      "item": "thaumcraft:tube_normal"
     },
     {
       "item": "minecraft:lever"

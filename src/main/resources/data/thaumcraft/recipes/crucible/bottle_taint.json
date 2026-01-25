@@ -2,7 +2,7 @@
   "type": "thaumcraft:crucible",
   "research": "BOTTLETAINT",
   "catalyst": {
-    "item": "thaumcraft:phial_essentia",
+    "item": "thaumcraft:phial_filled",
     "nbt": "{aspect:\"vitium\"}"
   },
   "aspects": {

@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:infusion",
-  "research": "VERDANTCHARM",
+  "research": "VERDANTCHARMS",
   "instability": 2,
   "input": {
     "item": "minecraft:golden_carrot"

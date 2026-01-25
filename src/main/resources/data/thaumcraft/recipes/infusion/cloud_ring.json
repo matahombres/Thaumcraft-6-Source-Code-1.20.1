@@ -3,11 +3,11 @@
   "research": "CLOUDRING",
   "instability": 1,
   "center": {
-    "item": "thaumcraft:baubles_ring"
+    "item": "minecraft:gold_ingot"
   },
   "ingredients": [
     {
-      "item": "thaumcraft:crystal_essence_aer"
+      "item": "thaumcraft:crystal_essence"
     },
     {
       "item": "minecraft:feather"

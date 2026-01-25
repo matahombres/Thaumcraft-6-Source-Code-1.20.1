@@ -3,7 +3,7 @@
   "research": "CURIOSITYBAND",
   "instability": 5,
   "center": {
-    "item": "thaumcraft:baubles_charm"
+    "item": "minecraft:gold_ingot"
   },
   "ingredients": [
     {
@@ -37,6 +37,6 @@
     "vinculum": 100
   },
   "result": {
-    "item": "thaumcraft:band_curiosity"
+    "item": "thaumcraft:curiosity_band"
   }
 }

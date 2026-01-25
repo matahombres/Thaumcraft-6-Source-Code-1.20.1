@@ -26,7 +26,7 @@ import thaumcraft.common.lib.capabilities.ThaumcraftCapabilities;
 import thaumcraft.api.items.IRechargable;
 import thaumcraft.common.lib.enchantment.EnumInfusionEnchantment;
 import thaumcraft.init.ModRecipeSerializers;
-import top.theillusivec4.curios.api.CuriosApi;
+import thaumcraft.common.lib.compat.CuriosCompat;
 
 public class InfusionEnchantmentRecipe extends InfusionRecipeType {
     
@@ -77,9 +77,20 @@ public class InfusionEnchantmentRecipe extends InfusionRecipeType {
                 }
             }
             
-            if (!cool && CuriosApi.getCurio(central).isPresent()) {
-                if (enchantment.toolClasses.contains("bauble")) {
-                    cool = true;
+            // Check if item is a Curios-compatible bauble
+            if (!cool && enchantment.toolClasses.contains("bauble")) {
+                // Items with ICurioItem interface or in curios slot identifiers are baubles
+                // For simplicity, we check if it can go in any curios slot
+                if (CuriosCompat.isCuriosLoaded()) {
+                    // Check if this is a curio-capable item
+                    try {
+                        Class<?> curioInterface = Class.forName("top.theillusivec4.curios.api.type.capability.ICurioItem");
+                        if (curioInterface.isAssignableFrom(central.getItem().getClass())) {
+                            cool = true;
+                        }
+                    } catch (ClassNotFoundException ignored) {
+                        // Curios not available
+                    }
                 }
             }
             

@@ -9,19 +9,19 @@
   ],
   "key": {
     "P": {
-      "item": "thaumcraft:phial"
+      "item": "thaumcraft:phial_empty"
     },
     "V": {
       "item": "thaumcraft:tube_valve"
     },
     "T": {
-      "item": "thaumcraft:tube"
+      "item": "thaumcraft:tube_normal"
     },
     "W": {
       "item": "thaumcraft:plate_iron"
     },
     "R": {
-      "item": "thaumcraft:tube_restrict"
+      "item": "thaumcraft:tube_restricted"
     }
   },
   "result": {

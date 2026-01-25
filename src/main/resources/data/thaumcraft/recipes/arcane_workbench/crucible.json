@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:arcane_workbench_shaped",
-  "research": "BASICALCHEMY",
+  "research": "BASEALCHEMY",
   "vis": 25,
   "crystals": {
     "aqua": 5,

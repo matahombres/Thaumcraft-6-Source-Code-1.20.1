@@ -22,6 +22,12 @@ public class FocusEngine {
     /** Registry of all focus node factories by key */
     private static final Map<String, Supplier<? extends FocusNode>> FOCUS_REGISTRY = new HashMap<>();
     
+    /** 
+     * Legacy compatible map - provides direct access to focus element classes.
+     * Keys are focus keys (e.g., "thaumcraft.FIRE"), values are the FocusNode classes.
+     */
+    public static final Map<String, Class<? extends FocusNode>> elements = new HashMap<>();
+    
     /** Color mappings for focus elements (for visual effects) */
     private static final Map<String, Integer> ELEMENT_COLORS = new HashMap<>();
     
@@ -40,6 +46,11 @@ public class FocusEngine {
      */
     public static void registerFocusNode(String key, Supplier<? extends FocusNode> factory) {
         FOCUS_REGISTRY.put(key, factory);
+        // Also update legacy elements map
+        FocusNode sample = factory.get();
+        if (sample != null) {
+            elements.put(key, sample.getClass());
+        }
     }
     
     /**
@@ -48,6 +59,27 @@ public class FocusEngine {
     public static void registerFocusNode(String key, Supplier<? extends FocusNode> factory, int color) {
         FOCUS_REGISTRY.put(key, factory);
         ELEMENT_COLORS.put(key, color);
+        // Also update legacy elements map
+        FocusNode sample = factory.get();
+        if (sample != null) {
+            elements.put(key, sample.getClass());
+        }
+    }
+    
+    /**
+     * Register a focus node type using its class directly.
+     * @param key The unique key for this focus type
+     * @param nodeClass The class of the focus node
+     */
+    public static void registerFocusNode(String key, Class<? extends FocusNode> nodeClass) {
+        elements.put(key, nodeClass);
+        FOCUS_REGISTRY.put(key, () -> {
+            try {
+                return nodeClass.getDeclaredConstructor().newInstance();
+            } catch (Exception e) {
+                return null;
+            }
+        });
     }
     
     /**
@@ -170,6 +202,24 @@ public class FocusEngine {
     public static void clearRegistry() {
         FOCUS_REGISTRY.clear();
         ELEMENT_COLORS.clear();
+        elements.clear();
+    }
+    
+    /**
+     * Get the icon texture for a focus element.
+     * @param key The focus element key
+     * @return ResourceLocation for the icon texture
+     */
+    public static ResourceLocation getElementIcon(String key) {
+        // Icons are stored in textures/foci/ directory
+        // Key format: "thaumcraft.FIRE" -> texture: "thaumcraft:textures/foci/fire.png"
+        String[] parts = key.split("\\.");
+        if (parts.length >= 2) {
+            String modid = parts[0].toLowerCase();
+            String name = parts[1].toLowerCase();
+            return new ResourceLocation(modid, "textures/foci/" + name + ".png");
+        }
+        return new ResourceLocation("thaumcraft", "textures/foci/unknown.png");
     }
     
     /**

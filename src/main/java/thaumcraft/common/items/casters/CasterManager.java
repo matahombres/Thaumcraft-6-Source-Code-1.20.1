@@ -15,14 +15,11 @@ import thaumcraft.api.potions.PotionVisExhaust;
 import thaumcraft.common.lib.potions.PotionInfectiousVisExhaust;
 import thaumcraft.init.ModEffects;
 import thaumcraft.init.ModSounds;
-import top.theillusivec4.curios.api.CuriosApi;
-import top.theillusivec4.curios.api.type.capability.ICuriosItemHandler;
+import thaumcraft.common.lib.compat.CuriosCompat;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * CasterManager - Manages caster gauntlet functionality.
@@ -53,25 +50,16 @@ public class CasterManager {
             return 0.0f;
         }
         
-        AtomicInteger total = new AtomicInteger(0);
+        int total = 0;
         
-        // Check Curios slots
-        CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
-            handler.getCurios().forEach((slotId, slotHandler) -> {
-                for (int i = 0; i < slotHandler.getSlots(); i++) {
-                    ItemStack stack = slotHandler.getStacks().getStackInSlot(i);
-                    if (!stack.isEmpty() && stack.getItem() instanceof IVisDiscountGear gear) {
-                        total.addAndGet(gear.getVisDiscount(stack, player));
-                    }
-                }
-            });
-        });
+        // Check Curios slots (safely using compat layer)
+        total += CuriosCompat.getVisDiscountFromCurios(player);
         
         // Check armor slots (0=feet, 1=legs, 2=chest, 3=head)
         for (int slot = 0; slot < 4; slot++) {
             ItemStack armorStack = player.getInventory().armor.get(slot);
             if (!armorStack.isEmpty() && armorStack.getItem() instanceof IVisDiscountGear gear) {
-                total.addAndGet(gear.getVisDiscount(armorStack, player));
+                total += gear.getVisDiscount(armorStack, player);
             }
         }
         
@@ -82,11 +70,11 @@ public class CasterManager {
         if (exhaustEffect != null || infectiousEffect != null) {
             int level1 = exhaustEffect != null ? exhaustEffect.getAmplifier() : 0;
             int level2 = infectiousEffect != null ? infectiousEffect.getAmplifier() : 0;
-            total.addAndGet(-(Math.max(level1, level2) + 1) * 10);
+            total -= (Math.max(level1, level2) + 1) * 10;
         }
         
         // Cap at 50% discount
-        return Math.min(total.get() / 100.0f, 0.5f);
+        return Math.min(total / 100.0f, 0.5f);
     }
     
     /**
@@ -123,32 +111,8 @@ public class CasterManager {
         Map<Integer, Integer> pouchLocations = new HashMap<>(); // pouchId -> slot
         int pouchCount = 0;
         
-        // Check Curios slots for focus pouches
-        AtomicInteger atomicPouchCount = new AtomicInteger(0);
-        CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
-            handler.getCurios().forEach((slotId, slotHandler) -> {
-                for (int i = 0; i < slotHandler.getSlots(); i++) {
-                    ItemStack stack = slotHandler.getStacks().getStackInSlot(i);
-                    if (!stack.isEmpty() && stack.getItem() instanceof ItemFocusPouch pouch) {
-                        int pouchId = atomicPouchCount.incrementAndGet();
-                        // Use negative slot numbers for Curios slots
-                        pouchLocations.put(pouchId, -(slotId.hashCode() * 100 + i + 1));
-                        
-                        NonNullList<ItemStack> inv = pouch.getInventory(stack);
-                        for (int q = 0; q < inv.size(); q++) {
-                            ItemStack focusStack = inv.get(q);
-                            if (!focusStack.isEmpty() && focusStack.getItem() instanceof ItemFocus focus) {
-                                String sortKey = focus.getSortingHelper(focusStack);
-                                if (sortKey != null) {
-                                    fociMap.put(sortKey, q + pouchId * 1000);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        });
-        pouchCount = atomicPouchCount.get();
+        // Note: Focus pouches in Curios slots are not currently supported
+        // Players should keep focus pouches in their main inventory for focus swapping
         
         // Check player inventory for foci and focus pouches
         for (int slot = 0; slot < 36; slot++) {
@@ -244,29 +208,12 @@ public class CasterManager {
      * Fetch a focus from a pouch, removing it from the pouch.
      */
     private static ItemStack fetchFocusFromPouch(Player player, int focusSlot, int pouchSlot) {
-        ItemStack pouch;
-        boolean isCuriosSlot = pouchSlot < 0;
-        
-        if (isCuriosSlot) {
-            // Get from Curios - pouchSlot encodes slot info
-            AtomicReference<ItemStack> pouchRef = new AtomicReference<>(ItemStack.EMPTY);
-            CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
-                // Decode the slot - this is a simplified approach
-                handler.getCurios().forEach((slotId, slotHandler) -> {
-                    for (int i = 0; i < slotHandler.getSlots(); i++) {
-                        ItemStack stack = slotHandler.getStacks().getStackInSlot(i);
-                        if (!stack.isEmpty() && stack.getItem() instanceof ItemFocusPouch) {
-                            if (-(slotId.hashCode() * 100 + i + 1) == pouchSlot) {
-                                pouchRef.set(stack);
-                            }
-                        }
-                    }
-                });
-            });
-            pouch = pouchRef.get();
-        } else {
-            pouch = player.getInventory().items.get(pouchSlot);
+        // Negative slot numbers were used for Curios slots (no longer supported)
+        if (pouchSlot < 0 || pouchSlot >= player.getInventory().items.size()) {
+            return ItemStack.EMPTY;
         }
+        
+        ItemStack pouch = player.getInventory().items.get(pouchSlot);
         
         if (pouch.isEmpty() || !(pouch.getItem() instanceof ItemFocusPouch focusPouch)) {
             return ItemStack.EMPTY;
@@ -286,11 +233,8 @@ public class CasterManager {
         inv.set(focusSlot, ItemStack.EMPTY);
         focusPouch.setInventory(pouch, inv);
         
-        if (!isCuriosSlot) {
-            player.getInventory().items.set(pouchSlot, pouch);
-            player.getInventory().setChanged();
-        }
-        // Note: Curios slots auto-sync
+        player.getInventory().items.set(pouchSlot, pouch);
+        player.getInventory().setChanged();
         
         return result;
     }
@@ -301,28 +245,13 @@ public class CasterManager {
     private static boolean addFocusToPouch(Player player, ItemStack focus, Map<Integer, Integer> pouchLocations) {
         for (Map.Entry<Integer, Integer> entry : pouchLocations.entrySet()) {
             int pouchSlot = entry.getValue();
-            ItemStack pouch;
-            boolean isCuriosSlot = pouchSlot < 0;
             
-            if (isCuriosSlot) {
-                // Get from Curios
-                AtomicReference<ItemStack> pouchRef = new AtomicReference<>(ItemStack.EMPTY);
-                CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
-                    handler.getCurios().forEach((slotId, slotHandler) -> {
-                        for (int i = 0; i < slotHandler.getSlots(); i++) {
-                            ItemStack stack = slotHandler.getStacks().getStackInSlot(i);
-                            if (!stack.isEmpty() && stack.getItem() instanceof ItemFocusPouch) {
-                                if (-(slotId.hashCode() * 100 + i + 1) == pouchSlot) {
-                                    pouchRef.set(stack);
-                                }
-                            }
-                        }
-                    });
-                });
-                pouch = pouchRef.get();
-            } else {
-                pouch = player.getInventory().items.get(pouchSlot);
+            // Negative slot numbers were used for Curios slots (no longer supported)
+            if (pouchSlot < 0 || pouchSlot >= player.getInventory().items.size()) {
+                continue;
             }
+            
+            ItemStack pouch = player.getInventory().items.get(pouchSlot);
             
             if (pouch.isEmpty() || !(pouch.getItem() instanceof ItemFocusPouch focusPouch)) {
                 continue;
@@ -334,10 +263,8 @@ public class CasterManager {
                     inv.set(q, focus.copy());
                     focusPouch.setInventory(pouch, inv);
                     
-                    if (!isCuriosSlot) {
-                        player.getInventory().items.set(pouchSlot, pouch);
-                        player.getInventory().setChanged();
-                    }
+                    player.getInventory().items.set(pouchSlot, pouch);
+                    player.getInventory().setChanged();
                     return true;
                 }
             }

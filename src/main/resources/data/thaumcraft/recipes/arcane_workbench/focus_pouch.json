@@ -1,5 +1,5 @@
 {
-  "type": "thaumcraft:arcane_workbench",
+  "type": "thaumcraft:arcane_workbench_shaped",
   "research": "FOCUSPOUCH",
   "vis": 25,
   "pattern": [
@@ -15,7 +15,7 @@
       "tag": "forge:ingots/gold"
     },
     "B": {
-      "item": "thaumcraft:baubles_amulet"
+      "item": "minecraft:gold_ingot"
     }
   },
   "result": {

@@ -15,7 +15,7 @@
     "B": {"tag": "thaumcraft:plates/brass"},
     "Q": {"item": "minecraft:dispenser"},
     "I": {"tag": "thaumcraft:plates/iron"},
-    "G": {"item": "thaumcraft:metal_alchemical"}
+    "G": {"item": "thaumcraft:alchemical_brass_block"}
   },
   "result": {
     "item": "thaumcraft:essentia_input"

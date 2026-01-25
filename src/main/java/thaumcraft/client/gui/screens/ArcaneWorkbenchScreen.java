@@ -12,6 +12,7 @@ import thaumcraft.Thaumcraft;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
 import thaumcraft.api.crafting.IArcaneRecipe;
+import thaumcraft.common.items.casters.CasterManager;
 import thaumcraft.common.lib.crafting.ThaumcraftCraftingManager;
 import thaumcraft.common.menu.ArcaneWorkbenchMenu;
 import thaumcraft.common.tiles.crafting.TileArcaneWorkbench;
@@ -78,7 +79,9 @@ public class ArcaneWorkbenchScreen extends AbstractContainerScreen<ArcaneWorkben
         if (recipe != null) {
             crystals = recipe.getCrystals();
             visCost = recipe.getVis();
-            // TODO: Apply vis discount from player gear
+            // Apply vis discount from player gear (robes, baubles, etc.)
+            float discount = CasterManager.getTotalVisDiscount(this.minecraft.player);
+            visCost = Math.max(1, (int)(visCost * (1.0f - discount)));
         }
         
         // Draw crystal slot highlights if recipe requires crystals
@@ -120,10 +123,11 @@ public class ArcaneWorkbenchScreen extends AbstractContainerScreen<ArcaneWorkben
         int discount = 0;
         
         if (recipe != null) {
-            visCost = recipe.getVis();
-            // TODO: Calculate discount from player gear
-            // discount = (int)(CasterManager.getTotalVisDiscount(player) * 100);
-            // visCost = (int)(visCost * (1.0f - discount/100.0f));
+            int baseVisCost = recipe.getVis();
+            // Calculate vis discount from player gear (robes, baubles, etc.)
+            float discountPct = CasterManager.getTotalVisDiscount(this.minecraft.player);
+            discount = (int)(discountPct * 100);
+            visCost = Math.max(1, (int)(baseVisCost * (1.0f - discountPct)));
         }
         
         // Draw vis available text (right side, scaled down)

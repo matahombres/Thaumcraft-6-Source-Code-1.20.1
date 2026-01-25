@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:infusion",
-  "research": "VOIDSEERCHARM",
+  "research": "VOIDSEERPEARL",
   "instability": 4,
   "input": {
     "item": "minecraft:ender_eye"

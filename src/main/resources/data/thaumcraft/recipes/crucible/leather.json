@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:crucible",
-  "research": "HEDGEALCHEMY@1",
+  "research": "HEDGEALCHEMY",
   "catalyst": {
     "item": "minecraft:rotten_flesh"
   },

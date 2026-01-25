@@ -15,6 +15,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import thaumcraft.api.ThaumcraftApi;
 import thaumcraft.api.capabilities.IPlayerKnowledge;
 import thaumcraft.api.capabilities.ThaumcraftCapabilities;
 import thaumcraft.api.items.IScribeTools;
@@ -135,9 +136,8 @@ public class TileResearchTable extends TileThaumcraftInventory implements MenuPr
             
             ResearchCategory rc = ResearchCategories.getResearchCategory(cat);
             if (rc != null) {
-                // TODO: Add knowledge via ThaumcraftApi.internalMethods when implemented
-                // For now, just log what would be granted
-                // ThaumcraftApi.internalMethods.addKnowledge(player, IPlayerKnowledge.EnumKnowledgeType.THEORY, rc, tot);
+                // Grant theory knowledge to the player
+                ThaumcraftApi.internalMethods.addKnowledge(player, IPlayerKnowledge.EnumKnowledgeType.THEORY, rc, tot);
             }
             i++;
         }

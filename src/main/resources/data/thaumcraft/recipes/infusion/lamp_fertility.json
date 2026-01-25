@@ -13,7 +13,7 @@
       "item": "minecraft:wheat"
     },
     {
-      "item": "thaumcraft:crystal_essence_ignis"
+      "item": "thaumcraft:crystal_essence"
     },
     {
       "tag": "forge:ingots/gold"
@@ -22,7 +22,7 @@
       "item": "minecraft:carrot"
     },
     {
-      "item": "thaumcraft:crystal_essence_ignis"
+      "item": "thaumcraft:crystal_essence"
     }
   ],
   "aspects": {

@@ -679,41 +679,140 @@ public class ResearchManager {
     
     /**
      * Parse an item stack from a JSON string.
-     * Format: "modid:itemname" or "modid:itemname;count" or "modid:itemname;count;{nbt}"
+     * Supports multiple formats:
+     * - "modid:itemname"
+     * - "modid:itemname;count"
+     * - "modid:itemname;count;meta" (legacy, meta is ignored in 1.20.1)
+     * - "modid:itemname;count;meta;{nbt}"
+     * - "modid:itemname;count;{nbt}"
      */
     public static ItemStack parseJSONtoItemStack(String entry) {
         if (entry == null || entry.isEmpty()) return ItemStack.EMPTY;
         
+        // Handle single quotes in NBT
+        entry = entry.replace("'", "\"");
+        
         String[] split = entry.split(";");
-        String name = split[0];
+        String name = split[0].trim();
         int count = 1;
         String nbt = null;
         
+        // Parse count and NBT from remaining segments
         for (int i = 1; i < split.length; i++) {
-            if (split[i].startsWith("{")) {
-                nbt = split[i].replace("'", "\"");
+            String segment = split[i].trim();
+            if (segment.startsWith("{")) {
+                // This is NBT data - collect the rest of the string
+                StringBuilder nbtBuilder = new StringBuilder();
+                for (int j = i; j < split.length; j++) {
+                    if (j > i) nbtBuilder.append(";");
+                    nbtBuilder.append(split[j]);
+                }
+                nbt = nbtBuilder.toString();
                 break;
             }
             try {
-                count = Integer.parseInt(split[i]);
+                int value = Integer.parseInt(segment);
+                // First numeric value after name is count, second would be old metadata (ignored)
+                if (count == 1) {
+                    count = Math.max(1, value);
+                }
+                // Ignore additional numeric values (old metadata system)
             } catch (NumberFormatException ignored) {}
         }
+        
+        // Ensure name is lowercase (1.20+ requires lowercase ResourceLocations)
+        name = name.toLowerCase();
         
         try {
             ResourceLocation itemId = new ResourceLocation(name);
             Item item = ForgeRegistries.ITEMS.getValue(itemId);
-            if (item != null) {
+            
+            if (item == null || item == net.minecraft.world.item.Items.AIR) {
+                // Item not found - try fallback mappings for common old names
+                String mappedName = LEGACY_ITEM_MAPPINGS.get(name);
+                if (mappedName != null) {
+                    itemId = new ResourceLocation(mappedName);
+                    item = ForgeRegistries.ITEMS.getValue(itemId);
+                }
+            }
+            
+            if (item != null && item != net.minecraft.world.item.Items.AIR) {
                 ItemStack stack = new ItemStack(item, count);
-                if (nbt != null) {
-                    stack.setTag(TagParser.parseTag(nbt));
+                if (nbt != null && !nbt.isEmpty()) {
+                    try {
+                        stack.setTag(TagParser.parseTag(nbt));
+                    } catch (Exception nbtEx) {
+                        Thaumcraft.LOGGER.debug("Failed to parse NBT for {}: {}", entry, nbtEx.getMessage());
+                    }
                 }
                 return stack;
+            } else {
+                // Only warn once per unknown item to avoid log spam
+                if (!warnedItems.contains(name)) {
+                    warnedItems.add(name);
+                    Thaumcraft.LOGGER.debug("Unknown item in research: {}", name);
+                }
             }
         } catch (Exception e) {
             Thaumcraft.LOGGER.warn("Failed to parse item stack: {}", entry, e);
         }
         
         return ItemStack.EMPTY;
+    }
+    
+    // Track items we've already warned about to avoid log spam
+    private static final Set<String> warnedItems = new HashSet<>();
+    
+    // Fallback mappings for legacy item names that might still be in JSON files
+    private static final Map<String, String> LEGACY_ITEM_MAPPINGS = new HashMap<>();
+    static {
+        // Old generic items mapped to specific variants
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:ingot", "thaumcraft:thaumium_ingot");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:plate", "thaumcraft:plate_brass");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:nugget", "thaumcraft:brass_nugget");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:metal", "thaumcraft:thaumium_ingot");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:mind", "thaumcraft:brain_clockwork");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:turret", "thaumcraft:turret_placer_basic");
+        
+        // Block/item name variations
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_aer", "thaumcraft:vis_crystal");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_aqua", "thaumcraft:vis_crystal");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_ignis", "thaumcraft:vis_crystal");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_terra", "thaumcraft:vis_crystal");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_ordo", "thaumcraft:vis_crystal");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_perditio", "thaumcraft:vis_crystal");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:amulet_vis", "thaumcraft:amulet_vis_crafted");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:seal", "thaumcraft:blank_seal");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:focus_basic", "thaumcraft:focus_blank");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:focus_greater", "thaumcraft:focus_advanced");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:biothaumic_mind", "thaumcraft:brain_biothaumic");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:clockwork_mind", "thaumcraft:brain_clockwork");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crimson_rites", "thaumcraft:thaumonomicon");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:module", "thaumcraft:golem_module_vision");
+        
+        // Block name variations
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:sapling_greatwood", "thaumcraft:greatwood_sapling");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:sapling_silverwood", "thaumcraft:silverwood_sapling");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:log_greatwood", "thaumcraft:greatwood_log");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:log_silverwood", "thaumcraft:silverwood_log");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:tube", "thaumcraft:tube_normal");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:smelter_basic", "thaumcraft:smelter");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:arcane_lamp", "thaumcraft:lamp_arcane");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:mirror", "thaumcraft:mirror_item");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:paving_barrier", "thaumcraft:paving_stone_barrier");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:paving_travel", "thaumcraft:paving_stone_travel");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:stone_ancient", "thaumcraft:ancient_stone");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:stone_eldritch_tile", "thaumcraft:eldritch_stone_tile");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:arcane_bore", "thaumcraft:turret_placer_bore");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:turret_crossbow", "thaumcraft:turret_placer_basic");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:turret_crossbow_advanced", "thaumcraft:turret_placer_advanced");
+        
+        // Placeholder items for research requirements (use diamond as proxy for "any enchanted item")
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:enchanted_placeholder", "minecraft:enchanted_book");
+        
+        // Minecraft items that changed names
+        LEGACY_ITEM_MAPPINGS.put("minecraft:dye", "minecraft:white_dye");
+        LEGACY_ITEM_MAPPINGS.put("minecraft:hardened_clay", "minecraft:terracotta");
     }
     
     /**

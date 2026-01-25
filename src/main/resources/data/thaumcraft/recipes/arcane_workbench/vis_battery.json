@@ -16,7 +16,7 @@
     "SSS"
   ],
   "key": {
-    "S": {"item": "thaumcraft:slab_arcane_stone"},
+    "S": {"item": "thaumcraft:arcane_stone_slab"},
     "R": {"item": "thaumcraft:vis_resonator"}
   },
   "result": {

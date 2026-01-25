@@ -14,7 +14,7 @@
   "key": {
     "I": {"tag": "thaumcraft:plates/iron"},
     "A": {"tag": "forge:gems/amber"},
-    "B": {"item": "thaumcraft:mind_clockwork"}
+    "B": {"item": "thaumcraft:brain_clockwork"}
   },
   "result": {
     "item": "thaumcraft:brain_box"

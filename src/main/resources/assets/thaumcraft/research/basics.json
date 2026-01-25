@@ -12,17 +12,17 @@
                 {   
                     "text": "research.FIRSTSTEPS.stage.1", 
                     "required_craft":["thaumcraft:arcane_workbench"], 
-                    "recipes": ["thaumcraft:salismundusfake"]
+                    "recipes": ["thaumcraft:salis_mundus_fake"]
                 },
                 {
                     "text": "research.FIRSTSTEPS.stage.2",            
                     "required_craft":["thaumcraft:thaumometer"], 
                     "required_knowledge":["OBSERVATION;BASICS;1"], 
-                    "recipes": ["thaumcraft:thaumometer","thaumcraft:salismundusfake"]
+                    "recipes": ["thaumcraft:thaumometer","thaumcraft:salis_mundus_fake"]
                 },
                 {
                     "text": "research.FIRSTSTEPS.stage.3", 
-                    "recipes": ["thaumcraft:thaumometer","thaumcraft:salismundusfake","thaumcraft:StoneArcane","thaumcraft:BrickArcane"]
+                    "recipes": ["thaumcraft:thaumometer","thaumcraft:salis_mundus_fake","thaumcraft:arcane_stone","thaumcraft:arcane_stone_brick"]
                 }
             ]
         },
@@ -45,11 +45,11 @@
                 {
                     "text": "research.THEORYRESEARCH.stage.1",                     
                     "required_craft":["thaumcraft:scribing_tools","thaumcraft:research_table"], 
-                    "recipes": ["thaumcraft:tablewood","thaumcraft:inkwell"]
+                    "recipes": ["thaumcraft:table_wood","thaumcraft:scribing_tools"]
                 },
                 {
                     "text": "research.THEORYRESEARCH.stage.2", 
-                    "recipes": ["thaumcraft:tablewood","thaumcraft:inkwell"]
+                    "recipes": ["thaumcraft:table_wood","thaumcraft:scribing_tools"]
                 }
             ]
         },
@@ -73,7 +73,7 @@
             "icons": [ "thaumcraft:textures/research/r_warp.png" ],
             "category": "BASICS", "location": [ -4,-2 ], 
             "meta": [ "ROUND","HIDDEN" ],       
-            "stages": [{"text": "research.WARP.stage.1", "recipes":["thaumcraft:sanitychecker"]}]
+            "stages": [{"text": "research.WARP.stage.1", "recipes":["thaumcraft:sanity_checker"]}]
         },
         {
             "key": "ORE",    
@@ -115,20 +115,20 @@
                     "text": "research.CRYSTALFARMER.stage.1",
                     "required_knowledge":["OBSERVATION;AUROMANCY;1","OBSERVATION;BASICS;1"],
                     "required_item":[
-                        "thaumcraft:crystal_essence;1;0;{Aspects:[{amount:1,key:'aer'}]}",
-                        "thaumcraft:crystal_essence;1;0;{Aspects:[{amount:1,key:'terra'}]}",
-                        "thaumcraft:crystal_essence;1;0;{Aspects:[{amount:1,key:'ignis'}]}",
-                        "thaumcraft:crystal_essence;1;0;{Aspects:[{amount:1,key:'aqua'}]}",
-                        "thaumcraft:crystal_essence;1;0;{Aspects:[{amount:1,key:'ordo'}]}",
-                        "thaumcraft:crystal_essence;1;0;{Aspects:[{amount:1,key:'perditio'}]}"
+                        "thaumcraft:crystal_essence;1;{Aspects:[{amount:1,key:'aer'}]}",
+                        "thaumcraft:crystal_essence;1;{Aspects:[{amount:1,key:'terra'}]}",
+                        "thaumcraft:crystal_essence;1;{Aspects:[{amount:1,key:'ignis'}]}",
+                        "thaumcraft:crystal_essence;1;{Aspects:[{amount:1,key:'aqua'}]}",
+                        "thaumcraft:crystal_essence;1;{Aspects:[{amount:1,key:'ordo'}]}",
+                        "thaumcraft:crystal_essence;1;{Aspects:[{amount:1,key:'perditio'}]}"
                         ]
                 },
                 {
                     "text": "research.CRYSTALFARMER.stage.2",     
-                    "recipes": ["thaumcraft:CrystalClusterAir","thaumcraft:CrystalClusterFire",
-                            "thaumcraft:CrystalClusterWater","thaumcraft:CrystalClusterEarth",
-                            "thaumcraft:CrystalClusterOrder","thaumcraft:CrystalClusterEntropy",
-                            "thaumcraft:CrystalClusterFlux"]
+                    "recipes": ["thaumcraft:crystal_cluster_air","thaumcraft:crystal_cluster_fire",
+                            "thaumcraft:crystal_cluster_water","thaumcraft:crystal_cluster_earth",
+                            "thaumcraft:crystal_cluster_order","thaumcraft:crystal_cluster_entropy",
+                            "thaumcraft:crystal_cluster_flux"]
                 }
             ]
         },
@@ -158,8 +158,8 @@
                     },
                     {
                         "text": "research.UNLOCKALCHEMY.stage.3",          
-                        "required_craft":["thaumcraft:nitor;1;4"],  
-                        "recipes": ["thaumcraft:nitor","thaumcraft:nitorcolor"]
+                        "required_craft":["thaumcraft:nitor_yellow"],  
+                        "recipes": ["thaumcraft:nitor","thaumcraft:nitor_color"]
                     }
             ]
         },
@@ -201,7 +201,7 @@
                 },
                 {
                     "text": "research.UNLOCKARTIFICE.stage.2",
-                    "recipes": ["thaumcraft:Goggles"]
+                    "recipes": ["thaumcraft:goggles"]
                 }
             ]
         },
@@ -220,7 +220,7 @@
                 },
                 {
                     "text": "research.UNLOCKINFUSION.stage.2", 
-                    "recipes":["thaumcraft:EnchantedFabric","thaumcraft:RobeChest","thaumcraft:RobeLegs","thaumcraft:RobeBoots"]
+                    "recipes":["thaumcraft:enchanted_fabric","thaumcraft:robe_chest","thaumcraft:robe_legs","thaumcraft:robe_boots"]
                 }
             ]
         },
@@ -246,14 +246,14 @@
         {
             "key": "CrimsonRites",
             "name": "research.CrimsonRites.title",
-            "icons": [ "thaumcraft:curio;1;6" ],
+            "icons": [ "thaumcraft:crimson_rites" ],
             "category": "BASICS", "location": [ -6,4 ],
             "parents": [ "!CrimsonCultist" ],
             "meta": [ "ROUND","HIDDEN","REVERSE" ],
             "stages": [
                 {
                     "text": "research.CrimsonRites.stage.1",  
-                    "required_item":["thaumcraft:curio;1;6"]
+                    "required_item":["thaumcraft:crimson_rites"]
                 },
                 {
                     "text": "research.CrimsonRites.stage.2"
@@ -303,11 +303,11 @@
                 {
                     "text": "research.FLUXCLEANUP.stage.1",
                     "required_knowledge":["OBSERVATION;AUROMANCY;2","OBSERVATION;ARTIFICE;1","OBSERVATION;BASICS;1","THEORY;AUROMANCY;2"],
-                    "required_item":["thaumcraft:phial;1;1;{Aspects:[{amount:10,key:'vitium'}]}"]
+                    "required_item":["thaumcraft:phial_filled;1;{Aspects:[{amount:10,key:'vitium'}]}"]
                 },
                 {
                     "text": "research.FLUXCLEANUP.stage.2",  
-                    "recipes": ["thaumcraft:Condenser","thaumcraft:CondenserLattice"]
+                    "recipes": ["thaumcraft:condenser","thaumcraft:condenser_lattice"]
                 }
             ]
         },
@@ -335,7 +335,7 @@
                 },
                 {
                     "text": "research.RIFTCLOSER.stage.2",  
-                    "recipes": ["thaumcraft:CausalityCollapser"]
+                    "recipes": ["thaumcraft:causality_collapser"]
                 }
             ]
         }

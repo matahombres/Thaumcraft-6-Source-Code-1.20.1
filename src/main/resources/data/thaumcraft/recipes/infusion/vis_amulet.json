@@ -3,26 +3,26 @@
   "research": "VISAMULET",
   "instability": 6,
   "center": {
-    "item": "thaumcraft:baubles_amulet"
+    "item": "minecraft:gold_ingot"
   },
   "ingredients": [
     {
       "item": "thaumcraft:vis_resonator"
     },
     {
-      "item": "thaumcraft:crystal_essence_aer"
+      "item": "thaumcraft:crystal_essence"
     },
     {
-      "item": "thaumcraft:crystal_essence_ignis"
+      "item": "thaumcraft:crystal_essence"
     },
     {
-      "item": "thaumcraft:crystal_essence_aqua"
+      "item": "thaumcraft:crystal_essence"
     },
     {
-      "item": "thaumcraft:crystal_essence_terra"
+      "item": "thaumcraft:crystal_essence"
     },
     {
-      "item": "thaumcraft:crystal_essence_ordo"
+      "item": "thaumcraft:crystal_essence"
     }
   ],
   "aspects": {
@@ -31,6 +31,6 @@
     "vacuos": 50
   },
   "result": {
-    "item": "thaumcraft:amulet_vis"
+    "item": "thaumcraft:amulet_vis_crafted"
   }
 }

@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:infusion",
-  "research": "GOGGLES",
+  "research": "FORTRESSMASK",
   "instability": 2,
   "center": {
     "item": "thaumcraft:goggles"
@@ -25,6 +25,6 @@
     "auram": 15
   },
   "result": {
-    "item": "thaumcraft:goggles_revealing"
+    "item": "thaumcraft:goggles"
   }
 }

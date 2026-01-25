@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:arcane_workbench_shaped",
-  "research": "THAUMIUM",
+  "research": "METALLURGY",
   "vis": 50,
   "crystals": {
     "ignis": 2,

@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:infusion",
-  "research": "TRAVELLERBOOTS",
+  "research": "BOOTSTRAVELLER",
   "instability": 3,
   "center": {
     "item": "thaumcraft:thaumium_boots"

@@ -483,6 +483,9 @@ public class ModBlocks {
     public static final RegistryObject<Block> CONDENSER = registerBlock("condenser",
             BlockCondenser::new);
 
+    public static final RegistryObject<Block> CONDENSER_LATTICE = registerBlock("condenser_lattice",
+            BlockCondenser::new);
+
     public static final RegistryObject<Block> ARCANE_EAR = registerBlock("arcane_ear",
             BlockArcaneEar::createPulse);
 
@@ -498,6 +501,19 @@ public class ModBlocks {
             BlockAlembic::new);
 
     public static final RegistryObject<Block> SMELTER = registerBlock("smelter",
+            BlockSmelter::new);
+
+    // Smelter upgrade variants (use same block class for now)
+    public static final RegistryObject<Block> SMELTER_AUX = registerBlock("smelter_aux",
+            BlockSmelter::new);
+
+    public static final RegistryObject<Block> SMELTER_THAUMIUM = registerBlock("smelter_thaumium",
+            BlockSmelter::new);
+
+    public static final RegistryObject<Block> SMELTER_VOID = registerBlock("smelter_void",
+            BlockSmelter::new);
+
+    public static final RegistryObject<Block> SMELTER_VENT = registerBlock("smelter_vent",
             BlockSmelter::new);
 
     public static final RegistryObject<Block> CENTRIFUGE = registerBlock("centrifuge",
@@ -541,6 +557,12 @@ public class ModBlocks {
             BlockEffect::createGlimmer);
 
     // ==================== Taint Blocks ====================
+
+    public static final RegistryObject<Block> FLESH_BLOCK = registerBlock("flesh_block",
+            () -> new BlockTC(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_RED)
+                    .strength(1.0f)
+                    .sound(SoundType.SLIME_BLOCK)));
 
     public static final RegistryObject<Block> FLUX_GOO = registerBlockNoItem("flux_goo",
             BlockFluxGoo::new);

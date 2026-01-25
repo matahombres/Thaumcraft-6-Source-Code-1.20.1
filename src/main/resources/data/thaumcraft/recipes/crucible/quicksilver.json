@@ -1,7 +1,7 @@
 {
   "type": "thaumcraft:crucible",
   "research": "UNLOCKALCHEMY",
-  "ingredient": {
+  "catalyst": {
     "item": "minecraft:redstone"
   },
   "aspects": {

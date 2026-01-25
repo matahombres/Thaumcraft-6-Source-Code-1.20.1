@@ -1,5 +1,5 @@
 {
-  "type": "thaumcraft:arcane_workbench",
+  "type": "thaumcraft:arcane_workbench_shaped",
   "research": "WARP",
   "vis": 20,
   "aspects": {

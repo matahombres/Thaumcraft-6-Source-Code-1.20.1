@@ -83,6 +83,9 @@ repositories {
     
     maven { url = "https://www.cursemaven.com" }
     maven { url = "https://maven.theillusivec4.top/" }
+    
+    // JEI (Just Enough Items) for recipe viewing
+    maven { url = "https://maven.blamejared.com" }
 }
 
 dependencies {
@@ -90,8 +93,15 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     // Curios API (replacement for Baubles in 1.20.1)
-    // Using compileOnly only - not runtimeOnly to avoid runtime loading issues
+    // API for compile, full mod for runtime (optional - mod works without it)
     compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}:api")
+    runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}")
+    
+    // JEI (Just Enough Items) for recipe viewing in dev environment
+    // API for compile, full mod for runtime
+    compileOnly fg.deobf("mezz.jei:jei-1.20.1-forge-api:15.2.0.27")
+    compileOnly fg.deobf("mezz.jei:jei-1.20.1-common-api:15.2.0.27")
+    runtimeOnly fg.deobf("mezz.jei:jei-1.20.1-forge:15.2.0.27")
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

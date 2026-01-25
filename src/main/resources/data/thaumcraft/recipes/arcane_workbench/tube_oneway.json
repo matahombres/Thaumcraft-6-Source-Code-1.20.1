@@ -7,7 +7,7 @@
   },
   "ingredients": [
     {
-      "item": "thaumcraft:tube"
+      "item": "thaumcraft:tube_normal"
     }
   ],
   "result": {

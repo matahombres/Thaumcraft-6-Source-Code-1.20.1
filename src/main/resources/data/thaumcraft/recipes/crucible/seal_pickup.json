@@ -2,13 +2,13 @@
   "type": "thaumcraft:crucible",
   "research": "SEALCOLLECT",
   "catalyst": {
-    "item": "thaumcraft:seal_blank"
+    "item": "thaumcraft:blank_seal"
   },
   "aspects": {
     "desiderium": 10
   },
   "result": {
-    "item": "thaumcraft:seal",
+    "item": "thaumcraft:blank_seal",
     "count": 1,
     "nbt": "{seal:\"thaumcraft:pickup\"}"
   }

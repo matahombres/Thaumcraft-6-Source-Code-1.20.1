@@ -18,12 +18,23 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import thaumcraft.client.fx.beams.FXArc;
+import thaumcraft.client.fx.beams.FXBeamBore;
+import thaumcraft.client.fx.beams.FXBeamWand;
 import thaumcraft.client.fx.beams.FXBolt;
 import thaumcraft.client.fx.particles.FXBlockRunes;
+import thaumcraft.client.fx.particles.FXBlockWard;
+import thaumcraft.client.fx.particles.FXBoreSparkle;
+import thaumcraft.client.fx.particles.FXCrucibleBubble;
+import thaumcraft.client.fx.particles.FXEssentiaTrail;
 import thaumcraft.client.fx.particles.FXFireMote;
+import thaumcraft.client.fx.particles.FXTaintParticle;
 import thaumcraft.client.fx.particles.FXGeneric;
+import thaumcraft.client.fx.particles.FXGenericP2E;
 import thaumcraft.client.fx.particles.FXGenericP2P;
+import thaumcraft.client.fx.particles.FXPlane;
+import thaumcraft.client.fx.particles.FXSlimyBubble;
 import thaumcraft.client.fx.particles.FXSmokeSpiral;
+import thaumcraft.client.fx.particles.FXSwarm;
 import thaumcraft.client.fx.particles.FXVent;
 import thaumcraft.client.fx.particles.FXVisSparkle;
 import thaumcraft.client.fx.particles.FXWisp;
@@ -93,10 +104,14 @@ public class FXDispatcher {
     
     // ==================== Taint Effects ====================
     
+    /**
+     * Draw taint corruption particles.
+     */
     public void drawTaintParticles(float x, float y, float z, float vx, float vy, float vz, float scale) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.WITCH, x, y, z, vx, vy, vz);
+            FXTaintParticle particle = new FXTaintParticle(level, x, y, z, vx, vy, vz, scale);
+            addParticle(particle);
         }
     }
     
@@ -125,13 +140,13 @@ public class FXDispatcher {
     
     /**
      * Creates a slimy bubble particle effect (for liquid death / flux goo).
-     * Approximated with vanilla particles.
+     * Animated bubble that rises, inflates, and pops.
      */
     public void slimyBubbleFX(float x, float y, float z, float scale, float r, float g, float b) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            // Use bubble particles with upward motion
-            level.addParticle(ParticleTypes.BUBBLE_POP, x, y, z, 0, 0.05, 0);
+            FXSlimyBubble bubble = new FXSlimyBubble(level, x, y, z, scale, r, g, b);
+            addParticle(bubble);
         }
     }
     
@@ -171,36 +186,72 @@ public class FXDispatcher {
     
     // ==================== Crucible Effects ====================
     
+    /**
+     * Create a colored bubble in the crucible.
+     */
     public void crucibleBubble(float x, float y, float z, float cr, float cg, float cb) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.BUBBLE, x, y, z, 0, 0.02, 0);
+            FXCrucibleBubble bubble = new FXCrucibleBubble(level, x, y, z, cr, cg, cb);
+            addParticle(bubble);
         }
     }
     
-    public void crucibleBoil(BlockPos pos, Object tile, int j) {
-        Level level = getWorld();
+    /**
+     * Create boiling bubbles in the crucible.
+     */
+    public void crucibleBoil(BlockPos pos, Object tile, int aspectColor) {
+        ClientLevel level = getClientLevel();
         if (level != null) {
+            // Extract color from aspect
+            float r = ((aspectColor >> 16) & 0xFF) / 255.0f;
+            float g = ((aspectColor >> 8) & 0xFF) / 255.0f;
+            float b = (aspectColor & 0xFF) / 255.0f;
+            
             for (int a = 0; a < 2; a++) {
                 double x = pos.getX() + 0.2f + rand.nextFloat() * 0.6f;
-                double y = pos.getY() + 0.5f;
+                double y = pos.getY() + 0.65f;
                 double z = pos.getZ() + 0.2f + rand.nextFloat() * 0.6f;
-                level.addParticle(ParticleTypes.BUBBLE_POP, x, y, z, 0, 0.02, 0);
+                
+                FXCrucibleBubble bubble = new FXCrucibleBubble(level, x, y, z, r, g, b);
+                addParticle(bubble);
             }
         }
     }
     
+    /**
+     * Create frothy splash particles on crucible surface.
+     */
     public void crucibleFroth(float x, float y, float z) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.SPLASH, x, y, z, 0, 0, 0);
+            // Small white splash particle
+            FXGeneric splash = new FXGeneric(level, x, y, z, 
+                    (rand.nextFloat() - 0.5f) * 0.02, 0.02, (rand.nextFloat() - 0.5f) * 0.02);
+            splash.setColor(0.9f, 0.9f, 1.0f);
+            splash.setAlphaF(0.6f);
+            splash.setMaxAge(6 + rand.nextInt(4));
+            splash.setScale(0.2f + rand.nextFloat() * 0.1f);
+            splash.setParticles(160, 1, 1);
+            addParticle(splash);
         }
     }
     
+    /**
+     * Create dripping particles from crucible overflow.
+     */
     public void crucibleFrothDown(float x, float y, float z) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.DRIPPING_WATER, x, y, z, 0, 0, 0);
+            // Dripping particle that falls
+            FXGeneric drip = new FXGeneric(level, x, y, z, 0, -0.01, 0);
+            drip.setColor(0.6f, 0.7f, 0.9f);
+            drip.setAlphaF(0.5f);
+            drip.setMaxAge(15 + rand.nextInt(10));
+            drip.setScale(0.15f);
+            drip.setParticles(160, 1, 1);
+            drip.setGravity(0.05f);
+            addParticle(drip);
         }
     }
     
@@ -229,8 +280,11 @@ public class FXDispatcher {
         drawBamf(x, y, z, 0.5f, 0.1f, 0.6f, sound, flair, side);
     }
     
+    /**
+     * Create a "bamf" teleportation poof effect with custom colors.
+     */
     public void drawBamf(double x, double y, double z, float r, float g, float b, boolean sound, boolean flair, Direction side) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level == null) return;
         
         if (sound) {
@@ -238,8 +292,9 @@ public class FXDispatcher {
                     0.4f, 1.0f + (float) rand.nextGaussian() * 0.05f, false);
         }
         
-        // Spawn purple smoke particles
-        for (int a = 0; a < 8 + rand.nextInt(4); a++) {
+        // Spawn colored smoke particles
+        int count = 8 + rand.nextInt(4);
+        for (int a = 0; a < count; a++) {
             double vx = rand.nextGaussian() * 0.1;
             double vy = rand.nextGaussian() * 0.1;
             double vz = rand.nextGaussian() * 0.1;
@@ -248,43 +303,92 @@ public class FXDispatcher {
                 vy += side.getStepY() * 0.1;
                 vz += side.getStepZ() * 0.1;
             }
-            level.addParticle(ParticleTypes.WITCH, x + vx, y + vy, z + vz, vx, vy, vz);
+            
+            // Create colored poof particle
+            FXGeneric poof = new FXGeneric(level, x + vx * 0.5, y + vy * 0.5, z + vz * 0.5, vx, vy, vz);
+            poof.setColor(r, g, b);
+            poof.setAlphaF(0.7f);
+            poof.setMaxAge(12 + rand.nextInt(8));
+            poof.setScale(0.4f + rand.nextFloat() * 0.3f);
+            poof.setParticles(72, 4, 1);  // Wispy sprites
+            poof.setLoop(true);
+            poof.setGravity(-0.02f);  // Slight upward float
+            addParticle(poof);
         }
         
         if (flair) {
-            for (int a = 0; a < 3; a++) {
-                level.addParticle(ParticleTypes.END_ROD, x, y, z, 
-                        rand.nextGaussian() * 0.05, rand.nextGaussian() * 0.05, rand.nextGaussian() * 0.05);
+            // Add sparkle flair
+            for (int a = 0; a < 5; a++) {
+                FXGeneric sparkle = new FXGeneric(level, x, y, z,
+                        rand.nextGaussian() * 0.08, rand.nextGaussian() * 0.08, rand.nextGaussian() * 0.08);
+                sparkle.setColor(1.0f, 1.0f, 1.0f);
+                sparkle.setAlphaF(0.9f);
+                sparkle.setMaxAge(8 + rand.nextInt(5));
+                sparkle.setScale(0.15f + rand.nextFloat() * 0.1f);
+                sparkle.setParticles(0, 4, 1);  // Bright sparkle
+                sparkle.setLayer(1);  // Additive blending
+                addParticle(sparkle);
             }
         }
     }
     
     // ==================== Wispy Motes ====================
     
+    /**
+     * Create wispy mote particles rising from a block.
+     */
     public void drawWispyMotesOnBlock(BlockPos pp, int age, float grav) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
             double x = pp.getX() + rand.nextFloat();
             double y = pp.getY();
             double z = pp.getZ() + rand.nextFloat();
-            level.addParticle(ParticleTypes.ENCHANT, x, y, z, 0, 0.05, 0);
+            
+            FXGeneric mote = new FXGeneric(level, x, y, z, 0, 0.03 + rand.nextFloat() * 0.02, 0);
+            mote.setColor(0.8f, 0.6f, 1.0f);  // Light purple
+            mote.setAlphaF(0.6f);
+            mote.setMaxAge(age > 0 ? age : 15 + rand.nextInt(10));
+            mote.setScale(0.15f + rand.nextFloat() * 0.1f);
+            mote.setParticles(64, 4, 1);  // Wispy sprites
+            mote.setLoop(true);
+            mote.setGravity(grav);
+            mote.setLayer(1);
+            addParticle(mote);
         }
     }
     
+    /**
+     * Create a wispy mote particle with velocity.
+     */
     public void drawWispyMotes(double x, double y, double z, double vx, double vy, double vz, int age, float grav) {
-        Level level = getWorld();
-        if (level != null) {
-            level.addParticle(ParticleTypes.ENCHANT, x, y, z, vx, vy, vz);
-        }
+        drawWispyMotes(x, y, z, vx, vy, vz, age, 0.8f, 0.6f, 1.0f, grav);
     }
     
+    /**
+     * Create a colored wispy mote particle.
+     */
     public void drawWispyMotes(double x, double y, double z, double vx, double vy, double vz, 
             int age, float r, float g, float b, float grav) {
-        drawWispyMotes(x, y, z, vx, vy, vz, age, grav);
+        ClientLevel level = getClientLevel();
+        if (level != null) {
+            FXGeneric mote = new FXGeneric(level, x, y, z, vx, vy, vz);
+            mote.setColor(r, g, b);
+            mote.setAlphaF(0.6f);
+            mote.setMaxAge(age > 0 ? age : 15 + rand.nextInt(10));
+            mote.setScale(0.15f + rand.nextFloat() * 0.1f);
+            mote.setParticles(64, 4, 1);
+            mote.setLoop(true);
+            mote.setGravity(grav);
+            mote.setLayer(1);
+            addParticle(mote);
+        }
     }
     
     // ==================== Scan Effects ====================
     
+    /**
+     * Highlight a block with scan sparkles.
+     */
     public void scanHighlight(BlockPos p) {
         Level level = getWorld();
         if (level == null) return;
@@ -293,39 +397,92 @@ public class FXDispatcher {
         scanHighlight(bb);
     }
     
+    /**
+     * Highlight an entity with scan sparkles.
+     */
     public void scanHighlight(Entity e) {
         scanHighlight(e.getBoundingBox());
     }
     
+    /**
+     * Highlight a bounding box with scan sparkles.
+     */
     public void scanHighlight(AABB bb) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level == null) return;
         
-        int num = Mth.ceil(bb.getSize() * 2);
+        int num = Mth.ceil(bb.getSize() * 3);
         double cx = (bb.minX + bb.maxX) / 2;
         double cy = (bb.minY + bb.maxY) / 2;
         double cz = (bb.minZ + bb.maxZ) / 2;
         
         for (int a = 0; a < num; a++) {
-            double x = cx + rand.nextGaussian() * (bb.maxX - bb.minX) * 0.3;
-            double y = cy + rand.nextGaussian() * (bb.maxY - bb.minY) * 0.3;
-            double z = cz + rand.nextGaussian() * (bb.maxZ - bb.minZ) * 0.3;
-            level.addParticle(ParticleTypes.END_ROD, x, y, z, 0, 0.01, 0);
+            double x = cx + rand.nextGaussian() * (bb.maxX - bb.minX) * 0.35;
+            double y = cy + rand.nextGaussian() * (bb.maxY - bb.minY) * 0.35;
+            double z = cz + rand.nextGaussian() * (bb.maxZ - bb.minZ) * 0.35;
+            
+            FXGeneric sparkle = new FXGeneric(level, x, y, z, 0, 0.01, 0);
+            sparkle.setColor(0.9f, 0.95f, 1.0f);  // Bright white-blue
+            sparkle.setAlphaF(0.8f);
+            sparkle.setMaxAge(10 + rand.nextInt(8));
+            sparkle.setScale(0.1f + rand.nextFloat() * 0.08f);
+            sparkle.setParticles(0, 4, 1);  // Sparkle sprite
+            sparkle.setLayer(1);  // Additive
+            sparkle.setGravity(-0.01f);  // Slight upward float
+            addParticle(sparkle);
         }
     }
     
+    /**
+     * Create sparkles flowing from block toward a point.
+     */
     public void drawBlockSparkles(BlockPos p, Vec3 start) {
-        scanHighlight(p);
+        ClientLevel level = getClientLevel();
+        if (level == null) return;
+        
+        // Create sparkles that flow toward the start position
+        for (int i = 0; i < 3; i++) {
+            double x = p.getX() + rand.nextFloat();
+            double y = p.getY() + rand.nextFloat();
+            double z = p.getZ() + rand.nextFloat();
+            
+            double vx = (start.x - x) * 0.05;
+            double vy = (start.y - y) * 0.05;
+            double vz = (start.z - z) * 0.05;
+            
+            FXGeneric sparkle = new FXGeneric(level, x, y, z, vx, vy, vz);
+            sparkle.setColor(0.9f, 0.95f, 1.0f);
+            sparkle.setAlphaF(0.7f);
+            sparkle.setMaxAge(12 + rand.nextInt(6));
+            sparkle.setScale(0.12f + rand.nextFloat() * 0.08f);
+            sparkle.setParticles(0, 4, 1);
+            sparkle.setLayer(1);
+            addParticle(sparkle);
+        }
     }
     
+    /**
+     * Create a simple sparkle particle.
+     */
     public void drawSimpleSparkle(Random rand, double x, double y, double z, double x2, double y2, double z2, 
             float scale, float r, float g, float b, int delay, float decay, float grav, int baseAge) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.END_ROD, x, y, z, x2, y2, z2);
+            FXGeneric sparkle = new FXGeneric(level, x, y, z, x2, y2, z2);
+            sparkle.setColor(r, g, b);
+            sparkle.setAlphaF(0.8f);
+            sparkle.setMaxAge(baseAge > 0 ? baseAge : 15);
+            sparkle.setScale(scale > 0 ? scale : 0.15f);
+            sparkle.setParticles(0, 4, 1);
+            sparkle.setLayer(1);
+            sparkle.setGravity(grav);
+            addParticle(sparkle);
         }
     }
     
+    /**
+     * Create a line of sparkle particles.
+     */
     public void drawLineSparkle(Random rand, double x, double y, double z, double x2, double y2, double z2, 
             float scale, float r, float g, float b, int delay, float decay, float grav, int baseAge) {
         drawSimpleSparkle(rand, x, y, z, x2, y2, z2, scale, r, g, b, delay, decay, grav, baseAge);
@@ -411,29 +568,42 @@ public class FXDispatcher {
     
     // ==================== Essentia Effects ====================
     
+    /**
+     * Create an essentia stream flowing from source to target.
+     * Uses FXEssentiaTrail for a flowing chain of particles.
+     */
     public void essentiaTrailFx(BlockPos p1, BlockPos p2, int count, int color, float scale, int ext) {
         ClientLevel level = getClientLevel();
         if (level == null) return;
         
-        Color c = new Color(color);
-        // Spawn point-to-point particles
+        // Spawn essentia trail particles
         for (int i = 0; i < count; i++) {
-            double startX = p1.getX() + 0.5 + rand.nextGaussian() * 0.1;
-            double startY = p1.getY() + 0.5 + rand.nextGaussian() * 0.1;
-            double startZ = p1.getZ() + 0.5 + rand.nextGaussian() * 0.1;
+            double startX = p1.getX() + 0.5 + rand.nextGaussian() * 0.05;
+            double startY = p1.getY() + 0.5 + rand.nextGaussian() * 0.05;
+            double startZ = p1.getZ() + 0.5 + rand.nextGaussian() * 0.05;
             
-            FXGenericP2P particle = new FXGenericP2P(level, startX, startY, startZ, 
-                    p2.getX() + 0.5, p2.getY() + 0.5, p2.getZ() + 0.5);
-            particle.setColor(c.getRed() / 255f, c.getGreen() / 255f, c.getBlue() / 255f);
-            particle.setScale(scale);
-            addParticle(particle);
+            FXEssentiaTrail trail = new FXEssentiaTrail(level, startX, startY, startZ,
+                    p2.getX() + 0.5, p2.getY() + 0.5, p2.getZ() + 0.5,
+                    color, scale, ext);
+            addParticle(trail);
         }
     }
     
+    /**
+     * Create a small essentia drip/drop particle.
+     */
     public void essentiaDropFx(double x, double y, double z, float r, float g, float b, float alpha) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.DRIPPING_OBSIDIAN_TEAR, x, y, z, 0, 0, 0);
+            // Create a small colored drip particle
+            FXGeneric drop = new FXGeneric(level, x, y, z, 0, -0.02, 0);
+            drop.setColor(r, g, b);
+            drop.setAlphaF(alpha);
+            drop.setMaxAge(8 + rand.nextInt(4));
+            drop.setScale(0.3f + rand.nextFloat() * 0.2f);
+            drop.setParticles(144, 1, 1);  // Essentia blob sprite
+            drop.setGravity(0.1f);
+            addParticle(drop);
         }
     }
     
@@ -519,16 +689,100 @@ public class FXDispatcher {
         }
     }
     
-    // ==================== Beam Effects (stubs) ====================
+    // ==================== Beam Effects ====================
     
+    /**
+     * Create or update a continuous beam from a living entity to a target point.
+     * Used for wand/gauntlet casting effects.
+     * 
+     * @param p The source entity (caster)
+     * @param tx Target X coordinate
+     * @param ty Target Y coordinate
+     * @param tz Target Z coordinate
+     * @param type Beam texture type (0-3)
+     * @param color Beam color as packed RGB int
+     * @param reverse Reverse UV scroll direction
+     * @param endmod End width modifier
+     * @param input Existing beam particle to update, or null to create new
+     * @param impact Impact flash counter (triggers flash effect when > 0)
+     * @return The beam particle instance for subsequent calls
+     */
     public Object beamCont(LivingEntity p, double tx, double ty, double tz, int type, int color, boolean reverse, float endmod, Object input, int impact) {
-        // Beam effects need custom rendering - return null for now
-        return null;
+        ClientLevel level = getClientLevel();
+        if (level == null) return null;
+        
+        FXBeamWand beam = null;
+        Color c = new Color(color);
+        
+        // Check if we have an existing beam to update
+        if (input instanceof FXBeamWand existingBeam) {
+            beam = existingBeam;
+        }
+        
+        // Create new beam if needed
+        if (beam == null || !beam.isAlive()) {
+            beam = new FXBeamWand(level, p, tx, ty, tz, 
+                    c.getRed() / 255.0f, c.getGreen() / 255.0f, c.getBlue() / 255.0f, 8);
+            beam.setType(type);
+            beam.setEndMod(endmod);
+            beam.setReverse(reverse);
+            addParticle(beam);
+        } else {
+            // Update existing beam
+            beam.updateBeam(tx, ty, tz);
+            beam.setEndMod(endmod);
+            beam.impact = impact;
+        }
+        
+        return beam;
     }
     
+    /**
+     * Create or update a point-to-point beam (not attached to entity).
+     * Used for arcane bore mining beams, infusion effects, etc.
+     * 
+     * @param px Source X coordinate
+     * @param py Source Y coordinate
+     * @param pz Source Z coordinate
+     * @param tx Target X coordinate
+     * @param ty Target Y coordinate
+     * @param tz Target Z coordinate
+     * @param type Beam texture type (0-3)
+     * @param color Beam color as packed RGB int
+     * @param reverse Reverse UV scroll direction
+     * @param endmod End width modifier
+     * @param input Existing beam particle to update, or null to create new
+     * @param impact Impact flash counter (triggers flash effect when > 0)
+     * @return The beam particle instance for subsequent calls
+     */
     public Object beamBore(double px, double py, double pz, double tx, double ty, double tz, int type, int color, boolean reverse, float endmod, Object input, int impact) {
-        // Beam effects need custom rendering - return null for now
-        return null;
+        ClientLevel level = getClientLevel();
+        if (level == null) return null;
+        
+        FXBeamBore beam = null;
+        Color c = new Color(color);
+        
+        // Check if we have an existing beam to update
+        if (input instanceof FXBeamBore existingBeam) {
+            beam = existingBeam;
+        }
+        
+        // Create new beam if needed
+        if (beam == null || !beam.isAlive()) {
+            beam = new FXBeamBore(level, px, py, pz, tx, ty, tz, 
+                    c.getRed() / 255.0f, c.getGreen() / 255.0f, c.getBlue() / 255.0f, 8);
+            beam.setType(type);
+            beam.setEndMod(endmod);
+            beam.setReverse(reverse);
+            addParticle(beam);
+        } else {
+            // Update existing beam
+            beam.updateBeam(px, py, pz, tx, ty, tz);
+            beam.setEndMod(endmod);
+            beam.impact = impact;
+        }
+        
+        return beam;
     }
     
     // ==================== Misc Effects ====================
@@ -573,9 +827,11 @@ public class FXDispatcher {
     }
     
     public void blockWard(double x, double y, double z, Direction side, float r, float g, float b) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.ENCHANT, x + 0.5, y + 0.5, z + 0.5, 0, 0, 0);
+            // The r, g, b parameters here are actually hit coordinates on the block face (0-1)
+            FXBlockWard ward = new FXBlockWard(level, x + 0.5, y + 0.5, z + 0.5, side, r, g, b);
+            addParticle(ward);
         }
     }
     
@@ -655,14 +911,26 @@ public class FXDispatcher {
         }
     }
     
+    /**
+     * Create sparkle particles flying from a block to the bore entity.
+     */
     public void boreDigFx(int x, int y, int z, Entity e, BlockState bi, int md, int delay) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level == null) return;
         
-        for (int i = 0; i < 3; i++) {
-            level.addParticle(ParticleTypes.ENCHANT, 
-                    x + rand.nextFloat(), y + rand.nextFloat(), z + rand.nextFloat(),
-                    (e.getX() - x) * 0.1, (e.getY() - y) * 0.1, (e.getZ() - z) * 0.1);
+        float p = 50.0f;
+        for (int a = 0; a < p / delay; a++) {
+            if (rand.nextInt(4) == 0) {
+                // Sparkle particle that homes to the entity
+                FXBoreSparkle sparkle = new FXBoreSparkle(level, 
+                        x + rand.nextFloat(), y + rand.nextFloat(), z + rand.nextFloat(), e);
+                addParticle(sparkle);
+            } else {
+                // Use vanilla enchant particle as fallback for block debris
+                level.addParticle(ParticleTypes.ENCHANT, 
+                        x + rand.nextFloat(), y + rand.nextFloat(), z + rand.nextFloat(),
+                        (e.getX() - x) * 0.1, (e.getY() - y) * 0.1, (e.getZ() - z) * 0.1);
+            }
         }
     }
     
@@ -700,50 +968,150 @@ public class FXDispatcher {
         }
     }
     
+    /**
+     * Create explosion of taint particles from an entity.
+     */
     public void taintsplosionFX(Entity e) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level == null) return;
         
-        for (int i = 0; i < 5; i++) {
-            level.addParticle(ParticleTypes.WITCH, e.getX(), e.getY() + rand.nextFloat() * e.getBbHeight(), e.getZ(),
-                    rand.nextGaussian() * 0.2, rand.nextGaussian() * 0.2, rand.nextGaussian() * 0.2);
+        for (int i = 0; i < 8; i++) {
+            double px = e.getX() + rand.nextGaussian() * 0.3;
+            double py = e.getY() + rand.nextFloat() * e.getBbHeight();
+            double pz = e.getZ() + rand.nextGaussian() * 0.3;
+            
+            FXTaintParticle particle = new FXTaintParticle(level, px, py, pz,
+                    rand.nextGaussian() * 0.15, rand.nextGaussian() * 0.15, rand.nextGaussian() * 0.15,
+                    0.5f + rand.nextFloat() * 0.5f);
+            addParticle(particle);
         }
     }
     
+    /**
+     * Create taint particles rising when tentacle emerges.
+     */
     public void tentacleAriseFX(Entity e) {
-        Level level = getWorld();
+        ClientLevel level = getClientLevel();
         if (level == null) return;
         
-        for (int i = 0; i < (int)(2 * e.getBbHeight()); i++) {
-            level.addParticle(ParticleTypes.WITCH, 
-                    e.getX() + rand.nextGaussian() * 0.3, e.getY(), e.getZ() + rand.nextGaussian() * 0.3,
-                    0, 0.1, 0);
+        int count = (int)(3 * e.getBbHeight());
+        for (int i = 0; i < count; i++) {
+            double px = e.getX() + rand.nextGaussian() * 0.3;
+            double py = e.getY() + rand.nextFloat() * 0.3;
+            double pz = e.getZ() + rand.nextGaussian() * 0.3;
+            
+            FXTaintParticle particle = new FXTaintParticle(level, px, py, pz,
+                    rand.nextGaussian() * 0.02, 0.05 + rand.nextFloat() * 0.05, rand.nextGaussian() * 0.02,
+                    0.4f + rand.nextFloat() * 0.3f);
+            addParticle(particle);
         }
     }
     
+    /**
+     * Create taint splash when slime jumps.
+     */
     public void slimeJumpFX(Entity e, int size) {
-        Level level = getWorld();
-        if (level != null) {
-            level.addParticle(ParticleTypes.WITCH, e.getX(), e.getY() + e.getBbHeight() / 2, e.getZ(), 0, 0.1, 0);
+        ClientLevel level = getClientLevel();
+        if (level == null) return;
+        
+        int count = 2 + size;
+        for (int i = 0; i < count; i++) {
+            double px = e.getX() + rand.nextGaussian() * 0.2 * size;
+            double py = e.getY() + e.getBbHeight() / 2;
+            double pz = e.getZ() + rand.nextGaussian() * 0.2 * size;
+            
+            FXTaintParticle particle = new FXTaintParticle(level, px, py, pz,
+                    rand.nextGaussian() * 0.05, 0.05 + rand.nextFloat() * 0.05, rand.nextGaussian() * 0.05,
+                    0.3f + rand.nextFloat() * 0.2f * size);
+            addParticle(particle);
         }
     }
     
+    /**
+     * Create taint splatter when entity lands.
+     */
     public void taintLandFX(Entity e) {
-        Level level = getWorld();
-        if (level != null) {
-            level.addParticle(ParticleTypes.WITCH, e.getX(), e.getY(), e.getZ(), 0, 0, 0);
+        ClientLevel level = getClientLevel();
+        if (level == null) return;
+        
+        for (int i = 0; i < 4; i++) {
+            double angle = rand.nextFloat() * Math.PI * 2;
+            double speed = 0.05 + rand.nextFloat() * 0.05;
+            
+            FXTaintParticle particle = new FXTaintParticle(level, e.getX(), e.getY() + 0.1, e.getZ(),
+                    Math.cos(angle) * speed, 0.02, Math.sin(angle) * speed,
+                    0.3f + rand.nextFloat() * 0.2f);
+            addParticle(particle);
         }
     }
     
-    public Object swarmParticleFX(Entity targetedEntity, float f1, float f2, float pg) {
-        Level level = getWorld();
+    /**
+     * Create a swarm particle that follows the target entity.
+     * @param targetedEntity The entity to swarm around
+     * @param speed Movement speed
+     * @param turnSpeed Turn speed
+     * @param pg Gravity
+     * @return The created particle
+     */
+    public Object swarmParticleFX(Entity targetedEntity, float speed, float turnSpeed, float pg) {
+        ClientLevel level = getClientLevel();
         if (level != null) {
-            level.addParticle(ParticleTypes.WITCH, 
-                    targetedEntity.getX() + rand.nextGaussian(), 
-                    targetedEntity.getY() + rand.nextGaussian(), 
-                    targetedEntity.getZ() + rand.nextGaussian(), 0, 0, 0);
+            // Spawn at random offset around target
+            double x = targetedEntity.getX() + (rand.nextFloat() - rand.nextFloat()) * 2.0f;
+            double y = targetedEntity.getY() + (rand.nextFloat() - rand.nextFloat()) * 2.0f;
+            double z = targetedEntity.getZ() + (rand.nextFloat() - rand.nextFloat()) * 2.0f;
+            
+            // Purple/pink taint colors
+            float r = 0.8f + rand.nextFloat() * 0.2f;
+            float g = rand.nextFloat() * 0.4f;
+            float b = 1.0f - rand.nextFloat() * 0.2f;
+            
+            FXSwarm swarm = new FXSwarm(level, x, y, z, targetedEntity, r, g, b, speed, turnSpeed, pg);
+            addParticle(swarm);
+            return swarm;
         }
         return null;
+    }
+    
+    // ==================== Nitor Effects ====================
+    
+    /**
+     * Draw the white core glow of a Nitor flame.
+     */
+    public void drawNitorCore(double x, double y, double z, double vx, double vy, double vz) {
+        ClientLevel level = getClientLevel();
+        if (level != null) {
+            FXGeneric particle = new FXGeneric(level, x, y, z, vx, vy, vz);
+            particle.setMaxAge(10);
+            particle.setColor(1.0f, 1.0f, 1.0f);
+            particle.setAlphaF(1.0f);
+            particle.setParticles(457, 1, 1);  // Bright glow particle
+            particle.setScale(1.0f + (float)rand.nextGaussian() * 0.1f);
+            particle.setLayer(1);
+            particle.setRandomMovementScale(0.0002f, 0.0002f, 0.0002f);
+            addParticle(particle);
+        }
+    }
+    
+    /**
+     * Draw the colored flame particles of a Nitor.
+     */
+    public void drawNitorFlames(double x, double y, double z, double vx, double vy, double vz, int color, int delay) {
+        ClientLevel level = getClientLevel();
+        if (level != null) {
+            Color c = new Color(color);
+            FXGeneric particle = new FXGeneric(level, x, y, z, vx, vy, vz);
+            particle.setMaxAge(10 + rand.nextInt(5));
+            particle.setColor(c.getRed() / 255f, c.getGreen() / 255f, c.getBlue() / 255f);
+            particle.setAlphaF(0.66f);
+            particle.setLoop(true);
+            particle.setGridSize(64);
+            particle.setParticles(264, 8, 1);  // Flame animation
+            particle.setScale(3.0f + rand.nextFloat());
+            particle.setRandomMovementScale(0.0025f, 0.0f, 0.0025f);
+            // Delay is not currently supported by FXGeneric - particle spawns immediately
+            addParticle(particle);
+        }
     }
     
     // ==================== GUI Effects ====================

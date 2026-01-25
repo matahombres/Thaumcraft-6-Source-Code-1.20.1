@@ -36,6 +36,7 @@ import thaumcraft.common.lib.research.theorycraft.TheoryRegistry;
 import thaumcraft.common.lib.InternalMethodHandler;
 import thaumcraft.common.config.ConfigResearch;
 import thaumcraft.common.config.ConfigAspects;
+import thaumcraft.common.config.ConfigMultiblocks;
 import thaumcraft.api.ThaumcraftApi;
 import thaumcraft.client.lib.events.KeyHandler;
 
@@ -119,6 +120,9 @@ public class Thaumcraft {
             
             // Initialize aspect registry (item/block -> aspects mapping)
             ConfigAspects.init();
+            
+            // Initialize multiblock dust triggers (salis mundus recipes)
+            ConfigMultiblocks.init();
             
             // Initialize recipe system
             // ConfigRecipes.init();

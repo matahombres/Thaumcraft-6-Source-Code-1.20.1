@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:infusion",
-  "research": "THAUMIUMSWORD",
+  "research": "ELEMENTALTOOLS",
   "instability": 2,
   "central": {
     "item": "minecraft:iron_sword"

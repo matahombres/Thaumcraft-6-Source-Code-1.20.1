@@ -17,7 +17,7 @@
     "H": {"item": "minecraft:hopper"},
     "G": {"item": "thaumcraft:mechanism_simple"},
     "C": {"tag": "forge:workbenches"},
-    "W": {"item": "thaumcraft:plank_greatwood"}
+    "W": {"item": "thaumcraft:greatwood_planks"}
   },
   "result": {
     "item": "thaumcraft:pattern_crafter"

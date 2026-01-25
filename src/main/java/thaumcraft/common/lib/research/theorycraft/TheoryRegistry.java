@@ -96,6 +96,14 @@ public class TheoryRegistry {
         TheorycraftManager.registerAid(new AidPortal.AidPortalNether());
         TheorycraftManager.registerAid(new AidPortal.AidPortalCrimson());
         
+        // Category-specific aids - grants category cards when near relevant blocks
+        TheorycraftManager.registerAid(new AidBasicAlchemy());      // Crucible
+        TheorycraftManager.registerAid(new AidBasicArtifice());     // Arcane Workbench
+        TheorycraftManager.registerAid(new AidBasicAuromancy());    // Focal Manipulator
+        TheorycraftManager.registerAid(new AidBasicGolemancy());    // Golem Builder
+        TheorycraftManager.registerAid(new AidBasicInfusion());     // Infusion Matrix
+        TheorycraftManager.registerAid(new AidBasicEldritch());     // Eldritch Stone
+        
         Thaumcraft.LOGGER.info("Registered {} theorycraft cards and {} aids", 
                 TheorycraftManager.cards.size(),
                 TheorycraftManager.aids.size());

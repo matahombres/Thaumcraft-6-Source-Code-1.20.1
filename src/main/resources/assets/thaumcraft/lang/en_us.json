@@ -1,6 +1,7 @@
 {
   "item.thaumcraft.thaumonomicon.normal": "Thaumonomicon",
   "item.thaumcraft.thaumonomicon.cheat": "Cheater's Thaumonomicon",
+  "item.thaumcraft.crimson_rites": "Crimson Rites",
   "item.thaumcraft.curio.arcane": "Arcane Curiosity",
   "item.thaumcraft.curio.preserved": "Preserved Curiosity",
   "item.thaumcraft.curio.eldritch": "Eldritch Curiosity",
@@ -1513,5 +1514,20 @@
   "block.thaumcraft.alchemical_brass_advanced_block": "Advanced Alchemical Brass Block",
   "block.thaumcraft.focal_manipulator": "Focal Manipulator",
   "block.thaumcraft.essentia_reservoir": "Essentia Reservoir",
-  "block.thaumcraft.flux_scrubber": "Flux Scrubber"
+  "block.thaumcraft.flux_scrubber": "Flux Scrubber",
+  "block.thaumcraft.smelter_aux": "Auxiliary Smelting Apparatus",
+  "block.thaumcraft.smelter_thaumium": "Thaumium Smeltery",
+  "block.thaumcraft.smelter_void": "Void Metal Smeltery",
+  "block.thaumcraft.smelter_vent": "Smeltery Vent",
+  "block.thaumcraft.condenser_lattice": "Condenser Lattice",
+  "block.thaumcraft.flesh_block": "Block of Flesh",
+  
+  "item.thaumcraft.grapple_gun_spool": "Grapple Gun Spool",
+  "item.thaumcraft.grapple_gun_tip": "Grapple Gun Tip",
+  "item.thaumcraft.golem_module_aggression": "Golem Aggression Module",
+  "item.thaumcraft.golem_module_vision": "Golem Vision Module",
+  
+  "gui.thaumcraft.arcane_workbench": "Arcane Workbench",
+  "gui.thaumcraft.crucible": "Crucible",
+  "gui.thaumcraft.infusion": "Infusion Altar"
 }

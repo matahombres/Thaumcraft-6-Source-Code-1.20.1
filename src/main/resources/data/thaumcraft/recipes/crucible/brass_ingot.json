@@ -1,6 +1,6 @@
 {
   "type": "thaumcraft:crucible",
-  "research": "METALLURGY@1",
+  "research": "METALLURGY",
   "catalyst": {
     "item": "minecraft:iron_ingot"
   },

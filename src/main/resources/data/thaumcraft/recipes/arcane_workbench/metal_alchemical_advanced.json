@@ -13,7 +13,7 @@
   ],
   "key": {
     "A": {
-      "item": "thaumcraft:metal_alchemical"
+      "item": "thaumcraft:alchemical_brass_block"
     },
     "V": {
       "item": "thaumcraft:plate_void"
@@ -23,6 +23,6 @@
     }
   },
   "result": {
-    "item": "thaumcraft:metal_alchemical_advanced"
+    "item": "thaumcraft:alchemical_brass_advanced_block"
   }
 }

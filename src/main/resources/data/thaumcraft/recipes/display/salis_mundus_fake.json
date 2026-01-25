@@ -1,0 +1,12 @@
+{
+  "_comment": "Fake recipe for research display - Salis Mundus (right-click with vis crystals)",
+  "type": "thaumcraft:display",
+  "result": {
+    "item": "thaumcraft:salis_mundus"
+  },
+  "ingredients": [
+    { "tag": "thaumcraft:vis_crystals" },
+    { "tag": "thaumcraft:vis_crystals" },
+    { "tag": "thaumcraft:vis_crystals" }
+  ]
+}
