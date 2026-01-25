@@ -79,6 +79,9 @@ public class ItemGolemPlacer extends Item implements ISealDisplayer {
             // Position the golem
             golem.moveTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, 0.0f, 0.0f);
             
+            // Mark as valid spawn (prevents instant despawn)
+            golem.setValidSpawn();
+            
             // Set ownership
             golem.setOwned(true);
             golem.setOwnerUUID(player.getUUID());

@@ -955,6 +955,20 @@ The multiblock is registered but crafting logic needs work:
 
 ## Changelog
 
+### January 25, 2026 (Session 7)
+- ✅ **Golem Despawn Bug Fixed** - `ItemGolemPlacer.java`:
+  - Added `golem.setValidSpawn()` call when spawning golems
+  - `EntityOwnedConstruct` requires this flag to prevent instant despawn
+  - Golems now persist correctly after placement
+- ✅ **Missing Textures Documented** - Created `TEXTURETODO.md`:
+  - Lists 30+ missing item textures
+  - Lists 4 placeholder textures
+  - Lists 7 substitute block textures
+  - Provides instructions for fixing/sourcing textures
+- ✅ **Curios Version Updated** - `gradle.properties`:
+  - Updated from 5.4.7 to 5.9.1 (still has mixin issues in dev)
+  - Disabled as runtime dependency in dev environment
+
 ### January 25, 2026 (Session 6)
 - ✅ **Game Launch Verified** - Successfully launched and played:
   - Curios 5.9.1 has mixin issues with official mappings; disabled as runtime dep (still compile-only)
