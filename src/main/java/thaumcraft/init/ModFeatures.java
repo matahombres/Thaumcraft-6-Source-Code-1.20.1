@@ -12,6 +12,8 @@ import thaumcraft.common.world.features.SilverwoodTreeFeature;
 import thaumcraft.common.world.features.ThaumcraftPlantFeature;
 import thaumcraft.common.world.structures.AncientStoneCircleFeature;
 import thaumcraft.common.world.structures.BarrowFeature;
+import thaumcraft.common.world.structures.EldritchObeliskFeature;
+import thaumcraft.common.world.structures.RuinedTowerFeature;
 
 /**
  * Registry for all Thaumcraft world generation features.
@@ -130,4 +132,31 @@ public class ModFeatures {
     public static final RegistryObject<AncientStoneCircleFeature> ANCIENT_STONE_CIRCLE = 
             FEATURES.register("ancient_stone_circle", 
                     () -> new AncientStoneCircleFeature(NoneFeatureConfiguration.CODEC));
+    
+    /**
+     * Eldritch Obelisk - Tall dark stone monuments.
+     * Features:
+     * - Central eldritch stone pillar (10-15 blocks tall)
+     * - Obsidian-lined base platform
+     * - Ancient stone decorations
+     * - Scattered debris around the perimeter
+     * Hints at eldritch knowledge and may spawn eldritch mobs.
+     */
+    public static final RegistryObject<EldritchObeliskFeature> ELDRITCH_OBELISK = 
+            FEATURES.register("eldritch_obelisk", 
+                    () -> new EldritchObeliskFeature(NoneFeatureConfiguration.CODEC));
+    
+    /**
+     * Ruined Tower - Abandoned wizard towers.
+     * Features:
+     * - Circular stone tower (radius 3-4, height 8-14)
+     * - Partial collapse on one side
+     * - Multiple floors with wooden planks
+     * - Bookshelves and loot crates/urns
+     * - Vegetation growing through the ruins
+     * Contains research materials and Thaumcraft loot.
+     */
+    public static final RegistryObject<RuinedTowerFeature> RUINED_TOWER = 
+            FEATURES.register("ruined_tower", 
+                    () -> new RuinedTowerFeature(NoneFeatureConfiguration.CODEC));
 }
