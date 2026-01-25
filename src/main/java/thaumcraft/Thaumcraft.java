@@ -249,7 +249,7 @@ public class Thaumcraft {
                 );
                 net.minecraft.client.renderer.entity.EntityRenderers.register(
                     ModEntities.TURRET_CROSSBOW_ADVANCED.get(),
-                    thaumcraft.client.renderers.entity.TurretCrossbowRenderer::new  // Uses same model for now
+                    thaumcraft.client.renderers.entity.TurretCrossbowAdvancedRenderer::new
                 );
                 net.minecraft.client.renderer.entity.EntityRenderers.register(
                     ModEntities.ARCANE_BORE.get(),
@@ -537,6 +537,10 @@ public class Thaumcraft {
             event.registerLayerDefinition(
                 thaumcraft.client.models.entity.CrossbowModel.LAYER_LOCATION,
                 thaumcraft.client.models.entity.CrossbowModel::createBodyLayer
+            );
+            event.registerLayerDefinition(
+                thaumcraft.client.models.entity.CrossbowAdvancedModel.LAYER_LOCATION,
+                thaumcraft.client.models.entity.CrossbowAdvancedModel::createBodyLayer
             );
             event.registerLayerDefinition(
                 thaumcraft.client.models.entity.ArcaneBoreModel.LAYER_LOCATION,
