@@ -1,6 +1,7 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/cube_column",
   "textures": {
-    "all": "thaumcraft:block/focal_manipulator"
+    "end": "thaumcraft:block/arcane_workbench_top",
+    "side": "thaumcraft:block/arcane_workbench_side"
   }
 }

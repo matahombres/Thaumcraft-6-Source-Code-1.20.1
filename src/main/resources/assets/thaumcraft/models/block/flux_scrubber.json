@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "thaumcraft:block/flux_scrubber"
+    "all": "thaumcraft:block/metal_alchemical_advanced"
   }
 }

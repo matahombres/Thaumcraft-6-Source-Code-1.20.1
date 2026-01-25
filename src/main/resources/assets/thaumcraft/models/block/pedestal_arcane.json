@@ -1,7 +1,7 @@
 {
   "parent": "minecraft:block/cube_column",
   "textures": {
-    "side": "thaumcraft:block/pedestal_arcane_side",
-    "end": "thaumcraft:block/pedestal_arcane"
+    "side": "thaumcraft:block/pedestal_side",
+    "end": "thaumcraft:block/pedestal_top"
   }
 }

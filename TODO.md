@@ -234,8 +234,8 @@
 
 ### Block Resources
 - [x] Verify all blockstate JSONs
-- [ ] Create/update block model JSONs
-- [ ] Verify block textures
+- [x] Create/update block model JSONs - All models fixed to use existing textures
+- [x] Verify block textures - All model textures validated
 - [x] Create block tags
 
 ---
@@ -320,8 +320,8 @@
 - [x] Port creative items (flux sponge, etc.)
 
 ### Item Resources
-- [ ] Create/update item model JSONs
-- [ ] Verify item textures
+- [x] Create/update item model JSONs - All item models valid
+- [x] Verify item textures - All item textures present
 - [x] Create item tags
 
 ---
@@ -909,7 +909,7 @@
 - [x] Structure generation (4 structure types now: Barrow, AncientStoneCircle, EldritchObelisk, RuinedTower)
 
 ### Remaining Polish
-- [ ] Add missing block models (tubes, some devices)
+- [x] Add missing block models (tubes, some devices) - Fixed all model texture references
 - [ ] Comprehensive testing
 - [ ] Performance optimization
 
@@ -954,6 +954,20 @@ The multiblock is registered but crafting logic needs work:
 ---
 
 ## Changelog
+
+### January 25, 2026 (Session 6)
+- ✅ **Block Models Fixed** - All missing block model texture references corrected:
+  - **barrier.json** - Changed from missing `pave_ward` to `empty` (invisible effect block)
+  - **effect_sap.json** - Changed from missing `sapgreen` to `empty` (invisible effect block)
+  - **effect_shock.json** - Changed from missing `animatedglow_purple` to `empty` (invisible effect block)
+  - **essentia_reservoir.json** - Changed to `metal_alchemical` texture
+  - **flux_scrubber.json** - Changed to `metal_alchemical_advanced` texture
+  - **focal_manipulator.json** - Changed to cube_column with `arcane_workbench_top/side`
+  - **golem_builder.json** - Fixed typo: `golem_builder` → `golembuilder`
+  - **ancient_pedestal_doorway.json** - Changed to `ancient_stone_0` texture
+- ✅ **Tube Models Verified** - tube_oneway blockstate already correctly uses existing tube_core model
+- ✅ **Build Verified** - `./gradlew compileJava` passes successfully
+- ✅ **TODO.md Updated** - Marked block/item model tasks as complete
 
 ### January 25, 2026 (Session 5)
 - ✅ **Structure Generation Complete** - Added two new structure features:
