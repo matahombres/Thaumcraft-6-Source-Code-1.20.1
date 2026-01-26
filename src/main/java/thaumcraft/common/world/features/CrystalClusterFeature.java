@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+import thaumcraft.Thaumcraft;
 import thaumcraft.common.blocks.world.ore.BlockCrystalTC;
 import thaumcraft.init.ModBlocks;
 
@@ -54,15 +55,30 @@ public class CrystalClusterFeature extends Feature<NoneFeatureConfiguration> {
         this.crystalType = type;
     }
     
+    // Debug logging counter to avoid spam - only log every N calls
+    private static int placeCallCount = 0;
+    private static final int LOG_INTERVAL = 100;
+    
     @Override
     public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {
         WorldGenLevel level = context.level();
         BlockPos origin = context.origin();
         RandomSource random = context.random();
         
+        placeCallCount++;
+        boolean shouldLog = (placeCallCount % LOG_INTERVAL == 1);
+        
+        if (shouldLog) {
+            Thaumcraft.LOGGER.info("[CrystalCluster] place() called for {} at {} (call #{})", 
+                crystalType.name(), origin, placeCallCount);
+        }
+        
         // Search for a valid cave position nearby
         BlockPos cavePos = findCavePosition(level, origin, random);
         if (cavePos == null) {
+            if (shouldLog) {
+                Thaumcraft.LOGGER.debug("[CrystalCluster] No cave position found near {}", origin);
+            }
             return false;
         }
         
@@ -80,6 +96,11 @@ public class CrystalClusterFeature extends Feature<NoneFeatureConfiguration> {
             if (tryPlaceCrystal(level, checkPos, random)) {
                 placed++;
             }
+        }
+        
+        if (placed > 0) {
+            Thaumcraft.LOGGER.info("[CrystalCluster] Placed {} {} crystals near {}", 
+                placed, crystalType.name(), cavePos);
         }
         
         return placed > 0;
