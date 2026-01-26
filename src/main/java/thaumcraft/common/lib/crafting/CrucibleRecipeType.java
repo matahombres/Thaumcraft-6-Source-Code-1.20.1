@@ -1,5 +1,6 @@
 package thaumcraft.common.lib.crafting;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
@@ -170,8 +171,9 @@ public class CrucibleRecipeType implements Recipe<Container>, IThaumcraftRecipe 
             String group = GsonHelper.getAsString(json, "group", "");
             String research = GsonHelper.getAsString(json, "research", "");
             
-            // Parse catalyst
-            Ingredient catalyst = Ingredient.fromJson(json.get("catalyst"), false);
+            // Parse catalyst (accept both "catalyst" and "ingredient" for compatibility)
+            JsonElement catalystJson = json.has("catalyst") ? json.get("catalyst") : json.get("ingredient");
+            Ingredient catalyst = catalystJson != null ? Ingredient.fromJson(catalystJson, false) : Ingredient.EMPTY;
             
             // Parse aspects
             AspectList aspects = new AspectList();

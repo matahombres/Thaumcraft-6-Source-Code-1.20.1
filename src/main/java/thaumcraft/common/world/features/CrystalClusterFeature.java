@@ -66,9 +66,9 @@ public class CrystalClusterFeature extends Feature<NoneFeatureConfiguration> {
             return false;
         }
         
-        // Try to place a small cluster of crystals
+        // Try to place a cluster of crystals
         int placed = 0;
-        int attempts = 8 + random.nextInt(8);
+        int attempts = 12 + random.nextInt(12);
         
         for (int i = 0; i < attempts; i++) {
             BlockPos checkPos = cavePos.offset(

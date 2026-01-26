@@ -19,6 +19,7 @@ import thaumcraft.common.items.armor.ItemCultistBoots;
 import thaumcraft.common.items.armor.ItemCultistLeaderArmor;
 import thaumcraft.common.items.consumables.ItemPhial;
 import thaumcraft.common.items.curios.ItemThaumonomicon;
+import thaumcraft.common.items.resources.ItemCrystalEssence;
 import thaumcraft.common.items.resources.ItemMaterial;
 import thaumcraft.common.items.resources.ItemMagicDust;
 import thaumcraft.common.items.tools.ItemScribingTools;
@@ -167,7 +168,7 @@ public class ModItems {
     // ==================== Vis Crystals ====================
 
     public static final RegistryObject<Item> VIS_CRYSTAL = ITEMS.register("vis_crystal",
-            ItemMaterial::basic);
+            ItemCrystalEssence::new);
 
     // ==================== Crafting Components ====================
 

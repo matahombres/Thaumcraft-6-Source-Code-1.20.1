@@ -4,6 +4,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
@@ -16,12 +19,20 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import thaumcraft.api.aspects.Aspect;
+import thaumcraft.api.aspects.AspectList;
 import thaumcraft.api.aura.AuraHelper;
+import thaumcraft.common.items.resources.ItemCrystalEssence;
 import thaumcraft.common.world.aura.AuraHandler;
+import thaumcraft.init.ModItems;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Crystal cluster blocks that grow on stone surfaces.
@@ -237,5 +248,31 @@ public class BlockCrystalTC extends Block {
         }
 
         return null;
+    }
+
+    @Override
+    public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder) {
+        List<ItemStack> drops = new ArrayList<>();
+        
+        ItemStack tool = builder.getOptionalParameter(LootContextParams.TOOL);
+        boolean silkTouch = tool != null && EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, tool) > 0;
+        
+        if (silkTouch) {
+            // Silk touch - drop the block itself
+            drops.add(new ItemStack(this));
+        } else {
+            // Normal drop - vis crystals with the correct aspect
+            int fortune = tool != null ? EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_FORTUNE, tool) : 0;
+            int baseCount = 1 + state.getValue(SIZE);
+            int count = baseCount + (fortune > 0 ? builder.getLevel().random.nextInt(fortune + 1) : 0);
+            
+            ItemStack crystalStack = new ItemStack(ModItems.VIS_CRYSTAL.get(), count);
+            if (crystalStack.getItem() instanceof ItemCrystalEssence crystalItem) {
+                crystalItem.setAspects(crystalStack, new AspectList().add(aspect, 1));
+            }
+            drops.add(crystalStack);
+        }
+        
+        return drops;
     }
 }
