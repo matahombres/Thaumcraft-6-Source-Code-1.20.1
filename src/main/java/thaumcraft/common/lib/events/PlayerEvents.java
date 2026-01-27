@@ -20,7 +20,7 @@ import thaumcraft.api.capabilities.IPlayerKnowledge;
 import thaumcraft.api.capabilities.IPlayerWarp;
 import thaumcraft.api.capabilities.ThaumcraftCapabilities;
 import thaumcraft.common.blocks.world.ore.BlockCrystalTC;
-import thaumcraft.common.items.resources.ItemCrystalEssence;
+import thaumcraft.common.items.resources.ItemVisCrystal;
 import thaumcraft.init.ModBlocks;
 import thaumcraft.init.ModItems;
 
@@ -197,15 +197,11 @@ public class PlayerEvents {
         
         Item item = stack.getItem();
         
-        // Check if it's a crystal item (vis crystal, crystal essence, or crystal block)
+        // Check if it's a crystal item (vis crystal item or crystal block)
         boolean isCrystal = false;
         
-        // Check for vis crystal item
-        if (item == ModItems.VIS_CRYSTAL.get()) {
-            isCrystal = true;
-        }
-        // Check for crystal essence
-        else if (item instanceof ItemCrystalEssence) {
+        // Check for vis crystal items (6 primal types)
+        if (item instanceof ItemVisCrystal) {
             isCrystal = true;
         }
         // Check for crystal block items

@@ -41,7 +41,7 @@
                   "function": "minecraft:explosion_decay"
                 }
               ],
-              "name": "thaumcraft:vis_crystal"
+              "name": "thaumcraft:vis_crystal_air"
             }
           ]
         }

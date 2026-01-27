@@ -8,9 +8,8 @@
     "perditio": 2
   },
   "result": {
-    "item": "thaumcraft:vis_crystal",
-    "count": 1,
-    "nbt": "{aspect:\"perditio\"}"
+    "item": "thaumcraft:vis_crystal_entropy",
+    "count": 1
   },
   "group": "thaumcraft:vis_crystal"
 }

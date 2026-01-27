@@ -510,7 +510,7 @@ public class ConfigAspects {
      * Register aspects for Thaumcraft blocks and items
      */
     private static void registerThaumcraftItems() {
-        // Crystal clusters
+        // Crystal clusters (blocks)
         ThaumcraftApi.registerObjectTag(new ItemStack(ModBlocks.CRYSTAL_AIR.get()), new AspectList().add(Aspect.AIR, 15).add(Aspect.CRYSTAL, 10));
         ThaumcraftApi.registerObjectTag(new ItemStack(ModBlocks.CRYSTAL_FIRE.get()), new AspectList().add(Aspect.FIRE, 15).add(Aspect.CRYSTAL, 10));
         ThaumcraftApi.registerObjectTag(new ItemStack(ModBlocks.CRYSTAL_WATER.get()), new AspectList().add(Aspect.WATER, 15).add(Aspect.CRYSTAL, 10));
@@ -518,6 +518,14 @@ public class ConfigAspects {
         ThaumcraftApi.registerObjectTag(new ItemStack(ModBlocks.CRYSTAL_ORDER.get()), new AspectList().add(Aspect.ORDER, 15).add(Aspect.CRYSTAL, 10));
         ThaumcraftApi.registerObjectTag(new ItemStack(ModBlocks.CRYSTAL_ENTROPY.get()), new AspectList().add(Aspect.ENTROPY, 15).add(Aspect.CRYSTAL, 10));
         ThaumcraftApi.registerObjectTag(new ItemStack(ModBlocks.CRYSTAL_FLUX.get()), new AspectList().add(Aspect.FLUX, 15).add(Aspect.CRYSTAL, 10));
+        
+        // Vis crystals (items - dropped from crystal clusters)
+        ThaumcraftApi.registerObjectTag(new ItemStack(ModItems.VIS_CRYSTAL_AIR.get()), new AspectList().add(Aspect.AIR, 5).add(Aspect.CRYSTAL, 5));
+        ThaumcraftApi.registerObjectTag(new ItemStack(ModItems.VIS_CRYSTAL_FIRE.get()), new AspectList().add(Aspect.FIRE, 5).add(Aspect.CRYSTAL, 5));
+        ThaumcraftApi.registerObjectTag(new ItemStack(ModItems.VIS_CRYSTAL_WATER.get()), new AspectList().add(Aspect.WATER, 5).add(Aspect.CRYSTAL, 5));
+        ThaumcraftApi.registerObjectTag(new ItemStack(ModItems.VIS_CRYSTAL_EARTH.get()), new AspectList().add(Aspect.EARTH, 5).add(Aspect.CRYSTAL, 5));
+        ThaumcraftApi.registerObjectTag(new ItemStack(ModItems.VIS_CRYSTAL_ORDER.get()), new AspectList().add(Aspect.ORDER, 5).add(Aspect.CRYSTAL, 5));
+        ThaumcraftApi.registerObjectTag(new ItemStack(ModItems.VIS_CRYSTAL_ENTROPY.get()), new AspectList().add(Aspect.ENTROPY, 5).add(Aspect.CRYSTAL, 5));
         
         // Ores
         ThaumcraftApi.registerObjectTag("thaumcraft:ores/cinnabar", new AspectList().add(Aspect.EARTH, 5).add(Aspect.METAL, 10).add(Aspect.ALCHEMY, 5).add(Aspect.DEATH, 5));

@@ -682,6 +682,26 @@ public class Thaumcraft {
             // Register Thaumcraft key bindings
             KeyHandler.registerKeyMappings(event);
         }
+        
+        @SubscribeEvent
+        public static void onRegisterItemColors(net.minecraftforge.client.event.RegisterColorHandlersEvent.Item event) {
+            // Register vis crystal color handlers - tint based on aspect color
+            event.register(
+                (stack, tintIndex) -> {
+                    if (stack.getItem() instanceof thaumcraft.common.items.resources.ItemVisCrystal crystal) {
+                        return crystal.getColor();
+                    }
+                    return 0xFFFFFF;
+                },
+                ModItems.VIS_CRYSTAL_AIR.get(),
+                ModItems.VIS_CRYSTAL_FIRE.get(),
+                ModItems.VIS_CRYSTAL_WATER.get(),
+                ModItems.VIS_CRYSTAL_EARTH.get(),
+                ModItems.VIS_CRYSTAL_ORDER.get(),
+                ModItems.VIS_CRYSTAL_ENTROPY.get()
+            );
+            LOGGER.info("Registered Thaumcraft item color handlers");
+        }
     }
     
     /**

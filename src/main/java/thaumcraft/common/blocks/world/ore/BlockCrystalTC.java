@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -25,10 +26,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import thaumcraft.api.aspects.Aspect;
-import thaumcraft.api.aspects.AspectList;
 import thaumcraft.api.aura.AuraHelper;
-import thaumcraft.common.items.resources.ItemCrystalEssence;
-import thaumcraft.common.world.aura.AuraHandler;
 import thaumcraft.init.ModItems;
 
 import java.util.ArrayList;
@@ -261,18 +259,33 @@ public class BlockCrystalTC extends Block {
             // Silk touch - drop the block itself
             drops.add(new ItemStack(this));
         } else {
-            // Normal drop - vis crystals with the correct aspect
+            // Normal drop - vis crystals based on block's aspect
             int fortune = tool != null ? EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_FORTUNE, tool) : 0;
             int baseCount = 1 + state.getValue(SIZE);
             int count = baseCount + (fortune > 0 ? builder.getLevel().random.nextInt(fortune + 1) : 0);
             
-            ItemStack crystalStack = new ItemStack(ModItems.VIS_CRYSTAL.get(), count);
-            if (crystalStack.getItem() instanceof ItemCrystalEssence crystalItem) {
-                crystalItem.setAspects(crystalStack, new AspectList().add(aspect, 1));
+            // Get the correct vis crystal item for this aspect
+            Item crystalItem = getCrystalItemForAspect(aspect);
+            if (crystalItem != null) {
+                drops.add(new ItemStack(crystalItem, count));
             }
-            drops.add(crystalStack);
         }
         
         return drops;
+    }
+    
+    /**
+     * Get the vis crystal item that corresponds to this block's aspect.
+     */
+    private static Item getCrystalItemForAspect(Aspect aspect) {
+        if (aspect == Aspect.AIR) return ModItems.VIS_CRYSTAL_AIR.get();
+        if (aspect == Aspect.FIRE) return ModItems.VIS_CRYSTAL_FIRE.get();
+        if (aspect == Aspect.WATER) return ModItems.VIS_CRYSTAL_WATER.get();
+        if (aspect == Aspect.EARTH) return ModItems.VIS_CRYSTAL_EARTH.get();
+        if (aspect == Aspect.ORDER) return ModItems.VIS_CRYSTAL_ORDER.get();
+        if (aspect == Aspect.ENTROPY) return ModItems.VIS_CRYSTAL_ENTROPY.get();
+        // Flux crystals don't drop vis crystals - they might drop flux_crystal item
+        if (aspect == Aspect.FLUX) return ModItems.FLUX_CRYSTAL.get();
+        return null;
     }
 }

@@ -774,13 +774,15 @@ public class ResearchManager {
         LEGACY_ITEM_MAPPINGS.put("thaumcraft:mind", "thaumcraft:brain_clockwork");
         LEGACY_ITEM_MAPPINGS.put("thaumcraft:turret", "thaumcraft:turret_placer_basic");
         
-        // Block/item name variations
-        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_aer", "thaumcraft:vis_crystal");
-        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_aqua", "thaumcraft:vis_crystal");
-        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_ignis", "thaumcraft:vis_crystal");
-        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_terra", "thaumcraft:vis_crystal");
-        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_ordo", "thaumcraft:vis_crystal");
-        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_perditio", "thaumcraft:vis_crystal");
+        // Block/item name variations - old crystal names to new specific crystal items
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_aer", "thaumcraft:vis_crystal_air");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_aqua", "thaumcraft:vis_crystal_water");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_ignis", "thaumcraft:vis_crystal_fire");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_terra", "thaumcraft:vis_crystal_earth");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_ordo", "thaumcraft:vis_crystal_order");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:crystal_perditio", "thaumcraft:vis_crystal_entropy");
+        // Old generic vis_crystal mappings (default to air)
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:vis_crystal", "thaumcraft:vis_crystal_air");
         LEGACY_ITEM_MAPPINGS.put("thaumcraft:amulet_vis", "thaumcraft:amulet_vis_crafted");
         LEGACY_ITEM_MAPPINGS.put("thaumcraft:seal", "thaumcraft:blank_seal");
         LEGACY_ITEM_MAPPINGS.put("thaumcraft:focus_basic", "thaumcraft:focus_blank");

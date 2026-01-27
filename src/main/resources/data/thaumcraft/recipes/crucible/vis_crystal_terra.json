@@ -8,9 +8,8 @@
     "terra": 2
   },
   "result": {
-    "item": "thaumcraft:vis_crystal",
-    "count": 1,
-    "nbt": "{aspect:\"terra\"}"
+    "item": "thaumcraft:vis_crystal_earth",
+    "count": 1
   },
   "group": "thaumcraft:vis_crystal"
 }

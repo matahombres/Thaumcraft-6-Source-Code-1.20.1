@@ -221,8 +221,13 @@ public class ModCreativeTabs {
                         output.accept(ModItems.SHARD_ORDER.get());
                         output.accept(ModItems.SHARD_ENTROPY.get());
 
-                        // === Vis Crystals ===
-                        output.accept(ModItems.VIS_CRYSTAL.get());
+                        // === Vis Crystals (6 primal types) ===
+                        output.accept(ModItems.VIS_CRYSTAL_AIR.get());
+                        output.accept(ModItems.VIS_CRYSTAL_FIRE.get());
+                        output.accept(ModItems.VIS_CRYSTAL_WATER.get());
+                        output.accept(ModItems.VIS_CRYSTAL_EARTH.get());
+                        output.accept(ModItems.VIS_CRYSTAL_ORDER.get());
+                        output.accept(ModItems.VIS_CRYSTAL_ENTROPY.get());
 
                         // === Crafting Components ===
                         output.accept(ModItems.AMBER.get());

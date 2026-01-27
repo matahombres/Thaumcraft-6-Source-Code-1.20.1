@@ -8,9 +8,8 @@
     "aer": 2
   },
   "result": {
-    "item": "thaumcraft:vis_crystal",
-    "count": 1,
-    "nbt": "{aspect:\"aer\"}"
+    "item": "thaumcraft:vis_crystal_air",
+    "count": 1
   },
   "group": "thaumcraft:vis_crystal"
 }

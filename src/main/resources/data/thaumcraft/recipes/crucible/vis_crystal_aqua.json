@@ -8,9 +8,8 @@
     "aqua": 2
   },
   "result": {
-    "item": "thaumcraft:vis_crystal",
-    "count": 1,
-    "nbt": "{aspect:\"aqua\"}"
+    "item": "thaumcraft:vis_crystal_water",
+    "count": 1
   },
   "group": "thaumcraft:vis_crystal"
 }

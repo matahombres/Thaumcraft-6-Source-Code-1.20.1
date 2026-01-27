@@ -21,6 +21,8 @@ import thaumcraft.common.items.consumables.ItemPhial;
 import thaumcraft.common.items.curios.ItemThaumonomicon;
 import thaumcraft.common.items.resources.ItemCrystalEssence;
 import thaumcraft.common.items.resources.ItemMaterial;
+import thaumcraft.common.items.resources.ItemVisCrystal;
+import thaumcraft.api.aspects.Aspect;
 import thaumcraft.common.items.resources.ItemMagicDust;
 import thaumcraft.common.items.tools.ItemScribingTools;
 import thaumcraft.common.items.tools.ItemThaumometer;
@@ -66,7 +68,6 @@ import thaumcraft.common.items.casters.ItemFocusPouch;
 import thaumcraft.common.golems.ItemGolemBell;
 import thaumcraft.common.golems.ItemGolemPlacer;
 import thaumcraft.common.golems.seals.ItemSealPlacer;
-import thaumcraft.common.items.resources.ItemCrystalEssence;
 import thaumcraft.common.entities.construct.ItemTurretPlacer;
 import thaumcraft.common.items.misc.ItemCreativeFluxSponge;
 import thaumcraft.common.items.misc.ItemCreativePlacer;
@@ -165,10 +166,25 @@ public class ModItems {
     public static final RegistryObject<Item> SHARD_ENTROPY = ITEMS.register("shard_entropy",
             ItemMaterial::basic);
 
-    // ==================== Vis Crystals ====================
+    // ==================== Vis Crystals (6 primal types) ====================
 
-    public static final RegistryObject<Item> VIS_CRYSTAL = ITEMS.register("vis_crystal",
-            ItemCrystalEssence::new);
+    public static final RegistryObject<Item> VIS_CRYSTAL_AIR = ITEMS.register("vis_crystal_air",
+            () -> new ItemVisCrystal(Aspect.AIR));
+
+    public static final RegistryObject<Item> VIS_CRYSTAL_FIRE = ITEMS.register("vis_crystal_fire",
+            () -> new ItemVisCrystal(Aspect.FIRE));
+
+    public static final RegistryObject<Item> VIS_CRYSTAL_WATER = ITEMS.register("vis_crystal_water",
+            () -> new ItemVisCrystal(Aspect.WATER));
+
+    public static final RegistryObject<Item> VIS_CRYSTAL_EARTH = ITEMS.register("vis_crystal_earth",
+            () -> new ItemVisCrystal(Aspect.EARTH));
+
+    public static final RegistryObject<Item> VIS_CRYSTAL_ORDER = ITEMS.register("vis_crystal_order",
+            () -> new ItemVisCrystal(Aspect.ORDER));
+
+    public static final RegistryObject<Item> VIS_CRYSTAL_ENTROPY = ITEMS.register("vis_crystal_entropy",
+            () -> new ItemVisCrystal(Aspect.ENTROPY));
 
     // ==================== Crafting Components ====================
 
