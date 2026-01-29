@@ -203,9 +203,6 @@ public class ModItems {
     public static final RegistryObject<Item> SALISITE = ITEMS.register("salisite",
             ItemMaterial::basic);
 
-    public static final RegistryObject<Item> SEAL_BLANK = ITEMS.register("seal_blank",
-            ItemMaterial::basic);
-
     public static final RegistryObject<Item> MIRRORED_GLASS = ITEMS.register("mirrored_glass",
             ItemMaterial::uncommon);
 

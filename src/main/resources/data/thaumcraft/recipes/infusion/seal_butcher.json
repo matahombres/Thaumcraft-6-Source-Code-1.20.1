@@ -8,8 +8,7 @@
     "humanus": 10
   },
   "input": {
-    "item": "thaumcraft:blank_seal",
-    "nbt": "{seal:\"thaumcraft:guard\"}"
+    "item": "thaumcraft:seal_guard"
   },
   "ingredients": [
     {"tag": "forge:leather"},
@@ -20,7 +19,6 @@
     {"item": "minecraft:beef"}
   ],
   "result": {
-    "item": "thaumcraft:blank_seal",
-    "nbt": "{seal:\"thaumcraft:butcher\"}"
+    "item": "thaumcraft:seal_butcher"
   }
 }

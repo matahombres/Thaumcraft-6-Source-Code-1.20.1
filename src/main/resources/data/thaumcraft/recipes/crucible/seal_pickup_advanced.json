@@ -2,16 +2,14 @@
   "type": "thaumcraft:crucible",
   "research": "SEALCOLLECT",
   "catalyst": {
-    "item": "thaumcraft:blank_seal",
-    "nbt": "{seal:\"thaumcraft:pickup\"}"
+    "item": "thaumcraft:seal_pickup"
   },
   "aspects": {
     "sensus": 10,
     "cognitio": 10
   },
   "result": {
-    "item": "thaumcraft:blank_seal",
-    "count": 1,
-    "nbt": "{seal:\"thaumcraft:pickup_advanced\"}"
+    "item": "thaumcraft:seal_pickup_advanced",
+    "count": 1
   }
 }

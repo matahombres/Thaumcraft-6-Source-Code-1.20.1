@@ -437,6 +437,10 @@ public class ModCreativeTabs {
                         output.accept(ModItems.SEAL_LUMBER.get());
                         output.accept(ModItems.SEAL_BREAKER.get());
                         output.accept(ModItems.SEAL_PROVIDER.get());
+                        output.accept(ModItems.SEAL_STOCK.get());
+                        output.accept(ModItems.SEAL_USE.get());
+                        output.accept(ModItems.SEAL_BREAKER_ADVANCED.get());
+                        output.accept(ModItems.SEAL_PICKUP_ADVANCED.get());
                     })
                     .build());
 

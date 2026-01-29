@@ -12,15 +12,15 @@ These item models reference textures that don't exist:
 
 | Model File | Missing Texture | Notes |
 |------------|-----------------|-------|
-| `thaumometer.json` | `thaumometer.png` | Core gameplay item |
-| `phial_empty.json` | `phial_empty.png` | Common resource item |
-| `phial_filled.json` | `phial_filled.png` | Common resource item |
-| `research_notes.json` | `research_notes.png` | Research system item |
-| `complete_notes.json` | `research_complete.png` | Research system item |
-| `label_blank.json` | `label_blank.png` | Labeling system |
-| `label_filled.json` | `label_filled.png` | Labeling system |
-| `seal_provide.json` | `seals/seal_provide.png` | Golem seal |
-| `blank_seal.json` | `seal_blank.png` | Base seal item |
+| `thaumometer.json` | `thaumometer.png` | Core gameplay item | fix
+| `phial_empty.json` | `phial_empty.png` | Common resource item | fix -> change item by .json "predicate": { "thaumcraft:filled": 1 }, change predicated with code
+| `phial_filled.json` | `phial_filled.png` | Common resource item | fix -> control by code change item color
+| `research_notes.json` | `research_notes.png` | Research system item | ?? -> not is a original item -> https://www.youtube.com/watch?v=NLc1uOBbWfc
+| `complete_notes.json` | `research_complete.png` | Research system item | ?? -> not is a original item -> https://www.youtube.com/watch?v=NLc1uOBbWfc
+| `label_blank.json` | `label_blank.png` | Labeling system | -> fix
+| `label_filled.json` | `label_filled.png` | Labeling system | -> fix
+| `seal_provide.json` | `seals/seal_provide.png` | Golem seal | -> fix only add "r" lmao. is seal_provider
+| `blank_seal.json` | `seal_blank.png` | Base seal item | -> why is reverse? and all seal crafting is bad...
 
 ### Medium Priority (Special Items)
 

@@ -8,7 +8,7 @@
     "humanus": 10
   },
   "input": {
-    "item": "thaumcraft:blank_seal"
+    "item": "thaumcraft:seal_blank"
   },
   "ingredients": [
     {"item": "minecraft:golden_axe"},
@@ -16,7 +16,6 @@
     {"item": "minecraft:golden_shovel"}
   ],
   "result": {
-    "item": "thaumcraft:blank_seal",
-    "nbt": "{seal:\"thaumcraft:breaker\"}"
+    "item": "thaumcraft:seal_breaker"
   }
 }
