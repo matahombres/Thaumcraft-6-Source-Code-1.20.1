@@ -77,10 +77,10 @@ public class ItemPhial extends ItemEssentiaContainer {
             AspectList aspects = getAspects(stack);
             if (aspects != null && aspects.size() > 0) {
                 Aspect aspect = aspects.getAspects()[0];
-                return Component.translatable("item.thaumcraft.phial_filled", aspect.getName());
+                return Component.translatable("item.thaumcraft.phial.filled", aspect.getName());
             }
         }
-        return super.getName(stack);
+        return Component.translatable("item.thaumcraft.phial.empty");
     }
 
     @Override
