@@ -235,7 +235,7 @@ public class ModCreativeTabs {
                         output.accept(ModItems.ENCHANTED_FABRIC.get());
                         output.accept(ModItems.PRIMAL_CHARM.get());
                         output.accept(ModItems.SALISITE.get());
-                        output.accept(ModItems.BLANK_SEAL.get());
+                        output.accept(ModItems.SEAL_BLANK.get());
                         output.accept(ModItems.MIRRORED_GLASS.get());
                         output.accept(ModItems.FILTER.get());
                         output.accept(ModItems.MORPHIC_RESONATOR.get());
@@ -436,7 +436,7 @@ public class ModCreativeTabs {
                         output.accept(ModItems.SEAL_HARVEST.get());
                         output.accept(ModItems.SEAL_LUMBER.get());
                         output.accept(ModItems.SEAL_BREAKER.get());
-                        output.accept(ModItems.SEAL_PROVIDE.get());
+                        output.accept(ModItems.SEAL_PROVIDER.get());
                     })
                     .build());
 

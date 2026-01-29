@@ -784,7 +784,7 @@ public class ResearchManager {
         // Old generic vis_crystal mappings (default to air)
         LEGACY_ITEM_MAPPINGS.put("thaumcraft:vis_crystal", "thaumcraft:vis_crystal_air");
         LEGACY_ITEM_MAPPINGS.put("thaumcraft:amulet_vis", "thaumcraft:amulet_vis_crafted");
-        LEGACY_ITEM_MAPPINGS.put("thaumcraft:seal", "thaumcraft:blank_seal");
+        LEGACY_ITEM_MAPPINGS.put("thaumcraft:seal", "thaumcraft:seal_blank");
         LEGACY_ITEM_MAPPINGS.put("thaumcraft:focus_basic", "thaumcraft:focus_blank");
         LEGACY_ITEM_MAPPINGS.put("thaumcraft:focus_greater", "thaumcraft:focus_advanced");
         LEGACY_ITEM_MAPPINGS.put("thaumcraft:biothaumic_mind", "thaumcraft:brain_biothaumic");

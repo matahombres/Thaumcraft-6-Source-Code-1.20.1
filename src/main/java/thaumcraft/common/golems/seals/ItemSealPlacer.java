@@ -164,7 +164,7 @@ public class ItemSealPlacer extends Item implements ISealDisplayer {
             case "thaumcraft:harvest" -> new ItemStack(ModItems.SEAL_HARVEST.get());
             case "thaumcraft:lumber" -> new ItemStack(ModItems.SEAL_LUMBER.get());
             case "thaumcraft:breaker" -> new ItemStack(ModItems.SEAL_BREAKER.get());
-            case "thaumcraft:provide" -> new ItemStack(ModItems.SEAL_PROVIDE.get());
+            case "thaumcraft:provide" -> new ItemStack(ModItems.SEAL_PROVIDER.get());
             case "blank" -> new ItemStack(ModItems.SEAL_BLANK.get());
             default -> ItemStack.EMPTY;
         };

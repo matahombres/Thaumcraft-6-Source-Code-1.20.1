@@ -203,7 +203,7 @@ public class ModItems {
     public static final RegistryObject<Item> SALISITE = ITEMS.register("salisite",
             ItemMaterial::basic);
 
-    public static final RegistryObject<Item> BLANK_SEAL = ITEMS.register("blank_seal",
+    public static final RegistryObject<Item> SEAL_BLANK = ITEMS.register("seal_blank",
             ItemMaterial::basic);
 
     public static final RegistryObject<Item> MIRRORED_GLASS = ITEMS.register("mirrored_glass",
@@ -696,7 +696,7 @@ public class ModItems {
     public static final RegistryObject<Item> SEAL_BREAKER = ITEMS.register("seal_breaker",
             () -> ItemSealPlacer.create("thaumcraft:breaker"));
 
-    public static final RegistryObject<Item> SEAL_PROVIDE = ITEMS.register("seal_provide",
+    public static final RegistryObject<Item> SEAL_PROVIDER = ITEMS.register("seal_provider",
             () -> ItemSealPlacer.create("thaumcraft:provide"));
 
     public static final RegistryObject<Item> SEAL_STOCK = ITEMS.register("seal_stock",
