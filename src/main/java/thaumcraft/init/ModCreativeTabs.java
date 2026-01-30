@@ -265,7 +265,12 @@ public class ModCreativeTabs {
                         output.accept(ModItems.COMPLETE_NOTES.get());
 
                         // === Curiosities ===
-                        output.accept(ModItems.CURIOSITY.get());
+                        output.accept(ModItems.CURIO_ARCANE.get());
+                        output.accept(ModItems.CURIO_PRESERVED.get());
+                        output.accept(ModItems.CURIO_ANCIENT.get());
+                        output.accept(ModItems.CURIO_KNOWLEDGE.get());
+                        output.accept(ModItems.CURIO_TWISTED.get());
+                        output.accept(ModItems.CURIO_ELDRITCH.get());
                         output.accept(ModItems.PRIMORDIAL_PEARL.get());
                         output.accept(ModItems.TAINT_SLIME.get());
                         output.accept(ModItems.TAINT_TENDRIL.get());

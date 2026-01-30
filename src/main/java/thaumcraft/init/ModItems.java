@@ -279,7 +279,22 @@ public class ModItems {
 
     // ==================== Curiosities ====================
 
-    public static final RegistryObject<Item> CURIOSITY = ITEMS.register("curiosity",
+    public static final RegistryObject<Item> CURIO_ARCANE = ITEMS.register("curio_arcane",
+            ItemMaterial::basic);
+
+    public static final RegistryObject<Item> CURIO_PRESERVED = ITEMS.register("curio_preserved",
+            ItemMaterial::basic);
+
+    public static final RegistryObject<Item> CURIO_ANCIENT = ITEMS.register("curio_ancient",
+            ItemMaterial::basic);
+
+    public static final RegistryObject<Item> CURIO_KNOWLEDGE = ITEMS.register("curio_knowledge",
+            ItemMaterial::basic);
+
+    public static final RegistryObject<Item> CURIO_TWISTED = ITEMS.register("curio_twisted",
+            ItemMaterial::basic);
+
+    public static final RegistryObject<Item> CURIO_ELDRITCH = ITEMS.register("curio_eldritch",
             ItemMaterial::basic);
 
     public static final RegistryObject<Item> PRIMORDIAL_PEARL = ITEMS.register("primordial_pearl",
