@@ -258,7 +258,7 @@ public class ModCreativeTabs {
                         // === Golem Materials ===
                         output.accept(ModItems.BRAIN_NORMAL.get());
                         output.accept(ModItems.BRAIN_CLOCKWORK.get());
-                        output.accept(ModItems.BRAIN_CURIOUS.get());
+                        output.accept(ModItems.BRAIN_BIOTHAUMIC.get());
 
                         // === Research ===
                         output.accept(ModItems.RESEARCH_NOTES.get());

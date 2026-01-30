@@ -266,7 +266,7 @@ public class ModItems {
     public static final RegistryObject<Item> BRAIN_CLOCKWORK = ITEMS.register("brain_clockwork",
             ItemMaterial::uncommon);
 
-    public static final RegistryObject<Item> BRAIN_CURIOUS = ITEMS.register("brain_curious",
+    public static final RegistryObject<Item> BRAIN_BIOTHAUMIC = ITEMS.register("brain_biothaumic",
             ItemMaterial::uncommon);
 
     // ==================== Research Notes ====================

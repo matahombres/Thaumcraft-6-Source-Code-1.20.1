@@ -714,7 +714,7 @@ public class ConfigAspects {
         // Brains
         ThaumcraftApi.registerObjectTag(new ItemStack(ModItems.BRAIN_NORMAL.get()), new AspectList().add(Aspect.LIFE, 5).add(Aspect.MIND, 20).add(Aspect.UNDEAD, 10));
         ThaumcraftApi.registerObjectTag(new ItemStack(ModItems.BRAIN_CLOCKWORK.get()), new AspectList().add(Aspect.MECHANISM, 15).add(Aspect.MIND, 20).add(Aspect.ORDER, 5));
-        ThaumcraftApi.registerObjectTag(new ItemStack(ModItems.BRAIN_CURIOUS.get()), new AspectList().add(Aspect.LIFE, 5).add(Aspect.MIND, 25).add(Aspect.SENSES, 10));
+        ThaumcraftApi.registerObjectTag(new ItemStack(ModItems.BRAIN_BIOTHAUMIC.get()), new AspectList().add(Aspect.LIFE, 5).add(Aspect.MIND, 25).add(Aspect.SENSES, 10));
         
         // Loot blocks (crates and urns)
         ThaumcraftApi.registerObjectTag(new ItemStack(ModBlocks.LOOT_CRATE_COMMON.get()), new AspectList().add(Aspect.DESIRE, 10).add(Aspect.PLANT, 5));

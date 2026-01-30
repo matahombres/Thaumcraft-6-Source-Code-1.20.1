@@ -12,7 +12,7 @@
   ],
   "key": {
     "P": {"tag": "thaumcraft:plates/iron"},
-    "M": {"item": "thaumcraft:brain_curious"},
+    "M": {"item": "thaumcraft:brain_biothaumic"},
     "T": {"item": "thaumcraft:turret_placer_basic"}
   },
   "result": {
